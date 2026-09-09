@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v1.1 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v1.2 | Mobility & Twist Dock</title>
   <!-- Google Fonts: M PLUS Rounded 1c (800 / 900) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -213,67 +213,61 @@
   <!-- サンバースト背景演出 -->
   <div class="sunburst-bg"></div>
 
-  <!-- 全画面コンテナ (100dvh厳格フィット・スクロールなし) -->
-  <main class="relative z-10 w-full h-full flex flex-col justify-between p-2 sm:p-3 max-w-md mx-auto">
+  <!-- 全画面コンテナ (余白を最小化しカメラ領域を最大確保) -->
+  <main class="relative z-10 w-full h-full flex flex-col justify-between p-1 sm:p-2 max-w-lg mx-auto">
 
-    <!-- ヘッダーエリア -->
-    <header class="w-full flex items-center justify-between gap-1 pb-1">
-      <div class="flex items-center gap-1.5">
-        <span class="text-xl filter drop-shadow">🦴</span>
-        <div>
-          <div class="flex items-center gap-1.5">
-            <h1 class="text-base sm:text-lg leading-tight brawl-text font-black text-emerald-300">柔軟性・しなりドック</h1>
-            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1.5 py-0.2 rounded-md font-black">v1.1</span>
-          </div>
-          <p class="text-[9px] text-slate-300 tracking-wider font-extrabold uppercase">Mobility & Twist Core</p>
+    <!-- ヘッダーエリア (1行スリム化・高さ圧縮) -->
+    <header class="w-full flex items-center justify-between gap-1 pb-0.5 px-0.5">
+      <div class="flex items-center gap-1">
+        <span class="text-base filter drop-shadow">🦴</span>
+        <div class="flex items-center gap-1">
+          <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v1.2</span>
         </div>
       </div>
 
-      <!-- 右側クイックアクション（左右差バッジ・広角切替・カメラ反転・カルテ） -->
-      <div class="flex items-center gap-1.5">
-        <button id="balanceBadgeBtn" class="badge-brawl text-amber-300 border-amber-500/80 cursor-pointer active:scale-95 transition-transform" title="タップで左右差を解説！">
+      <!-- 右側クイックアクション（省スペース横並び配置） -->
+      <div class="flex items-center gap-1">
+        <button id="balanceBadgeBtn" class="badge-brawl text-[10px] py-1 px-1.5 text-amber-300 border-amber-500/80 cursor-pointer active:scale-95 transition-transform" title="タップで左右差を解説！">
           <span id="headerBalanceIcon">⚖️</span>
-          <span id="headerBalanceText">左右差 4° <span class="text-emerald-300">(神!)</span></span>
+          <span id="headerBalanceText">4° <span class="text-emerald-300">(神!)</span></span>
         </button>
 
-        <!-- 画角切り替えボタン（広角全体表示 ⇄ 画面いっぱい） -->
-        <button id="viewFitBtn" class="btn-brawl btn-dark p-2 text-xs" title="画角切替（見切れ防止・広角）">
-          <span id="viewFitIcon" class="text-sm">🔲</span>
+        <!-- 画角切り替えボタン -->
+        <button id="viewFitBtn" class="btn-brawl btn-dark p-1.5 text-xs" title="画角切替（見切れ防止・広角）">
+          <span id="viewFitIcon" class="text-xs">🔲</span>
         </button>
 
-        <button id="flipCamBtn" class="btn-brawl btn-dark p-2 text-xs" title="カメラ反転">
-          <span class="text-sm">🔄</span>
+        <button id="flipCamBtn" class="btn-brawl btn-dark p-1.5 text-xs" title="カメラ反転">
+          <span class="text-xs">🔄</span>
         </button>
 
-        <button id="openChartBtn" class="btn-brawl btn-emerald p-2 text-xs" title="しなりカルテを見る">
-          <span class="text-sm">📊</span>
+        <button id="openChartBtn" class="btn-brawl btn-emerald p-1.5 text-xs" title="しなりカルテを見る">
+          <span class="text-xs">📊</span>
         </button>
       </div>
     </header>
 
-    <!-- 3大テスト選択タブ (小学生向け直感グリッド) -->
-    <nav class="w-full grid grid-cols-3 gap-1.5 py-1">
-      <button id="tabThoracic" class="btn-brawl btn-emerald py-2 px-1 flex flex-col items-center justify-center text-center transition-all border-white" data-test="THORACIC">
-        <span class="text-lg">🏹</span>
-        <span class="text-[10px] leading-tight mt-0.5">①背骨のしなり</span>
-        <span class="text-[8px] opacity-90 font-bold text-emerald-100">(胸パカーン)</span>
+    <!-- 3大テスト選択タブ (高さを抑えた横長コンパクトピル) -->
+    <nav class="w-full grid grid-cols-3 gap-1 py-0.5">
+      <button id="tabThoracic" class="btn-brawl btn-emerald py-1 px-1 flex items-center justify-center gap-1 transition-all border-white" data-test="THORACIC">
+        <span class="text-sm">🏹</span>
+        <span class="text-[10px] leading-none">①胸パカーン</span>
       </button>
 
-      <button id="tabHipIR" class="btn-brawl btn-dark py-2 px-1 flex flex-col items-center justify-center text-center transition-all opacity-85" data-test="HIP_IR">
-        <span class="text-lg">🦊</span>
-        <span class="text-[10px] leading-tight mt-0.5">②下半身タメ</span>
-        <span class="text-[8px] opacity-90 font-bold text-amber-200">(内ねじり)</span>
+      <button id="tabHipIR" class="btn-brawl btn-dark py-1 px-1 flex items-center justify-center gap-1 transition-all opacity-85" data-test="HIP_IR">
+        <span class="text-sm">🦊</span>
+        <span class="text-[10px] leading-none">②軸足タメ</span>
       </button>
 
-      <button id="tabHinge" class="btn-brawl btn-dark py-2 px-1 flex flex-col items-center justify-center text-center transition-all opacity-85" data-test="HINGE">
-        <span class="text-lg">📐</span>
-        <span class="text-[10px] leading-tight mt-0.5">③もも裏前屈</span>
-        <span class="text-[8px] opacity-90 font-bold text-yellow-200">(骨盤ヒンジ)</span>
+      <button id="tabHinge" class="btn-brawl btn-dark py-1 px-1 flex items-center justify-center gap-1 transition-all opacity-85" data-test="HINGE">
+        <span class="text-sm">📐</span>
+        <span class="text-[10px] leading-none">③もも裏前屈</span>
       </button>
     </nav>
 
-    <!-- 中央メインスクリーン (カメラ ＋ Canvas ＋ リアルタイムHUD) -->
-    <section class="relative w-full flex-1 my-1 panel-brawl overflow-hidden rounded-2xl flex items-center justify-center bg-black/90">
+    <!-- 中央メインスクリーン (画面の80%以上を占有する最大化カメラエリア) -->
+    <section class="relative w-full flex-1 my-0.5 panel-brawl overflow-hidden rounded-2xl flex items-center justify-center bg-black/95">
       <!-- カメラ映像要素 (デフォルトで全身が入るobject-containを適用、切替可能) -->
       <video id="cameraVideo" class="absolute inset-0 w-full h-full object-contain transform -scale-x-100 transition-all duration-200" playsinline muted autoplay></video>
 
@@ -281,41 +275,41 @@
       <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-10 transition-all duration-200"></canvas>
 
       <!-- 姿勢ナビゲーション枠 (テストごとの姿勢ガイド枠) -->
-      <div id="guideOverlay" class="absolute inset-4 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-3">
-        <div id="guideTargetBadge" class="bg-black/70 border border-emerald-400/80 px-3 py-1 rounded-full text-xs text-emerald-300 brawl-text flex items-center gap-1">
+      <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2">
+        <div id="guideTargetBadge" class="bg-black/75 border border-emerald-400/80 px-2.5 py-0.5 rounded-full text-[11px] text-emerald-300 brawl-text flex items-center gap-1">
           <span>🎯</span> <span id="guideTargetText">正座お辞儀の姿勢でスタンバイ！</span>
         </div>
 
         <!-- カンニング防止リアルタイム警告ピル -->
-        <div id="cheatWarningPill" class="hidden bg-red-600/90 border-2 border-white px-3 py-1 rounded-full text-xs text-white brawl-text alert-pulse flex items-center gap-1.5 shadow-lg">
+        <div id="cheatWarningPill" class="hidden bg-red-600/90 border-2 border-white px-2.5 py-0.5 rounded-full text-[11px] text-white brawl-text alert-pulse flex items-center gap-1.5 shadow-lg">
           <span>⚠️</span> <span id="cheatWarningText">骨盤が浮いてるぞ！ペタッとロック！</span>
         </div>
       </div>
 
       <!-- 左右リアルタイム数値バッジ (ブロスタ風フロート) -->
-      <div class="absolute top-2 left-2 z-30 flex flex-col gap-1">
-        <div class="panel-brawl px-2.5 py-1.5 flex items-center gap-2 border-emerald-500/60">
-          <span id="hudMainIcon" class="text-lg">🏹</span>
+      <div class="absolute top-1.5 left-1.5 z-30 flex flex-col gap-1">
+        <div class="panel-brawl px-2 py-1 flex items-center gap-1.5 border-emerald-500/60">
+          <span id="hudMainIcon" class="text-base">🏹</span>
           <div class="flex flex-col">
-            <span class="text-[9px] text-slate-300 font-extrabold" id="hudMainLabel">現在の開き角</span>
-            <span class="text-xl sm:text-2xl text-emerald-300 font-black brawl-text leading-none" id="hudAngleVal">0°</span>
+            <span class="text-[8px] text-slate-300 font-extrabold" id="hudMainLabel">現在の角度</span>
+            <span class="text-lg sm:text-xl text-emerald-300 font-black brawl-text leading-none" id="hudAngleVal">0°</span>
           </div>
         </div>
-        <div id="activeSideBadge" class="badge-brawl text-[10px] bg-emerald-950/80 text-emerald-300 border-emerald-400">
-          右向き測定中 (タップで切替)
+        <div id="activeSideBadge" class="badge-brawl text-[9px] py-0.5 px-1.5 bg-emerald-950/80 text-emerald-300 border-emerald-400 cursor-pointer">
+          右向き中 (切替)
         </div>
       </div>
 
-      <div class="absolute top-2 right-2 z-30 flex flex-col items-end gap-1">
-        <div class="panel-brawl px-2.5 py-1.5 flex items-center gap-2 border-amber-500/60">
+      <div class="absolute top-1.5 right-1.5 z-30 flex flex-col items-end gap-1">
+        <div class="panel-brawl px-2 py-1 flex items-center gap-1.5 border-amber-500/60">
           <div class="flex flex-col text-right">
-            <span class="text-[9px] text-slate-300 font-extrabold">目標ターゲット</span>
-            <span class="text-xl sm:text-2xl text-amber-300 font-black brawl-text leading-none" id="hudTargetVal">50°</span>
+            <span class="text-[8px] text-slate-300 font-extrabold">目標</span>
+            <span class="text-lg sm:text-xl text-amber-300 font-black brawl-text leading-none" id="hudTargetVal">50°</span>
           </div>
-          <span class="text-lg">🏆</span>
+          <span class="text-base">🏆</span>
         </div>
-        <div id="rankPreviewBadge" class="badge-brawl text-[10px] bg-slate-900/90 text-yellow-300 border-yellow-500">
-          🔒 まだ未測定
+        <div id="rankPreviewBadge" class="badge-brawl text-[9px] py-0.5 px-1.5 bg-slate-900/90 text-yellow-300 border-yellow-500">
+          🔒 未測定
         </div>
       </div>
 
@@ -325,44 +319,42 @@
         <p id="countdownSubtitle" class="text-lg sm:text-xl font-black text-white brawl-text mt-3">パカーンと開く準備！</p>
       </div>
 
-      <!-- 測定中リアルタイムインジケーター（下部フロート） -->
-      <div id="statusInstruction" class="absolute bottom-3 inset-x-3 z-30 bg-slate-950/85 border-2 border-emerald-400/90 rounded-xl p-2 text-center text-xs text-white brawl-text shadow-xl flex items-center justify-center gap-2">
-        <span class="animate-bounce">💡</span>
+      <!-- 測定中リアルタイムインジケーター（下部フロート・薄型化） -->
+      <div id="statusInstruction" class="absolute bottom-2 inset-x-2 z-30 bg-slate-950/85 border border-emerald-400/80 rounded-lg py-1 px-2 text-center text-[10px] sm:text-xs text-white brawl-text shadow-xl flex items-center justify-center gap-1.5">
+        <span class="animate-bounce text-xs">💡</span>
         <span id="instructionText">息を吐きながら天井に向けてパカーンと開こう！</span>
       </div>
 
-      <!-- 1分サビ取りドリル用HUDオーバーレイ (非アクティブ時は隠蔽) -->
-      <div id="drillHudLayer" class="absolute inset-x-2 top-16 z-30 hidden panel-brawl border-yellow-400 p-2 bg-black/85 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="text-2xl animate-pulse">⚡</span>
+      <!-- 1分サビ取りドリル用HUDオーバーレイ -->
+      <div id="drillHudLayer" class="absolute inset-x-2 top-14 z-30 hidden panel-brawl border-yellow-400 p-1.5 bg-black/85 flex items-center justify-between">
+        <div class="flex items-center gap-1.5">
+          <span class="text-xl animate-pulse">⚡</span>
           <div>
-            <div class="text-[10px] text-yellow-300">1分サビ取りドリル継続中</div>
-            <div class="text-xs text-white">キープタイム: <span id="drillTimerText" class="text-amber-300 text-sm font-black">20秒 / 60秒</span></div>
+            <div class="text-[9px] text-yellow-300 leading-tight">1分サビ取りドリル継続中</div>
+            <div class="text-[11px] text-white">キープ: <span id="drillTimerText" class="text-amber-300 font-black">20秒 / 60秒</span></div>
           </div>
         </div>
-        <button id="exitDrillBtn" class="btn-brawl btn-dark text-xs px-2.5 py-1">中断</button>
+        <button id="exitDrillBtn" class="btn-brawl btn-dark text-[10px] px-2 py-0.5">中断</button>
       </div>
     </section>
 
-    <!-- フッター操作エリア -->
-    <footer class="w-full flex flex-col gap-1.5 pt-1">
-      <!-- 巨大スタートボタン -->
-      <button id="mainActionBtn" class="btn-brawl btn-emerald w-full py-3.5 text-base sm:text-lg flex items-center justify-center gap-2 text-white font-black tracking-wide">
-        <span class="text-xl">🚀</span>
-        <span id="mainBtnLabel">枠に入ると自動スタート！ (タップでもOK)</span>
+    <!-- フッター操作エリア (縦幅を大幅圧縮し横1列にスッキリ集約) -->
+    <footer class="w-full flex items-center gap-1 pt-0.5">
+      <!-- スタートボタン (高さを抑えつつ主役に配置) -->
+      <button id="mainActionBtn" class="btn-brawl btn-emerald flex-1 py-2 sm:py-2.5 text-xs sm:text-sm flex items-center justify-center gap-1.5 text-white font-black tracking-wide">
+        <span class="text-base">🚀</span>
+        <span id="mainBtnLabel">スタート！ (自動/タップ)</span>
       </button>
 
-      <!-- サブボタン群 -->
-      <div class="grid grid-cols-2 gap-1.5">
-        <button id="openReportBtn" class="btn-brawl btn-dark py-2 text-xs flex items-center justify-center gap-1.5 text-slate-200">
-          <span>📋</span>
-          <span>最新の診断レポート</span>
-        </button>
-        <button id="startDrillBtn" class="btn-brawl btn-gold py-2 text-xs flex items-center justify-center gap-1.5 text-amber-950">
-          <span>🎮</span>
-          <span>1分サビ取りドリル</span>
-        </button>
-      </div>
+      <!-- サブボタン群 (横並びミニボタン化) -->
+      <button id="openReportBtn" class="btn-brawl btn-dark py-2 sm:py-2.5 px-2.5 text-[11px] flex items-center justify-center gap-1 text-slate-200" title="診断レポート">
+        <span>📋</span>
+        <span class="hidden sm:inline">レポート</span>
+      </button>
+      <button id="startDrillBtn" class="btn-brawl btn-gold py-2 sm:py-2.5 px-2.5 text-[11px] flex items-center justify-center gap-1 text-amber-950 font-black" title="1分ドリル">
+        <span>🎮</span>
+        <span class="hidden sm:inline">ドリル</span>
+      </button>
     </footer>
   </main>
 
@@ -689,15 +681,15 @@
           App.State.testType = type;
           const meta = this.testsMeta[type];
 
-          // タブのボタンスタイル切り替え
+          // タブのボタンスタイル切り替え (スリムサイズ維持)
           ['tabThoracic', 'tabHipIR', 'tabHinge'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) {
               const testKey = btn.getAttribute('data-test');
               if (testKey === type) {
-                btn.className = 'btn-brawl btn-emerald py-2 px-1 flex flex-col items-center justify-center text-center transition-all border-white shadow-lg';
+                btn.className = 'btn-brawl btn-emerald py-1 px-1 flex items-center justify-center gap-1 transition-all border-white shadow-md';
               } else {
-                btn.className = 'btn-brawl btn-dark py-2 px-1 flex flex-col items-center justify-center text-center transition-all opacity-80';
+                btn.className = 'btn-brawl btn-dark py-1 px-1 flex items-center justify-center gap-1 transition-all opacity-85';
               }
             }
           });
