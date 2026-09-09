@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>しなりドラゴン プロ v2.5.3 | ジュニアアスリート柔軟性チェッカー</title>
+<title>しなりドラゴン プロ v2.5.4 | ジュニアアスリート柔軟性チェッカー</title>
 <!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com"></script>
 <!-- Google Fonts: M PLUS Rounded 1c & Inter -->
@@ -26,7 +26,6 @@ color: #f8fafc;
 overflow: hidden;
 touch-action: manipulation;
 }
-/* ブロスタ風3D立体ボタン */
 .btn-3d {
 transition: all 0.08s ease;
 box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 6px 10px rgba(0, 0, 0, 0.4);
@@ -62,7 +61,6 @@ background: linear-gradient(180deg, #c084fc 0%, #9333ea 100%);
 color: #ffffff;
 border: 2px solid #e9d5ff;
 }
-/* パルス警告・ネオン演出 */
 @keyframes cheatPulse {
 0%, 100% { box-shadow: inset 0 0 0 4px #ef4444, 0 0 25px #ef4444; }
 50% { box-shadow: inset 0 0 0 8px #dc2626, 0 0 45px #dc2626; }
@@ -84,14 +82,13 @@ width: 5px;
 background: #475569;
 border-radius: 9999px;
 }
-/* iOS Safariのアドレスバー・ホームバー被り完全防止パディング */
 .safe-bottom-padding {
 padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 }
 </style>
 </head>
 <body class="relative w-screen h-screen h-[100dvh] flex flex-col justify-between overflow-hidden bg-slate-950">
-<!-- カメラ映像（最背面に1x1pxで安全に常駐） -->
+<!-- カメラ映像（最背面に常駐） -->
 <video id="webcam" class="fixed bottom-0 right-0 w-1 h-1 opacity-[0.01] pointer-events-none -z-50" playsinline muted autoplay></video>
 <!-- メイン高DPI描画キャンバス -->
 <canvas id="outputCanvas" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0"></canvas>
@@ -108,7 +105,7 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 <div>
 <div class="text-[9px] font-bold text-amber-300 leading-none">ジュニア柔軟性チェッカー</div>
 <h1 class="text-xs sm:text-sm font-black text-white tracking-wider flex items-center gap-1">
-しなりドラゴン <span class="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black shadow">PRO v2.5.3</span>
+しなりドラゴン <span class="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black shadow">PRO v2.5.4</span>
 </h1>
 </div>
 </div>
@@ -132,7 +129,7 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 </button>
 </div>
 </div>
-<!-- 下段: ステップ案内＆エラー警告統合バナー（被りゼロ設計） -->
+<!-- 下段: ステップ案内＆エラー警告統合バナー -->
 <div id="stepBannerContainer" class="flex items-center justify-between bg-slate-950/70 border border-slate-800/90 rounded-xl px-2.5 py-1.5 transition-colors duration-200">
 <div class="flex items-center space-x-2 truncate">
 <span id="setupBadge" class="bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0">🪑 椅子に座る</span>
@@ -143,15 +140,14 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 <span id="remoteStepText" class="text-yellow-300 truncate">カメラに全身を映して！</span>
 </div>
 </div>
-<!-- 構え判定オートチャージゲージ / 測定中プログレスバー -->
+<!-- チャージゲージ -->
 <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
 <div id="holdProgressBar" class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-0 transition-all duration-75"></div>
 </div>
 </div>
 </header>
-<!-- 2. 左上: スリム角度メーターHUD ＆ 右上: お手本ミニワイプ（水平レイアウトで被り防止） -->
+<!-- 2. 左上: 角度メーター ＆ 右上: お手本ミニワイプ -->
 <div class="relative z-20 flex items-start justify-between px-3 mt-1 pointer-events-none">
-<!-- 左: 角度メーター -->
 <div class="bg-slate-900/85 backdrop-blur-md border-2 border-cyan-400/70 rounded-2xl p-2.5 shadow-2xl flex flex-col items-center min-w-[105px]">
 <div class="text-[9px] font-black text-cyan-300 flex items-center space-x-1">
 <span id="meterModeLabel">0°基準からの増加</span>
@@ -170,7 +166,6 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 残り <span id="remainingSecondsText">7.0</span>s
 </div>
 </div>
-<!-- 右: お手本ミニワイプ（独立カード） -->
 <div class="bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28">
 <div class="text-[9px] font-black text-cyan-300 mb-1 flex items-center space-x-1">
 <span>💡 お手本動作</span>
@@ -195,10 +190,9 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 <span id="countdownNumber" class="absolute text-7xl font-black text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)]">3</span>
 </div>
 </div>
-<!-- 5. 下部操作バー（iOS Safariツールバー被り完全防止のセーフエリア適用） -->
+<!-- 5. 下部操作バー -->
 <footer class="relative z-20 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-3 pt-2.5 safe-bottom-padding shrink-0 shadow-[0_-8px_20px_rgba(0,0,0,0.5)]">
 <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
-<!-- 左右切替ボタン -->
 <div class="flex items-center bg-slate-950 border border-slate-700 rounded-xl p-0.5 shrink-0">
 <button id="sideLeftBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400">
 左側
@@ -207,7 +201,6 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 右側
 </button>
 </div>
-<!-- 種目選択タブ -->
 <div class="grid grid-cols-3 gap-1.5 flex-1">
 <button id="tabThoracic" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300">
 ① 胸パカーン
@@ -231,7 +224,7 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 </div>
 <div class="inline-flex items-center space-x-1.5 bg-amber-500/20 border border-amber-400/40 px-3 py-1 rounded-full mb-2">
 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-<span class="text-[11px] font-black text-amber-300">しなりドラゴン プロ v2.5.3</span>
+<span class="text-[11px] font-black text-amber-300">しなりドラゴン プロ v2.5.4</span>
 </div>
 <h2 class="text-xl sm:text-2xl font-black text-white mb-2 tracking-wide">
 ジュニア柔軟性チェッカー
@@ -245,12 +238,10 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 <span id="requestCameraBtnIcon">🚀</span>
 <span id="requestCameraBtnText">カメラを起動してスタート！</span>
 </button>
-<!-- 進行状況ステータステキスト -->
 <p id="cameraStatusProgress" class="text-xs text-amber-300 mt-3 font-bold hidden flex items-center space-x-1">
 <span class="animate-spin inline-block">⏳</span>
 <span id="cameraStatusProgressText">準備中...</span>
 </p>
-<!-- エラー案内メッセージ -->
 <div id="cameraErrorMessageBox" class="mt-4 p-3 bg-red-950/80 border border-red-500/60 rounded-xl text-left max-w-xs hidden">
 <div class="text-[11px] font-black text-red-300 flex items-center space-x-1 mb-1">
 <span>⚠️</span>
@@ -268,7 +259,7 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 <div class="absolute -inset-10 opacity-15 pointer-events-none flex items-center justify-center">
 <div class="w-96 h-96 bg-gradient-to-r from-yellow-400 to-amber-600 rounded-full animate-sunburst blur-xl"></div>
 </div>
-<div class="text-[10px] font-black text-amber-300 tracking-widest uppercase mb-1">MEASUREMENT RESULT (v2.5.3)</div>
+<div class="text-[10px] font-black text-amber-300 tracking-widest uppercase mb-1">MEASUREMENT RESULT (v2.5.4)</div>
 <h3 id="reportTestTitle" class="text-sm font-black text-white mb-2">胸パカーン（胸椎回旋）</h3>
 <div class="my-2 flex flex-col items-center">
 <div class="flex items-baseline">
@@ -316,7 +307,7 @@ padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
 <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
 <h2 class="text-sm font-black text-violet-300 flex items-center space-x-1.5">
 <span>📊</span>
-<span>測定データ履歴 (v2.5.3)</span>
+<span>測定データ履歴 (v2.5.4)</span>
 </h2>
 <button id="closeHistoryBtn" class="text-slate-400 hover:text-white text-xl font-black">✕</button>
 </div>
@@ -379,7 +370,6 @@ const pendingSaveQueue = [];
 async function initFirebaseStorage() {
 try {
 if (typeof __firebase_config === 'undefined') {
-console.warn('Firebase config missing; running in local-session mode.');
 const userElem = document.getElementById('currentUserIdText');
 if (userElem) userElem.innerText = 'ローカルセッションモード';
 return;
@@ -405,7 +395,7 @@ await executeSave(task);
 subscribeHistory();
 }
 } catch (err) {
-console.error('Storage Init Error:', err);
+console.warn('Storage Init Warning:', err);
 }
 }
 async function executeSave(record) {
@@ -420,13 +410,12 @@ testTitle: record.testTitle,
 side: record.side,
 angle: Number(record.angle),
 rank: record.rank,
-version: 'v2.5.3',
+version: 'v2.5.4',
 createdAt: new Date().toISOString(),
 timestamp: Date.now()
 });
 if (statusElem) statusElem.innerText = '✅ クラウド保存完了！';
 } catch (e) {
-console.error('Save failed:', e);
 if (statusElem) statusElem.innerText = '⚠️ クラウド保存をスキップしました';
 }
 }
@@ -468,18 +457,13 @@ const sideText = rec.side === 'right' ? '右' : '左';
 html += ⁠<div class="bg-slate-800/90 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-left"> <div class="min-w-0 flex-1 pr-2"> <div class="flex items-center space-x-1 text-[10px] text-slate-400 mb-0.5"> <span>${dateStr}</span> <span class="bg-slate-700 text-cyan-300 px-1 rounded">${sideText}側</span> </div> <div class="text-xs font-black text-white truncate">${rec.testTitle || rec.testId}</div> </div> <div class="text-right shrink-0"> <div class="text-base font-black text-yellow-300 leading-none">${rec.angle}<span class="text-xs">°</span></div> <div class="text-[9px] font-bold text-emerald-400 mt-0.5">${rec.rank || '記録'}</div> </div> </div>⁠;
 });
 listContainer.innerHTML = html;
-}, (err) => {
-console.error('Snapshot error:', err);
-});
+}, (err) => {});
 }
 initFirebaseStorage();
 </script>
 <!-- ==================== メインスクリプト ==================== -->
 <script>
-/**
-* アプリケーション定数定義 (v2.5.3)
-*/
-const APP_VERSION = 'v2.5.3';
+const APP_VERSION = 'v2.5.4';
 const BIOMECHANICS_CONFIG = {
 THORACIC: {
 MAX_KNEE_HIP_RATIO: 1.35,
@@ -503,33 +487,22 @@ SEATED_HIP_KNEE_DY: 0.08
 },
 APP: {
 MEASURE_DURATION_MS: 7000,
-MIN_HUMAN_VISIBILITY: 0.65, // 人体検知の最低信頼度スコア（誤認防止）
-MIN_SHOULDER_WIDTH: 0.08,    // 画面に対する最小肩幅（天井等の誤認排除）
-MIN_TORSO_HEIGHT: 0.10,      // 画面に対する最小胴体長
-LOST_HUMAN_TIMEOUT_MS: 800   // 人物ロスト時の自動リセット判定時間
+MIN_HUMAN_VISIBILITY: 0.65,
+MIN_SHOULDER_WIDTH: 0.08,
+MIN_TORSO_HEIGHT: 0.10,
+LOST_HUMAN_TIMEOUT_MS: 800
 }
 };
-/* --------------------------------------------------------------------------
-1. Web Audio API シンセサイザー
--------------------------------------------------------------------------- */
 class SoundFX {
-constructor() {
-this.ctx = null;
-}
+constructor() { this.ctx = null; }
 init() {
 try {
 if (!this.ctx) {
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-if (AudioContextClass) {
-this.ctx = new AudioContextClass();
+if (AudioContextClass) this.ctx = new AudioContextClass();
 }
-}
-if (this.ctx && this.ctx.state === 'suspended') {
-this.ctx.resume();
-}
-} catch (e) {
-console.warn('AudioContext init warning:', e);
-}
+if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+} catch (e) {}
 }
 playPip() {
 if (!this.ctx) return;
@@ -541,10 +514,8 @@ osc.type = 'sine';
 osc.frequency.setValueAtTime(880, now);
 gain.gain.setValueAtTime(0.15, now);
 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-osc.connect(gain);
-gain.connect(this.ctx.destination);
-osc.start(now);
-osc.stop(now + 0.08);
+osc.connect(gain); gain.connect(this.ctx.destination);
+osc.start(now); osc.stop(now + 0.08);
 } catch (e) {}
 }
 playCountdownTick() {
@@ -557,10 +528,8 @@ osc.type = 'triangle';
 osc.frequency.setValueAtTime(600, now);
 gain.gain.setValueAtTime(0.25, now);
 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-osc.connect(gain);
-gain.connect(this.ctx.destination);
-osc.start(now);
-osc.stop(now + 0.12);
+osc.connect(gain); gain.connect(this.ctx.destination);
+osc.start(now); osc.stop(now + 0.12);
 } catch (e) {}
 }
 playWhistle() {
@@ -570,26 +539,19 @@ const now = this.ctx.currentTime;
 const osc1 = this.ctx.createOscillator();
 const osc2 = this.ctx.createOscillator();
 const gain = this.ctx.createGain();
-osc1.type = 'sine';
-osc2.type = 'sine';
+osc1.type = 'sine'; osc2.type = 'sine';
 osc1.frequency.setValueAtTime(2400, now);
 osc2.frequency.setValueAtTime(2450, now);
 gain.gain.setValueAtTime(0.2, now);
 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-osc1.connect(gain);
-osc2.connect(gain);
-gain.connect(this.ctx.destination);
-osc1.start(now);
-osc2.start(now);
-osc1.stop(now + 0.45);
-osc2.stop(now + 0.45);
+osc1.connect(gain); osc2.connect(gain); gain.connect(this.ctx.destination);
+osc1.start(now); osc2.start(now); osc1.stop(now + 0.45); osc2.stop(now + 0.45);
 } catch (e) {}
 }
 playFanfare() {
 if (!this.ctx) return;
 try {
-const notes = [523.25, 659.25, 783.99, 1046.50];
-notes.forEach((freq, idx) => {
+[523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
 const now = this.ctx.currentTime + idx * 0.1;
 const osc = this.ctx.createOscillator();
 const gain = this.ctx.createGain();
@@ -597,10 +559,8 @@ osc.type = 'triangle';
 osc.frequency.setValueAtTime(freq, now);
 gain.gain.setValueAtTime(0.25, now);
 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-osc.connect(gain);
-gain.connect(this.ctx.destination);
-osc.start(now);
-osc.stop(now + 0.25);
+osc.connect(gain); gain.connect(this.ctx.destination);
+osc.start(now); osc.stop(now + 0.25);
 });
 } catch (e) {}
 }
@@ -614,17 +574,12 @@ osc.type = 'sawtooth';
 osc.frequency.setValueAtTime(160, now);
 gain.gain.setValueAtTime(0.2, now);
 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-osc.connect(gain);
-gain.connect(this.ctx.destination);
-osc.start(now);
-osc.stop(now + 0.2);
+osc.connect(gain); gain.connect(this.ctx.destination);
+osc.start(now); osc.stop(now + 0.2);
 } catch (e) {}
 }
 }
 const sound = new SoundFX();
-/* --------------------------------------------------------------------------
-2. Web Speech API 音声コーチ
--------------------------------------------------------------------------- */
 class SpeechCoach {
 constructor() {
 this.synth = window.speechSynthesis || null;
@@ -659,18 +614,14 @@ if (this.subIndicator) this.subIndicator.style.opacity = '1';
 };
 const cleanup = () => {
 this.currentUtterance = null;
-if (this.subIndicator) {
-this.subIndicator.style.opacity = '0.6';
-}
+if (this.subIndicator) this.subIndicator.style.opacity = '0.6';
 };
 uttr.onend = cleanup;
 uttr.onerror = cleanup;
 this.timeoutId = setTimeout(cleanup, 5000);
 this.synth.speak(uttr);
 }, 50);
-} catch (e) {
-console.warn('Speech error:', e);
-}
+} catch (e) {}
 }
 stop() {
 if (this.synth) {
@@ -681,22 +632,15 @@ if (this.timeoutId) clearTimeout(this.timeoutId);
 }
 }
 const voice = new SpeechCoach();
-/* --------------------------------------------------------------------------
-3. 1€フィルター（One Euro Filter）
--------------------------------------------------------------------------- */
 class LowPassFilter {
 constructor(alpha) {
 this.setAlpha(alpha);
-this.y = null;
-this.s = null;
+this.y = null; this.s = null;
 }
-setAlpha(alpha) {
-this.alpha = alpha;
-}
+setAlpha(alpha) { this.alpha = alpha; }
 filter(value) {
 if (this.y === null) {
-this.s = value;
-this.y = value;
+this.s = value; this.y = value;
 } else {
 this.y = this.alpha * value + (1.0 - this.alpha) * this.s;
 this.s = this.y;
@@ -706,10 +650,7 @@ return this.y;
 }
 class OneEuroFilter {
 constructor(freq, minCutoff = 1.0, beta = 0.007, dCutoff = 1.0) {
-this.freq = freq;
-this.minCutoff = minCutoff;
-this.beta = beta;
-this.dCutoff = dCutoff;
+this.freq = freq; this.minCutoff = minCutoff; this.beta = beta; this.dCutoff = dCutoff;
 this.x = new LowPassFilter(this.alpha(minCutoff));
 this.dx = new LowPassFilter(this.alpha(dCutoff));
 this.lastTime = null;
@@ -722,9 +663,7 @@ return 1.0 / (1.0 + tau / te);
 filter(val, timestamp) {
 if (this.lastTime && timestamp) {
 const dt = (timestamp - this.lastTime) / 1000;
-if (dt > 0 && dt < 1.0) {
-this.freq = 1.0 / dt;
-}
+if (dt > 0 && dt < 1.0) this.freq = 1.0 / dt;
 }
 this.lastTime = timestamp;
 const prevX = this.x.y;
@@ -734,15 +673,8 @@ const cutoff = this.minCutoff + this.beta * Math.abs(edx);
 this.x.setAlpha(this.alpha(cutoff));
 return this.x.filter(val);
 }
-reset() {
-this.x.y = null;
-this.dx.y = null;
-this.lastTime = null;
+reset() { this.x.y = null; this.dx.y = null; this.lastTime = null; }
 }
-}
-/* --------------------------------------------------------------------------
-4. テスト定義＆メタデータ
--------------------------------------------------------------------------- */
 const TEST_SPECS = {
 thoracic_seated: {
 id: 'thoracic_seated',
@@ -799,9 +731,6 @@ drillTitle: 'アクティブASLR・ハムストリング覚醒',
 pipSvg: ⁠<svg viewBox="0 0 100 100" class="w-16 h-16"> <line x1="10" y1="85" x2="90" y2="85" stroke="#64748b" stroke-width="4"/> <circle cx="25" cy="78" r="8" fill="#facc15"/> <path d="M32,80 L55,80" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/> <path d="M55,80 L88,80" stroke="#64748b" stroke-width="5" stroke-linecap="round"/> <path d="M55,80 L62,35" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/> <path d="M75,80 A30,30 0 0,0 62,45" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="3,3"/> </svg>⁠
 }
 };
-/* --------------------------------------------------------------------------
-5. DOM要素キャッシュ ＆ タイマープール
--------------------------------------------------------------------------- */
 const DOM = {
 video: document.getElementById('webcam'),
 canvas: document.getElementById('outputCanvas'),
@@ -891,26 +820,17 @@ this.activeTimeouts.forEach(id => clearTimeout(id));
 this.activeTimeouts.clear();
 }
 };
-/* --------------------------------------------------------------------------
-6. BiomechanicsCore: 人体検知ガード＆数理幾何計算
--------------------------------------------------------------------------- /
 const BiomechanicsCore = {
-/*
-* 人体が画面内に実在しているかを厳格に判定するガード関数
-* （天井や壁の影、背景ノイズによるゴースト誤認識を100%遮断）
-*/
 isHumanDetected(landmarks) {
 if (!landmarks || landmarks.length < 33) return false;
 const lSh = landmarks[11], rSh = landmarks[12];
 const lHip = landmarks[23], rHip = landmarks[24];
 const lKnee = landmarks[25], rKnee = landmarks[26];
 if (!lSh || !rSh || !lHip || !rHip || !lKnee || !rKnee) return false;
-// 主要関節の視認信頼度（visibility）スコアのチェック
 const minVis = BIOMECHANICS_CONFIG.APP.MIN_HUMAN_VISIBILITY;
 if ((lSh.visibility || 0) < minVis || (rSh.visibility || 0) < minVis) return false;
 if ((lHip.visibility || 0) < minVis || (rHip.visibility || 0) < minVis) return false;
 if ((lKnee.visibility || 0) < minVis && (rKnee.visibility || 0) < minVis) return false;
-// 人体スケール（サイズ）チェック（背景の極小ノイズを排除）
 const shoulderWidth = Math.hypot(rSh.x - lSh.x, rSh.y - lSh.y);
 const torsoHeight = Math.hypot(
 (rHip.x + lHip.x) / 2 - (rSh.x + lSh.x) / 2,
@@ -950,12 +870,6 @@ const otherArmLen = Math.abs(otherShoulder.x - sternumX);
 const asymmetryRatio = Math.max(0, (otherArmLen - targetArmLen) / (currentWidth + 1e-6));
 const asymmetryAngle = asymmetryRatio * BIOMECHANICS_CONFIG.THORACIC.ROTATION_SCALE;
 let rawAngle = (widthAngle * 0.55) + (asymmetryAngle * 0.45);
-const shoulderMidX = (rSh.x + lSh.x) / 2;
-const hipMidX = (rHip.x + lHip.x) / 2;
-const sideOffset = side === 'right' ? (shoulderMidX - hipMidX) : (hipMidX - shoulderMidX);
-if (sideOffset < -0.05) {
-rawAngle *= 0.5;
-}
 const angle = Math.min(BIOMECHANICS_CONFIG.THORACIC.MAX_MEASURE_ANGLE, Math.max(0, rawAngle));
 return { angle: Math.round(angle), cheat, reason };
 },
@@ -979,9 +893,7 @@ const ankle = side === 'right' ? rAnkle : lAnkle;
 const legDx = ankle.x - knee.x;
 const legDy = ankle.y - knee.y;
 const currentSlope = Math.atan2(legDx, legDy) * (180 / Math.PI);
-if (!baseline) {
-return { angle: 0, cheat, reason };
-}
+if (!baseline) return { angle: 0, cheat, reason };
 const anatomySign = side === 'right' ? -1 : 1;
 const rawSwing = (currentSlope - baseline.slope) * anatomySign;
 const angle = Math.min(BIOMECHANICS_CONFIG.HIP.MAX_MEASURE_ANGLE, Math.max(0, rawSwing));
@@ -1062,9 +974,6 @@ knee: { x: knee.x, y: knee.y }
 return null;
 }
 };
-/* --------------------------------------------------------------------------
-7. AppFSM: 有限ステートマシン（人物ロスト監視強化）
--------------------------------------------------------------------------- */
 const AppFSM = {
 state: 'WAITING',
 currentTest: 'thoracic_seated',
@@ -1079,7 +988,7 @@ countdownValue: 3,
 measureStartTime: 0,
 isCheatDetected: false,
 cheatReason: '',
-lastHumanDetectedTime: 0, // 人物ロスト検出用
+lastHumanDetectedTime: 0,
 transitionTo(newState, payload = {}) {
 if (this.state === newState) return;
 this.exitState(this.state);
@@ -1143,11 +1052,9 @@ update(landmarks) {
 if (this.isModalOpen) return;
 const now = Date.now();
 const hasHuman = BiomechanicsCore.isHumanDetected(landmarks);
-// 人物検知のロスト管理
 if (hasHuman) {
 this.lastHumanDetectedTime = now;
 } else {
-// 人物が一定時間検出されなくなった場合、安全に初期状態へ強制リセット
 if (this.state !== 'WAITING' && (now - this.lastHumanDetectedTime > BIOMECHANICS_CONFIG.APP.LOST_HUMAN_TIMEOUT_MS)) {
 TimerPool.clearAll();
 this.transitionTo('WAITING');
@@ -1161,9 +1068,7 @@ return;
 }
 const isReady = BiomechanicsCore.checkPoseReady(this.currentTest, landmarks);
 if (this.state === 'WAITING') {
-if (isReady) {
-this.transitionTo('CHARGING');
-}
+if (isReady) this.transitionTo('CHARGING');
 } else if (this.state === 'CHARGING') {
 if (!isReady) {
 this.transitionTo('WAITING');
@@ -1236,9 +1141,6 @@ sound.playPip();
 voice.speak(⁠${side === 'right' ? '右' : '左'}側の測定にセットしたよ！⁠);
 }
 };
-/* --------------------------------------------------------------------------
-8. ViewRenderer: 高DPI描画 & 被りゼロUIレイアウト管理
--------------------------------------------------------------------------- */
 const ViewRenderer = {
 dpr: window.devicePixelRatio || 1,
 renderWaitingState(customMsg = 'カメラに全身を映して！') {
@@ -1279,10 +1181,7 @@ DOM.liveAngleText.innerText = angle;
 const spec = TEST_SPECS[testId];
 let rank = spec.ranks[spec.ranks.length - 1];
 for (const r of spec.ranks) {
-if (maxAngle >= r.min) {
-rank = r;
-break;
-}
+if (maxAngle >= r.min) { rank = r; break; }
 }
 DOM.liveRankBadge.innerText = rank.title;
 DOM.liveRankBadge.style.borderColor = rank.color;
@@ -1315,10 +1214,7 @@ showResultModal(testId, side, maxAngle) {
 const spec = TEST_SPECS[testId];
 let rankTitle = '🛡️ B級 (サビあり)';
 for (const r of spec.ranks) {
-if (maxAngle >= r.min) {
-rankTitle = r.title;
-break;
-}
+if (maxAngle >= r.min) { rankTitle = r.title; break; }
 }
 voice.speak(⁠測定終了！最高角度は${maxAngle}度！${rankTitle.replace(/🐉|🔥|⚡|🛡️/g, '')}！⁠, true);
 DOM.reportTestTitle.innerText = ⁠${spec.title} (${side === 'right' ? '右側' : '左側'}) [${APP_VERSION}]⁠;
@@ -1366,13 +1262,10 @@ ctx.drawImage(rawVideo, offsetX, offsetY, renderW, renderH);
 }
 ctx.restore();
 }
-// 人体が検出されていない時はスケルトンを描画しない
 if (!landmarks || !BiomechanicsCore.isHumanDetected(landmarks)) return;
 const toPx = (lm) => {
 let normX = lm.x;
-if (AppFSM.facingMode === 'user') {
-normX = 1.0 - normX;
-}
+if (AppFSM.facingMode === 'user') normX = 1.0 - normX;
 return {
 x: offsetX + normX * renderW,
 y: offsetY + lm.y * renderH
@@ -1466,9 +1359,6 @@ ctx.restore();
 }
 }
 };
-/* --------------------------------------------------------------------------
-9. MediaPipe Pose & カメラパイプライン
--------------------------------------------------------------------------- */
 const landmarkFilters = Array.from({ length: 33 }, () => ({
 x: new OneEuroFilter(30, 0.8, 0.005),
 y: new OneEuroFilter(30, 0.8, 0.005)
@@ -1478,7 +1368,7 @@ let currentStream = null;
 let isDetecting = false;
 let animFrameId = null;
 let isSwitchingCamera = false;
-async function waitForMediaPipeScript(maxWaitMs = 10000) {
+async function waitForMediaPipeScript(maxWaitMs = 15000) {
 const startTime = Date.now();
 while (typeof window.Pose === 'undefined') {
 if (Date.now() - startTime > maxWaitMs) {
@@ -1523,8 +1413,7 @@ if (DOM.video.readyState >= 2 && !isDetecting && poseDetector) {
 isDetecting = true;
 try {
 await poseDetector.send({ image: DOM.video });
-} catch (e) {
-} finally {
+} catch (e) {} finally {
 isDetecting = false;
 }
 }
@@ -1549,30 +1438,22 @@ currentStream.getTracks().forEach(track => track.stop());
 currentStream = null;
 }
 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-throw new Error('お使いのブラウザはカメラAPIに対応していないか、安全な接続(HTTPS)で開かれていません。');
+throw new Error('お使いのブラウザはカメラAPIに対応していません。');
 }
-const constraintsList = [
+const constraints = [
 { video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
 { video: { facingMode: facing }, audio: false },
 { video: true, audio: false }
 ];
 let stream = null;
 let lastErr = null;
-for (const c of constraintsList) {
+for (const c of constraints) {
 try {
 stream = await navigator.mediaDevices.getUserMedia(c);
 if (stream) break;
-} catch (err) {
-lastErr = err;
-console.warn('Constraint attempt failed:', err);
-}
+} catch (err) { lastErr = err; }
 }
 if (!stream) {
-if (lastErr && lastErr.name === 'NotAllowedError') {
-throw new Error('カメラへのアクセスが拒否されています。ブラウザの設定でカメラの使用を許可してください。');
-} else if (lastErr && lastErr.name === 'NotFoundError') {
-throw new Error('利用可能なカメラが見つかりません。外付けカメラ等の接続をご確認ください。');
-}
 throw new Error(lastErr ? lastErr.message : 'カメラの起動に失敗しました。');
 }
 currentStream = stream;
@@ -1589,9 +1470,7 @@ setTimeout(resolve, 1500);
 });
 try {
 await DOM.video.play();
-} catch (playErr) {
-console.warn('video.play exception:', playErr);
-}
+} catch (playErr) {}
 updateCanvasSize();
 window.removeEventListener('resize', updateCanvasSize);
 window.addEventListener('resize', updateCanvasSize);
@@ -1599,13 +1478,9 @@ poseDetectionLoop();
 DOM.startCameraScreen.classList.add('hidden');
 return true;
 } catch (err) {
-console.error('startCamera failed:', err);
 throw err;
 }
 }
-/* --------------------------------------------------------------------------
-10. イベントリスナー登録 ＆ アプリケーション初期化
--------------------------------------------------------------------------- */
 function setCameraStatus(msg) {
 DOM.cameraStatusProgress.classList.remove('hidden');
 DOM.cameraStatusProgressText.innerText = msg;
@@ -1627,16 +1502,15 @@ try {
 setCameraStatus('音声システム初期化中...');
 sound.init();
 sound.playPip();
-setCameraStatus('AIエンジン(MediaPipe)を準備中...');
+setCameraStatus('AIエンジン準備中...');
 await initMediaPipePose();
-setCameraStatus('カメラのアクセスを要求中...');
+setCameraStatus('カメラ起動中...');
 const success = await startCamera(AppFSM.facingMode);
 if (success) {
 AppFSM.setTest('thoracic_seated');
 }
 } catch (e) {
-console.error('Boot error:', e);
-showCameraError(e.message || '初期化中に予期せぬエラーが発生しました。');
+showCameraError(e.message || '初期化エラーが発生しました。');
 }
 });
 DOM.cameraSwitchBtn.addEventListener('click', async () => {
@@ -1649,9 +1523,7 @@ AppFSM.facingMode = AppFSM.facingMode === 'user' ? 'environment' : 'user';
 DOM.cameraSwitchLabel.innerText = AppFSM.facingMode === 'user' ? '内カメ' : '外カメ';
 await startCamera(AppFSM.facingMode);
 voice.speak(AppFSM.facingMode === 'user' ? 'インカメラに切り替えたよ！' : '外カメラに切り替えたよ！');
-} catch(err) {
-console.error('Switch camera error:', err);
-} finally {
+} catch(err) {} finally {
 isSwitchingCamera = false;
 DOM.cameraSwitchBtn.disabled = false;
 }
@@ -1699,7 +1571,6 @@ DOM.startDrillBtn.addEventListener('click', () => {
 sound.playPip();
 voice.speak('1分間ドリルスタート！息を止めずにリラックスして伸ばそう！', true);
 });
-// 初期化
 AppFSM.setTest('thoracic_seated');
 </script>
 </body>
