@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v1.3 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v1.4 | Mobility & Twist Dock</title>
   <!-- Google Fonts: M PLUS Rounded 1c (800 / 900) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -213,6 +213,41 @@
       box-shadow: 0 0 35px rgba(250, 204, 21, 0.9);
       animation: alertPulse 0.8s infinite alternate;
     }
+
+    /* ゴーストシルエット（半透明のお手本人型ガイド） */
+    .ghost-silhouette {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.35;
+      transition: opacity 0.4s ease, filter 0.4s ease;
+      filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.6));
+    }
+    .ghost-silhouette.matched {
+      opacity: 0.15;
+      filter: drop-shadow(0 0 16px rgba(16, 185, 129, 0.9));
+    }
+
+    /* 構えチェック信号ランプ */
+    .step-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #334155;
+      border: 1.5px solid #000;
+      transition: all 0.25s ease;
+    }
+    .step-dot.active {
+      background: #10b981;
+      box-shadow: 0 0 8px #34d399;
+      transform: scale(1.25);
+    }
   </style>
 </head>
 <body class="relative w-full h-full overflow-hidden flex flex-col justify-between">
@@ -228,7 +263,7 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v1.3</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v1.4</span>
         </div>
       </div>
 
@@ -281,6 +316,49 @@
       <!-- 骨格描画・角度扇形ゲージ用キャンバス (映像と完全同一の鏡像反転を適用しズレを完全解消) -->
       <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 pointer-events-none z-10 transition-all duration-200"></canvas>
 
+      <!-- 半透明お手本ゴーストシルエット（人型影絵） -->
+      <div id="ghostContainer" class="ghost-silhouette">
+        <!-- SVGで描かれたお手本人型シルエット（テストごとにJSでパス切替） -->
+        <svg id="ghostSvg" viewBox="0 0 200 320" class="h-4/5 max-h-[85%] w-auto stroke-sky-400 fill-sky-400/20 stroke-2 stroke-dasharray-4" style="stroke-dasharray: 6 4;">
+          <!-- 初期: ①胸パカーン（片手を頭の後ろへ） -->
+          <g id="ghostPathThoracic">
+            <!-- 頭 -->
+            <circle cx="100" cy="45" r="20" />
+            <!-- 体幹（背骨・胴体） -->
+            <line x1="100" y1="65" x2="100" y2="160" stroke-width="6" stroke-linecap="round"/>
+            <!-- 右腕（手を頭の後ろへ曲げたポーズ） -->
+            <polyline points="100,75 140,75 125,48" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <!-- 左腕（腰に当てて構える） -->
+            <polyline points="100,75 68,105 75,140" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <!-- 骨盤・足 -->
+            <line x1="100" y1="160" x2="80" y2="280" stroke-width="5" stroke-linecap="round"/>
+            <line x1="100" y1="160" x2="120" y2="280" stroke-width="5" stroke-linecap="round"/>
+          </g>
+          <!-- ②片足タメ絞り（片膝を前に持ち上げ） -->
+          <g id="ghostPathHipIR" class="hidden">
+            <circle cx="100" cy="45" r="20" />
+            <line x1="100" y1="65" x2="100" y2="160" stroke-width="6" stroke-linecap="round"/>
+            <!-- 両腕（バランスを取るポーズ） -->
+            <polyline points="70,95 100,75 130,95" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <!-- 軸足（直立） -->
+            <line x1="100" y1="160" x2="85" y2="280" stroke-width="5" stroke-linecap="round"/>
+            <!-- 上げた足（膝を90度曲げて前へ） -->
+            <polyline points="100,160 125,200 138,250" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </g>
+          <!-- ③立ちペタ前屈（ピンと背筋を伸ばして直立） -->
+          <g id="ghostPathHinge" class="hidden">
+            <circle cx="100" cy="45" r="20" />
+            <line x1="100" y1="65" x2="100" y2="165" stroke-width="6" stroke-linecap="round"/>
+            <!-- 両腕（太ももの横に構える） -->
+            <line x1="100" y1="75" x2="72" y2="150" stroke-width="5" stroke-linecap="round"/>
+            <line x1="100" y1="75" x2="128" y2="150" stroke-width="5" stroke-linecap="round"/>
+            <!-- まっすぐ伸びた足 -->
+            <line x1="100" y1="165" x2="80" y2="285" stroke-width="5" stroke-linecap="round"/>
+            <line x1="100" y1="165" x2="120" y2="285" stroke-width="5" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </div>
+
       <!-- カメラ未検出・エラー時のリカバリーオーバーレイ -->
       <div id="cameraErrorOverlay" class="absolute inset-0 z-30 bg-slate-950/90 flex flex-col items-center justify-center p-4 text-center hidden">
         <span class="text-4xl mb-2">📷⚠️</span>
@@ -295,13 +373,36 @@
 
       <!-- 姿勢ナビゲーション枠 (テストごとの姿勢ガイド枠) -->
       <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2">
-        <div id="guideTargetBadge" class="bg-black/75 border border-emerald-400/80 px-2.5 py-0.5 rounded-full text-[11px] text-emerald-300 brawl-text flex items-center gap-1">
-          <span>🎯</span> <span id="guideTargetText">立ったまま正面カメラに全身を入れよう！</span>
+        <!-- 上部：構え進行度3ステップ信号ランプ ＆ 見本カード -->
+        <div class="flex items-center gap-2">
+          <!-- 3ステップ信号ランプHUD -->
+          <div class="bg-black/85 border border-slate-700 px-2 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
+            <div class="flex items-center gap-1">
+              <span id="stepDotBounds" class="step-dot"></span>
+              <span class="text-[8px] text-slate-300">全身</span>
+            </div>
+            <span class="text-slate-600 text-[8px]">▶</span>
+            <div class="flex items-center gap-1">
+              <span id="stepDotPose" class="step-dot"></span>
+              <span class="text-[8px] text-slate-300">構え</span>
+            </div>
+            <span class="text-slate-600 text-[8px]">▶</span>
+            <div class="flex items-center gap-1">
+              <span id="stepDotStill" class="step-dot"></span>
+              <span class="text-[8px] text-slate-300">静止</span>
+            </div>
+          </div>
+
+          <!-- お手本ピクトグラム見本カード（タップで拡大表示可能） -->
+          <div id="modelPoseCard" class="bg-slate-900/90 border-2 border-yellow-400/80 px-2 py-0.5 rounded-xl shadow-lg flex items-center gap-1 pointer-events-auto cursor-pointer active:scale-95 transition-transform" title="タップでお手本を大きく確認">
+            <span id="modelPoseIcon" class="text-sm">🙋‍♂️</span>
+            <span id="modelPoseText" class="text-[10px] text-yellow-300 font-black brawl-text">手をあたまへ！</span>
+          </div>
         </div>
 
         <!-- 準備ポーズ・構え認識ステータス -->
         <div id="poseCheckPromptPill" class="bg-slate-900/90 border border-yellow-400 px-3 py-1 rounded-full text-[11px] text-yellow-300 brawl-text shadow-lg flex items-center gap-1.5">
-          <span class="animate-bounce">👉</span> <span id="poseCheckPromptText">片手を頭の後ろにセットしてね！</span>
+          <span class="animate-bounce">👉</span> <span id="poseCheckPromptText">半透明の影（お手本）に合わせて片手を頭へ！</span>
         </div>
 
         <!-- ロックオン進行度リング＆メーター -->
@@ -723,8 +824,11 @@
             sub: '立ち胸パカーン回旋',
             icon: '🏹',
             target: 45,
+            modelIcon: '🙋‍♂️',
+            modelPrompt: '手をあたまへ！',
+            ghostId: 'ghostPathThoracic',
             guideTarget: '正面を向いて立って構えよう！',
-            voiceIntro: '立ち胸パカーン！立ったまま構えて片手を頭の後ろへ！腰は正面ロックだ！',
+            voiceIntro: '立ち胸パカーン！画面の影絵に合わせて、片手を頭の後ろにセットしてね！',
             instruction: '腰を動かさず、胸だけを天井に向けてパカーン！',
             cheatDesc: '腰ごとグルンと回すのはNG！腰は正面に向けたまま！',
             effect: 'ここが開くとバッティングの「割れ」が深くなり飛距離が急上昇！',
@@ -735,8 +839,11 @@
             sub: '片足浮かせワイパー',
             icon: '🦊',
             target: 35,
-            guideTarget: '片膝を90度上げてスタンバイ！(壁タッチOK)',
-            voiceIntro: '片足タメ絞り！膝を前に90度上げて、足首を外へパカーン！壁に手をついてOK！',
+            modelIcon: '🦵',
+            modelPrompt: '片膝を前へ！',
+            ghostId: 'ghostPathHipIR',
+            guideTarget: '片膝を前に上げてスタンバイ！(壁タッチOK)',
+            voiceIntro: '片足タメ絞り！画面の影絵に合わせて、片膝を前に持ち上げよう！壁に手をついてOK！',
             instruction: '膝を正面に向けたまま、足首だけ外側へ振ろう！',
             cheatDesc: '膝が内側に倒れたりグラグラするのはNG！膝を固定！',
             effect: '軸足のタメが1ミリも逃げず、120km/h超えのキレが生まれる！',
@@ -747,8 +854,11 @@
             sub: '立ちペタ前屈',
             icon: '📐',
             target: 85,
-            guideTarget: '足を肩幅に開いて立とう！',
-            voiceIntro: '立ちペタ前屈！膝をピンと伸ばしたまま、指先を床に向かって下げていこう！',
+            modelIcon: '🧍',
+            modelPrompt: '膝ピーンで直立！',
+            ghostId: 'ghostPathHinge',
+            guideTarget: '膝を伸ばしてまっすぐ立とう！',
+            voiceIntro: '立ちペタ前屈！画面の影絵に合わせて、膝をピンと伸ばしてまっすぐ立とう！',
             instruction: '膝を伸ばしたまま、両手をお尻から下へスライド！',
             cheatDesc: '膝が曲がって逃げるのはNG！膝をピンとロック！',
             effect: '低めの変化球に目線がピタッと安定！空振りが劇的に減るぞ！',
@@ -772,10 +882,24 @@
             }
           });
 
+          // ゴーストシルエットSVGの切り替え
+          ['ghostPathThoracic', 'ghostPathHipIR', 'ghostPathHinge'].forEach(gid => {
+            const gEl = document.getElementById(gid);
+            if (gEl) {
+              if (gid === meta.ghostId) gEl.classList.remove('hidden');
+              else gEl.classList.add('hidden');
+            }
+          });
+
+          // お手本ミニカード更新
+          const modelIconEl = document.getElementById('modelPoseIcon');
+          const modelPromptEl = document.getElementById('modelPoseText');
+          if (modelIconEl) modelIconEl.textContent = meta.modelIcon;
+          if (modelPromptEl) modelPromptEl.textContent = meta.modelPrompt;
+
           document.getElementById('hudMainIcon').textContent = meta.icon;
           document.getElementById('hudMainLabel').textContent = `${meta.name}角度`;
           document.getElementById('hudTargetVal').textContent = `${meta.target}°`;
-          document.getElementById('guideTargetText').textContent = meta.guideTarget;
           document.getElementById('instructionText').textContent = meta.instruction;
 
           document.getElementById('guideModalIcon').textContent = meta.icon;
@@ -790,6 +914,31 @@
           // 小学生向け音声アナウンス自動再生
           App.Audio.speak(meta.voiceIntro);
           App.Sensor.resetGateInState();
+        },
+
+        updateStepLamps(inBounds, poseReady, isStill) {
+          const dotBounds = document.getElementById('stepDotBounds');
+          const dotPose = document.getElementById('stepDotPose');
+          const dotStill = document.getElementById('stepDotStill');
+          const ghost = document.getElementById('ghostContainer');
+
+          if (dotBounds) {
+            if (inBounds) dotBounds.classList.add('active');
+            else dotBounds.classList.remove('active');
+          }
+          if (dotPose) {
+            if (poseReady) {
+              dotPose.classList.add('active');
+              if (ghost) ghost.classList.add('matched');
+            } else {
+              dotPose.classList.remove('active');
+              if (ghost) ghost.classList.remove('matched');
+            }
+          }
+          if (dotStill) {
+            if (isStill) dotStill.classList.add('active');
+            else dotStill.classList.remove('active');
+          }
         },
 
         updateBadges(mainVal, subVal) {
@@ -1277,43 +1426,57 @@
         },
 
         checkAutoTriggerGateIn(lm, isCheating) {
+          if (!App.State.autoStartEnabled) {
+            this.resetGateInState();
+            App.UI.updateStepLamps(false, false, false);
+            return;
+          }
+
           const promptPill = document.getElementById('poseCheckPromptPill');
           const promptText = document.getElementById('poseCheckPromptText');
+          const chargeBox = document.getElementById('lockonChargeBox');
+          const progressBar = document.getElementById('lockonProgressBar');
 
           if (isCheating) {
             this.resetGateInState();
+            App.UI.updateStepLamps(false, false, false);
             if (promptPill) promptPill.classList.add('hidden');
             return;
           }
 
+          // ① 全身が枠に入っているか？
           const inBounds = this.isPoseInBounds(lm, App.State.testType);
           if (!inBounds) {
             this.resetGateInState();
+            App.UI.updateStepLamps(false, false, false);
             if (promptPill && promptText) {
-              promptText.textContent = 'カメラの枠の中に立とう！';
+              promptText.textContent = 'カメラから少し離れて全身を映そう！';
               promptPill.classList.remove('hidden');
             }
             return;
           }
 
-          // 構え（スタートポーズ）チェック
+          // ② 構え（スタートポーズ）チェック
           const poseStatus = this.checkStartPoseReady(lm, App.State.testType, App.State.activeSide);
           if (!poseStatus.ready) {
             this.resetGateInState();
+            App.UI.updateStepLamps(true, false, false);
             if (promptPill && promptText) {
-              promptText.textContent = poseStatus.prompt;
+              promptText.textContent = `影絵に合わせて：${poseStatus.prompt}`;
               promptPill.classList.remove('hidden');
             }
             return;
           }
 
-          // 構えOKなのでプロンプトを「キープして！」に更新
+          // 構えOK
+          App.UI.updateStepLamps(true, true, false);
+
           if (promptPill && promptText) {
             promptText.textContent = poseStatus.prompt;
             promptPill.classList.remove('hidden');
           }
 
-          // 両肩と両腰の中央位置の静止判定
+          // ③ 両肩と両腰の中央位置の静止判定
           const lSh = lm[11];
           const rSh = lm[12];
           const currentPos = { x: (lSh.x + rSh.x) / 2, y: (lSh.y + rSh.y) / 2 };
@@ -1325,17 +1488,21 @@
             const dist = Math.hypot(currentPos.x - this.prevKeypointPos.x, currentPos.y - this.prevKeypointPos.y);
             const now = Date.now();
 
-            if (dist < 0.025) { // 安定静止
+            if (dist < 0.035) { // 安定静止
+              App.UI.updateStepLamps(true, true, true);
               if (this.stableSince === 0) {
                 this.stableSince = now;
                 if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2 charging';
                 if (pill) pill.classList.remove('hidden');
+                if (chargeBox) chargeBox.classList.remove('hidden');
                 App.Audio.playChargeSE();
               } else {
                 const elapsed = now - this.stableSince;
+                const progressPct = Math.min(100, Math.round((elapsed / 1200) * 100));
+                if (progressBar) progressBar.style.width = `${progressPct}%`;
 
-                // 0.4秒静止で予告音声
-                if (elapsed >= 400 && !this.hasPlayedChargeVoice) {
+                // 0.35秒静止で予告音声
+                if (elapsed >= 350 && !this.hasPlayedChargeVoice) {
                   this.hasPlayedChargeVoice = true;
                   App.Audio.speak('構えOK！そのままストップ！');
                 }
@@ -1347,6 +1514,7 @@
               }
             } else {
               this.resetGateInState();
+              App.UI.updateStepLamps(true, true, false);
             }
           }
           this.prevKeypointPos = currentPos;
@@ -1374,6 +1542,14 @@
 
           const pill = document.getElementById('lockonStatusPill');
           if (pill) pill.classList.add('hidden');
+
+          const chargeBox = document.getElementById('lockonChargeBox');
+          if (chargeBox) chargeBox.classList.add('hidden');
+
+          const progressBar = document.getElementById('lockonProgressBar');
+          if (progressBar) progressBar.style.width = '0%';
+
+          App.UI.updateStepLamps(false, false, false);
         },
 
         triggerAutoStart() {
@@ -2031,6 +2207,13 @@
         document.getElementById('openReportBtn').addEventListener('click', () => App.UI.openModal('modalReport'));
         document.getElementById('openChartBtn').addEventListener('click', () => App.UI.openModal('modalChart'));
         document.getElementById('balanceBadgeBtn').addEventListener('click', () => App.UI.openModal('modalGuidance'));
+        
+        // お手本ポーズカードタップでもガイダンスモーダルを開く
+        const modelPoseCard = document.getElementById('modelPoseCard');
+        if (modelPoseCard) {
+          modelPoseCard.addEventListener('click', () => App.UI.openModal('modalGuidance'));
+        }
+
         document.getElementById('openPrescriptionFromReportBtn').addEventListener('click', () => {
           App.UI.closeModal('modalReport');
           App.UI.openModal('modalPrescription');
