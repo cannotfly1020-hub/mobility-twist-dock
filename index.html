@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v2.4 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v2.5 | Mobility & Twist Dock</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
@@ -241,7 +241,7 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.4</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.5</span>
         </div>
       </div>
 
@@ -453,7 +453,6 @@
       </button>
     </footer>
   </main>
-
   <!-- モーダル群 -->
   <div id="modalGuidance" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="panel-brawl w-full max-w-sm p-4 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
@@ -616,7 +615,6 @@
       <span id="toastMsg">通知テキスト</span>
     </div>
   </div>
-
   <script>
     /**
      * One Euro Filter (1€ Filter)
@@ -647,7 +645,6 @@
         }
 
         const rawDt = (t - this.tPrev) / 1000.0;
-        // バックグラウンド復帰時等の巨大dtスパイクによる発散を防止
         if (rawDt > 0.4 || rawDt <= 0) {
           this.reset();
           this.xPrev = x;
@@ -711,20 +708,18 @@
     }
 
     /**
-     * Mobility & Twist Dock v2.4
+     * Mobility & Twist Dock v2.5
      */
     const App = {
       Config: {
-        STABLE_DISTANCE_THRESHOLD: 0.045,
+        STABLE_DISTANCE_THRESHOLD: 0.060, // 構え時の静止許容幅を子ども向けに最適化
         AUTO_TRIGGER_HOLD_MS: 1100,
         TEST_DURATION_MS: 3500,
         MAX_STORED_LOGS: 20
       },
 
       State: {
-        // FSM（有限状態機械）による厳密な状態管理
-        // IDLE | LOCKON | COUNTDOWN | TESTING | DRILL
-        fsmState: 'IDLE',
+        fsmState: 'IDLE',        // IDLE | LOCKON | COUNTDOWN | TESTING | DRILL
         testType: 'THORACIC',    // THORACIC | HIP_IR | HINGE
         cameraFacing: 'user',    // user | environment
         activeSide: 'RIGHT',     // RIGHT | LEFT
@@ -769,7 +764,6 @@
         ctx: null,
         isUnlocked: false,
 
-        // iOS Safari等のオートプレイブロックを最初のタッチで先回り解除
         unlockAudio() {
           if (this.isUnlocked) return;
           try {
@@ -810,10 +804,7 @@
             gain.connect(this.ctx.destination);
 
             osc.onended = () => {
-              try {
-                osc.disconnect();
-                gain.disconnect();
-              } catch (e) {}
+              try { osc.disconnect(); gain.disconnect(); } catch (e) {}
             };
 
             osc.start(t);
@@ -925,7 +916,6 @@
           }
         }
       },
-
       UI: {
         _toastTimer: null,
         elements: {},
@@ -968,8 +958,8 @@
             modelPrompt: '膝ピーンで直立！',
             ghostId: 'ghostPathHinge',
             guideTarget: '膝を伸ばしてまっすぐ立とう！',
-            voiceIntro: '立ちペタ前屈！画面の影絵に合わせて、膝をピンと伸ばしてまっすぐ立とう！',
-            instruction: '膝を伸ばしたまま、両手をお尻から下へスライド！',
+            voiceIntro: '立ちペタ前屈！膝をピンと伸ばして直立し、ゆっくり指先を下へ！',
+            instruction: '膝を伸ばしたまま、両手をお尻から足首・床へスライド！',
             cheatDesc: '膝が曲がって逃げるのはNG！膝をピンとロック！',
             effect: '低めの変化球に目線がピタッと安定！空振りが劇的に減るぞ！'
           }
@@ -1076,7 +1066,7 @@
             } else if (mainVal >= target) {
               rankBadge.className = 'badge-brawl text-[10px] bg-emerald-950 text-emerald-300 border-emerald-400';
               rankBadge.textContent = '⚡ LEVEL 2 実戦しなりマスター';
-            } else if (mainVal >= target * 0.7) {
+            } else if (mainVal >= target * 0.6) {
               rankBadge.className = 'badge-brawl text-[10px] bg-blue-950 text-blue-300 border-blue-400';
               rankBadge.textContent = '🔒 あと少しで覚醒！';
             } else {
@@ -1137,7 +1127,6 @@
           }, 2200);
         }
       },
-
       Sensor: {
         isPoseReady: false,
         lastLandmarks: null,
@@ -1287,8 +1276,6 @@
 
           const nowMs = performance.now();
           const smoothLm = App.State.poseFilter.apply(results.poseLandmarks, nowMs);
-
-          // 正しい透視投影・幾何補正（Z相対座標混入を排除）
           const correctedLm = App.Engine.correctPerspectiveTilt(smoothLm, App.State.tiltPitchDeg);
           this.lastLandmarks = correctedLm;
 
@@ -1306,13 +1293,13 @@
 
           App.UI.updateBadges(currentAngle);
 
-          // FSM状態に応じたディスパッチ
           if (App.State.fsmState === 'DRILL') {
             App.Drill.updateDrillFeedback(currentAngle);
           } else if (App.State.fsmState === 'TESTING') {
             App.Engine.recordCurrentTestAngle(currentAngle);
           } else if (App.State.fsmState === 'IDLE' || App.State.fsmState === 'LOCKON') {
-            this.checkAutoTriggerGateIn(correctedLm, cheat.isCheating);
+            // スタート構え判定時にはカンニングによる過剰遮断を回避
+            this.checkAutoTriggerGateIn(correctedLm);
           }
 
           this.renderPoseSkeleton(ctx, correctedLm, w, h, currentAngle);
@@ -1322,53 +1309,65 @@
         isPoseInBounds(lm, testType) {
           const lSh = lm[11], rSh = lm[12];
           if (!lSh || !rSh) return false;
-          if ((lSh.visibility ?? 1) < 0.35 || (rSh.visibility ?? 1) < 0.35) return false;
+          if ((lSh.visibility ?? 1) < 0.30 || (rSh.visibility ?? 1) < 0.30) return false;
 
           const midX = (lSh.x + rSh.x) / 2;
-          if (midX < 0.08 || midX > 0.92) return false;
+          if (midX < 0.05 || midX > 0.95) return false;
 
           if (testType === 'HIP_IR' || testType === 'HINGE') {
             const lHip = lm[23], rHip = lm[24];
             if (!lHip || !rHip) return false;
-            if ((lHip.visibility ?? 1) < 0.25 || (rHip.visibility ?? 1) < 0.25) return false;
+            if ((lHip.visibility ?? 1) < 0.20 || (rHip.visibility ?? 1) < 0.20) return false;
           }
           return true;
         },
 
+        /**
+         * 【徹底改修】テスト別のスタート準備ポーズ検知
+         * 手を頭の後ろに回した際の遮蔽（手首隠れ）を、肘および頭部近接との複合判定で完全解消
+         */
         checkStartPoseReady(lm, testType, activeSide) {
           if (!lm) return { ready: false, prompt: 'カメラに映ってね！' };
 
           const lSh = lm[11], rSh = lm[12];
+          const lElbow = lm[13], rElbow = lm[14];
+          const lWrist = lm[15], rWrist = lm[16];
           const lHip = lm[23], rHip = lm[24];
           const lKnee = lm[25], rKnee = lm[26];
           const lAnkle = lm[27], rAnkle = lm[28];
-          const lWrist = lm[15], rWrist = lm[16];
 
           if (testType === 'THORACIC') {
-            if (!lSh || !rSh || (lSh.visibility ?? 1) < 0.35 || (rSh.visibility ?? 1) < 0.35) {
+            if (!lSh || !rSh || (lSh.visibility ?? 1) < 0.25 || (rSh.visibility ?? 1) < 0.25) {
               return { ready: false, prompt: '肩をカメラに映してね！' };
             }
-            // 正面撮影時：右側ターゲットならカメラ向かって左手（lm[12]周辺）
-            const isRight = activeSide === 'RIGHT';
-            const targetWrist = isRight ? rWrist : lWrist;
-            const targetShoulder = isRight ? rSh : lSh;
 
-            if (targetWrist && targetShoulder && ((targetWrist.visibility ?? 1) > 0.25)) {
-              if (targetWrist.y < targetShoulder.y + 0.12) {
-                return { ready: true, prompt: '構えOK！そのままストップ！' };
-              }
+            // 右手・左手どちらでも頭・耳周辺に手があるか、肘が肩より上がっていればOK
+            const checkArmReady = (wrist, elbow, shoulder) => {
+              if (!shoulder) return false;
+              // 手首が肩より高い位置にある（頭や耳の高さ）
+              const wristHigh = wrist && (wrist.visibility ?? 1) > 0.15 && (wrist.y < shoulder.y + 0.15);
+              // 手首が後頭部に隠れた場合、肘が外側に持ち上がって肩の高さ付近にあるか
+              const elbowRaised = elbow && (elbow.visibility ?? 1) > 0.20 && (elbow.y < shoulder.y + 0.18);
+              return wristHigh || elbowRaised;
+            };
+
+            const rightArmOk = checkArmReady(rWrist, rElbow, rSh);
+            const leftArmOk = checkArmReady(lWrist, lElbow, lSh);
+
+            if (rightArmOk || leftArmOk) {
+              return { ready: true, prompt: '構えOK！そのままストップ！' };
             }
-            return { ready: false, prompt: `${isRight ? '右手' : '左手'}を頭の後ろにセットしてね！` };
+            return { ready: false, prompt: '片手を頭の後ろにセットしてね！' };
           }
 
           if (testType === 'HIP_IR') {
             const targetKnee = activeSide === 'RIGHT' ? rKnee : lKnee;
             const supportKnee = activeSide === 'RIGHT' ? lKnee : rKnee;
 
-            if (!targetKnee || !supportKnee || (targetKnee.visibility ?? 1) < 0.35 || (supportKnee.visibility ?? 1) < 0.35) {
+            if (!targetKnee || !supportKnee || (targetKnee.visibility ?? 1) < 0.25 || (supportKnee.visibility ?? 1) < 0.25) {
               return { ready: false, prompt: '膝が映る位置（約1.5m）に立とう！' };
             }
-            if ((supportKnee.y - targetKnee.y) > 0.05) {
+            if ((supportKnee.y - targetKnee.y) > 0.04) {
               return { ready: true, prompt: '片足タメ構えOK！動かないで！' };
             }
             return { ready: false, prompt: '片膝を前に持ち上げてね！（壁タッチOK）' };
@@ -1378,11 +1377,11 @@
             const hip = rHip || lHip;
             const knee = rKnee || lKnee;
             const ankle = rAnkle || lAnkle;
-            if (!knee || !ankle || (knee.visibility ?? 1) < 0.35 || (ankle.visibility ?? 1) < 0.35) {
+            if (!knee || !ankle || (knee.visibility ?? 1) < 0.25 || (ankle.visibility ?? 1) < 0.25) {
               return { ready: false, prompt: '足元まで映るように少し離れよう！' };
             }
             const kneeAngle = App.Engine.calculateJointAngle(hip, knee, ankle);
-            if (kneeAngle > 150) {
+            if (kneeAngle > 140) {
               return { ready: true, prompt: '直立OK！そのままストップ！' };
             }
             return { ready: false, prompt: '膝を伸ばしてまっすぐ立とう！' };
@@ -1391,7 +1390,7 @@
           return { ready: true, prompt: '姿勢OK！' };
         },
 
-        checkAutoTriggerGateIn(lm, isCheating) {
+        checkAutoTriggerGateIn(lm) {
           if (!App.State.autoStartEnabled) {
             this.resetGateInState();
             App.UI.updateStepLamps(false, false, false);
@@ -1402,13 +1401,6 @@
           const promptText = App.UI.elements.poseCheckPromptText;
           const chargeBox = App.UI.elements.lockonChargeBox;
           const progressBar = App.UI.elements.lockonProgressBar;
-
-          if (isCheating) {
-            this.resetGateInState();
-            App.UI.updateStepLamps(false, false, false);
-            if (promptPill) promptPill.classList.add('hidden');
-            return;
-          }
 
           const inBounds = this.isPoseInBounds(lm, App.State.testType);
           if (!inBounds) {
@@ -1521,11 +1513,16 @@
         detectCheating(landmarks, testType) {
           if (!landmarks) return { isCheating: false, reason: '' };
 
+          // 測定中またはドリル中のみ代償動作警告を作動
+          if (App.State.fsmState !== 'TESTING' && App.State.fsmState !== 'DRILL') {
+            return { isCheating: false, reason: '' };
+          }
+
           if (testType === 'THORACIC') {
             const lHip = landmarks[23], rHip = landmarks[24];
             if (lHip && rHip && (lHip.visibility ?? 1) > 0.4 && (rHip.visibility ?? 1) > 0.4) {
               const hipSlope = Math.abs(App.Engine.calculateSlopeAngle(lHip, rHip));
-              if (hipSlope > 20) {
+              if (hipSlope > 24) {
                 return { isCheating: true, reason: '腰ごと回ってるぞ！おへそを正面に向けて胸だけひねろう！' };
               }
             }
@@ -1535,7 +1532,7 @@
             const hip = side === 'RIGHT' ? landmarks[24] : landmarks[23];
             if (knee && hip && (knee.visibility ?? 1) > 0.3 && (hip.visibility ?? 1) > 0.3) {
               const dx = (knee.x - hip.x);
-              if ((side === 'RIGHT' && dx < -0.06) || (side === 'LEFT' && dx > 0.06)) {
+              if ((side === 'RIGHT' && dx < -0.07) || (side === 'LEFT' && dx > 0.07)) {
                 return { isCheating: true, reason: '膝をまっすぐキープ！足首だけを外側へ振ろう！' };
               }
             }
@@ -1545,7 +1542,7 @@
             const ankle = landmarks[28] || landmarks[27];
             if (hip && knee && ankle && (knee.visibility ?? 1) > 0.3 && (ankle.visibility ?? 1) > 0.3) {
               const kneeAngle = App.Engine.calculateJointAngle(hip, knee, ankle);
-              if (kneeAngle < 145) {
+              if (kneeAngle < 135) {
                 return { isCheating: true, reason: '膝が曲がってるぞ！膝をピンと伸ばしてお尻を引こう！' };
               }
             }
@@ -1623,6 +1620,12 @@
               const sweep = side === 'RIGHT' ? angleVal : -angleVal;
               this.drawAngleArc(ctx, knee.x * w, knee.y * h, 40, baseDeg, sweep);
             }
+          } else if (App.State.testType === 'HINGE') {
+            const hip = lm[24] || lm[23];
+            if (hip && (hip.visibility ?? 1) > 0.35) {
+              const baseDeg = 180;
+              this.drawAngleArc(ctx, hip.x * w, hip.y * h, 42, baseDeg, angleVal);
+            }
           }
         },
 
@@ -1642,15 +1645,9 @@
           ctx.restore();
         }
       },
-
       Engine: {
         peakRecordedAngle: 0,
 
-        /**
-         * 透視投影・キーストーン傾斜補正
-         * スマホ端末の仰角（ピッチ角）による縦方向の遠近縮小を幾何学的に逆補正
-         * （※MediaPipeの不安定な相対Zを混入させず、純粋な画像座標空間で補正）
-         */
         correctPerspectiveTilt(landmarks, pitchDeg) {
           if (!landmarks || Math.abs(pitchDeg) < 1.0) return landmarks;
 
@@ -1659,9 +1656,7 @@
 
           return landmarks.map(p => {
             const yRel = p.y - 0.5;
-            // 仰角による垂直軸の圧縮を伸長補正
             const yCorrected = (yRel / Math.max(cosP, 0.5)) + 0.5;
-
             return {
               ...p,
               y: Math.min(1.0, Math.max(0.0, yCorrected)),
@@ -1688,7 +1683,7 @@
           const lSh = landmarks[11], rSh = landmarks[12];
           const lHip = landmarks[23], rHip = landmarks[24];
           if (!lSh || !rSh || !lHip || !rHip) return 0;
-          if ((lSh.visibility ?? 1) < 0.3 || (rSh.visibility ?? 1) < 0.3) return 0;
+          if ((lSh.visibility ?? 1) < 0.25 || (rSh.visibility ?? 1) < 0.25) return 0;
 
           let shoulderAngle = Math.abs(this.calculateSlopeAngle(lSh, rSh));
           if (shoulderAngle > 90) shoulderAngle = 180 - shoulderAngle;
@@ -1696,50 +1691,60 @@
           let hipAngle = Math.abs(this.calculateSlopeAngle(lHip, rHip));
           if (hipAngle > 90) hipAngle = 180 - hipAngle;
 
-          const pureThoracic = Math.max(0, shoulderAngle - (hipAngle * 0.75));
-          return Math.min(80, Math.round(pureThoracic * 1.15));
+          const pureThoracic = Math.max(0, shoulderAngle - (hipAngle * 0.70));
+          return Math.min(80, Math.round(pureThoracic * 1.18));
         },
 
-        /**
-         * 股関節内旋算出（正面撮影時の解剖学的左右に整合）
-         * 被写体の右足はカメラにとって常にX小側（画面左）、足首を外に振るとXはさらに減少
-         * 被写体の左足はカメラにとって常にX大側（画面右）、足首を外に振るとXはさらに増加
-         */
         evaluateHipInternalRotation(landmarks, side = 'RIGHT') {
           const knee = side === 'RIGHT' ? landmarks[26] : landmarks[25];
           const ankle = side === 'RIGHT' ? landmarks[28] : landmarks[27];
-          if (!knee || !ankle || (knee.visibility ?? 1) < 0.3 || (ankle.visibility ?? 1) < 0.3) return 0;
+          if (!knee || !ankle || (knee.visibility ?? 1) < 0.25 || (ankle.visibility ?? 1) < 0.25) return 0;
 
-          // 被写体右足の内旋（外側振り）: ankle.x < knee.x
-          // 被写体左足の内旋（外側振り）: ankle.x > knee.x
           const outwardDx = side === 'RIGHT' ? (knee.x - ankle.x) : (ankle.x - knee.x);
-          const dy = ankle.y - knee.y; // 鉛直下向き（正）
+          const dy = ankle.y - knee.y;
 
-          // 内側への巻き込み（代償動作）は0度ガード
-          if (outwardDx <= 0.005 || dy <= 0.05) return 0;
+          if (outwardDx <= 0.005 || dy <= 0.04) return 0;
 
           const angleRad = Math.atan2(outwardDx, dy);
           const deg = angleRad * (180.0 / Math.PI);
           return Math.min(55, Math.max(0, Math.round(deg)));
         },
 
+        /**
+         * 【徹底是正】立ちペタ前屈（骨盤ヒンジ）評価
+         * 直立時は0°から始まり、前屈して指先が下がるにつれて自然に角度が伸びるよう再計算
+         */
         evaluatePelvicHinge(landmarks) {
           const lWrist = landmarks[15], rWrist = landmarks[16];
+          const lHip = landmarks[23], rHip = landmarks[24];
           const lKnee = landmarks[25], rKnee = landmarks[26];
           const lAnkle = landmarks[27], rAnkle = landmarks[28];
 
-          if (!lWrist || !rWrist || !lKnee || !rKnee || !lAnkle || !rAnkle) return 50;
+          if (!lKnee || !rKnee || !lAnkle || !rAnkle) return 0;
 
-          const wristY = (lWrist.y + rWrist.y) / 2;
+          const wrist = (lWrist && rWrist) ? { y: (lWrist.y + rWrist.y) / 2 } : (lWrist || rWrist);
+          const hip = (lHip && rHip) ? { y: (lHip.y + rHip.y) / 2 } : (lHip || rHip);
           const kneeY = (lKnee.y + rKnee.y) / 2;
           const ankleY = (lAnkle.y + rAnkle.y) / 2;
 
-          const span = ankleY - kneeY;
-          if (span <= 0.05) return 60;
+          // 手首が取れない場合は腰〜膝の比率から概算
+          const currentY = wrist ? wrist.y : (hip ? hip.y + 0.15 : 0.4);
 
-          const progress = (wristY - kneeY) / span;
-          const score = 55 + Math.min(1.2, Math.max(0, progress)) * 35;
-          return Math.round(score);
+          // 基準点：股関節/太もも〜膝〜足首の距離スパン
+          const hipToKneeSpan = hip ? (kneeY - hip.y) : 0.25;
+          const kneeToAnkleSpan = Math.max(0.1, ankleY - kneeY);
+
+          // 手が太もも・お尻にある直立時: 0〜20°
+          if (currentY <= kneeY) {
+            const startRatio = hip ? Math.max(0, (currentY - hip.y) / Math.max(0.08, hipToKneeSpan)) : 0.3;
+            return Math.round(startRatio * 42); // 膝到達で約42°
+          }
+
+          // 膝から足首・床へ向かうストローク
+          const belowKneeProgress = (currentY - kneeY) / kneeToAnkleSpan;
+          // 膝(42°) 〜 足首くるぶし(85°) 〜 床ペタ(98°)
+          const score = 42 + Math.min(1.3, belowKneeProgress) * 45;
+          return Math.min(105, Math.max(0, Math.round(score)));
         },
 
         recordCurrentTestAngle(angle) {
@@ -1748,10 +1753,6 @@
           }
         },
 
-        /**
-         * 左右対称性（左右差）判定
-         * 片側未測定（null）時の虚偽警告を完全に排除
-         */
         evaluateSymmetry(rightVal, leftVal) {
           if (rightVal === null || leftVal === null) {
             return {
@@ -1781,7 +1782,7 @@
           if (testType === 'THORACIC') {
             if (score >= 50) return { rank: '🌟 SUPER DRAGON達成！', desc: 'メジャー級のしなりだ！背中に翼が生えてるぜ！', color: 'text-yellow-300' };
             if (score >= 38) return { rank: '⚡ LEVEL 2 実戦しなりマスター', desc: 'ホームランバッターの胸開き！パワーが逃げないぞ！', color: 'text-emerald-300' };
-            if (score >= 28) return { rank: '🔒 あと少しで覚醒！', desc: '背中にサビがついているぞ！1分ドリルで落とそう！', color: 'text-blue-300' };
+            if (score >= 25) return { rank: '🔒 あと少しで覚醒！', desc: '背中にサビがついているぞ！1分ドリルで落とそう！', color: 'text-blue-300' };
             return { rank: '⚠️ カチコチ要解除', desc: '背中がガチガチ！無理に腕を振ると怪我するぞ！今すぐストレッチ！', color: 'text-red-400' };
           }
           if (testType === 'HIP_IR') {
@@ -1791,14 +1792,13 @@
             return { rank: '⚠️ カチコチ要解除', desc: 'タメが逃げて手投げ・手打ちになりやすいぞ！', color: 'text-red-400' };
           }
           if (testType === 'HINGE') {
-            if (score >= 85) return { rank: '🌟 SUPER DRAGON達成！', desc: 'ペタ前屈マスター！低めの変化球に目線ブレゼロ！', color: 'text-yellow-300' };
-            if (score >= 72) return { rank: '⚡ LEVEL 2 実戦ヒンジマスター', desc: '骨盤引き込み合格！腰痛を完全ガード！', color: 'text-emerald-300' };
-            return { rank: '⚠️ カチコチ要解除', desc: 'もも裏が硬く猫背になりやすい！目線ブレ注意！', color: 'text-red-400' };
+            if (score >= 85) return { rank: '🌟 SUPER DRAGON達成！', desc: 'ペタ前屈マスター！足首・床まで届くプロ級の柔軟性！', color: 'text-yellow-300' };
+            if (score >= 65) return { rank: '⚡ LEVEL 2 実戦ヒンジマスター', desc: 'スネ下まで前屈合格！低めの変化球に目線ブレゼロ！', color: 'text-emerald-300' };
+            return { rank: '⚠️ カチコチ要解除', desc: 'もも裏が硬く猫背になりやすい！お尻を引くストレッチをしよう！', color: 'text-red-400' };
           }
           return { rank: '⚡ レベル判定中', desc: '', color: 'text-white' };
         }
       },
-
       Drill: {
         mediaRecorder: null,
         recordedChunks: [],
@@ -2065,7 +2065,6 @@
                 if (App.UI.elements.reportBarLeft) App.UI.elements.reportBarLeft.style.width = '50%';
               }
 
-              // 安全な左右差判定
               const symmetry = App.Engine.evaluateSymmetry(rightScore, leftScore);
               if (App.UI.elements.reportDiffVal) App.UI.elements.reportDiffVal.textContent = symmetry.diffText;
               if (App.UI.elements.reportDiffAdvice) App.UI.elements.reportDiffAdvice.textContent = symmetry.label;
@@ -2169,7 +2168,6 @@
       init() {
         App.UI.cacheElements();
 
-        // 画面のどこを触っても即座にAudioContextをアンロック（iOS対策）
         const unlockHandler = () => {
           App.Audio.unlockAudio();
           window.removeEventListener('pointerdown', unlockHandler);
@@ -2300,7 +2298,7 @@
         });
 
         App.Storage.renderChartList();
-        console.info('🦴 Mobility Dock v2.4 Initialized successfully.');
+        console.info('🦴 Mobility Dock v2.5 Initialized successfully.');
       }
     };
 
