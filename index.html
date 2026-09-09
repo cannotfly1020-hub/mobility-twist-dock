@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v3.2</title>
+  <title>🦴 柔軟性・しなりドック v3.3</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -185,7 +185,7 @@
     <div class="flex items-center gap-1">
       <span class="text-lg">🦴</span>
       <h1 class="text-xs sm:text-sm font-black text-yellow-300 brawl-text tracking-wider">しなりドック</h1>
-      <span class="text-[9px] bg-slate-800 text-sky-400 border border-sky-500/60 rounded px-1 font-extrabold">v3.2</span>
+      <span class="text-[9px] bg-slate-800 text-sky-400 border border-sky-500/60 rounded px-1 font-extrabold">v3.3</span>
     </div>
 
     <div class="flex items-center gap-1">
@@ -668,7 +668,8 @@
         STABLE_DISTANCE_THRESHOLD: 0.075,
         AUTO_TRIGGER_HOLD_MS: 1000,
         TEST_DURATION_MS: 3800,
-        MAX_STORED_LOGS: 25
+        MAX_STORED_LOGS: 25,
+        VOICE_DEBOUNCE_MS: 1800 // [Critical 1 Fix] 音声連打・クラッシュ防止デバウンス
       },
 
       State: {
@@ -1231,8 +1232,12 @@
           }
         },
 
+        // [Critical 1 Fix] 絶対的デバウンスを適用した音声ガイド発話
         speakGuidance(text, interval = 3500) {
           const now = Date.now();
+          if (now - this.lastVoicePromptTime < App.Config.VOICE_DEBOUNCE_MS) {
+            return; // 最小インターバル未満は絶対に無視して音声キューの破綻を防止
+          }
           if (this.lastVoicePrompt !== text || (now - this.lastVoicePromptTime > interval)) {
             this.lastVoicePrompt = text;
             this.lastVoicePromptTime = now;
@@ -1456,6 +1461,17 @@
 
             const leftHandUp = handNearHead(lWrist, lElbow, lSh);
             const rightHandUp = handNearHead(rWrist, rElbow, rSh);
+
+            // [Critical 3 Fix] 上がった手を自動追従して activeSide を補正
+            if (leftHandUp && !rightHandUp && App.State.activeSide !== 'LEFT') {
+              App.State.activeSide = 'LEFT';
+              const sideBadge = App.UI.elements.activeSideBadge;
+              if (sideBadge) sideBadge.textContent = '左開き中 (自動)';
+            } else if (rightHandUp && !leftHandUp && App.State.activeSide !== 'RIGHT') {
+              App.State.activeSide = 'RIGHT';
+              const sideBadge = App.UI.elements.activeSideBadge;
+              if (sideBadge) sideBadge.textContent = '右開き中 (自動)';
+            }
 
             if (leftHandUp || rightHandUp) {
               return { 
@@ -1734,9 +1750,11 @@
             if (lSh && rSh && (lSh.visibility ?? 1) > 0.35 && (rSh.visibility ?? 1) > 0.35) {
               const cx = ((lSh.x + rSh.x) / 2) * w;
               const cy = ((lSh.y + rSh.y) / 2) * h;
-              const baseDeg = App.State.activeSide === 'RIGHT' ? 0 : 180;
-              const sweep = App.State.activeSide === 'RIGHT' ? -angleVal : angleVal;
-              this.drawAngleArc(ctx, cx, cy, 45, baseDeg, sweep);
+              // [Critical 2 Fix] 左開きでも天井方向へ正しく開く幾何角度計算
+              const isRight = App.State.activeSide === 'RIGHT';
+              const baseDeg = isRight ? 0 : 180;
+              const sweep = isRight ? -angleVal : angleVal; // 時計逆回りで天井へ
+              this.drawAngleArc(ctx, cx, cy, 45, baseDeg, sweep, !isRight);
             }
           } else if (App.State.testType === 'HIP_IR') {
             const side = App.State.activeSide;
@@ -1749,13 +1767,14 @@
           }
         },
 
-        drawAngleArc(ctx, cx, cy, radius, startDeg, sweepDeg) {
+        drawAngleArc(ctx, cx, cy, radius, startDeg, sweepDeg, counterClockwise = null) {
           ctx.save();
           ctx.beginPath();
           ctx.moveTo(cx, cy);
           const radStart = (startDeg * Math.PI) / 180;
           const radEnd = ((startDeg + sweepDeg) * Math.PI) / 180;
-          ctx.arc(cx, cy, radius, radStart, radEnd, sweepDeg < 0);
+          const isCCW = counterClockwise !== null ? counterClockwise : (sweepDeg < 0);
+          ctx.arc(cx, cy, radius, radStart, radEnd, isCCW);
           ctx.closePath();
           ctx.fillStyle = 'rgba(250, 204, 21, 0.35)';
           ctx.fill();
@@ -1923,6 +1942,7 @@
       Drill: {
         mediaRecorder: null,
         recordedChunks: [],
+        recordedStream: null,
         recordedVideoBlobUrl: null,
         capturedSnapshotUrl: null,
         keepStreakSec: 0,
@@ -2019,6 +2039,7 @@
           try {
             this.recordedChunks = [];
             const stream = canvas.captureStream(30);
+            this.recordedStream = stream; // [Warning 4 Fix] リソース解放追跡用
             let mimeType = 'video/webm;codecs=vp8';
             if (!MediaRecorder.isTypeSupported(mimeType)) {
               mimeType = 'video/mp4';
@@ -2034,6 +2055,12 @@
             };
 
             recorder.onstop = () => {
+              // [Warning 4 Fix] 録画完了時にストリームの全トラックを確実に停止
+              if (this.recordedStream) {
+                this.recordedStream.getTracks().forEach(t => t.stop());
+                this.recordedStream = null;
+              }
+
               if (this.recordedChunks.length === 0) return;
               const blob = new Blob(this.recordedChunks, { type: mimeType || 'video/webm' });
               if (this.recordedVideoBlobUrl) {
@@ -2090,6 +2117,7 @@
         }
       },
 
+      // [Warning 5 Fix] カウントダウンから実測への遷移遅延（-1秒問題）を完全是正
       startCountdownSequence() {
         if (App.State.fsmState === 'COUNTDOWN' || App.State.fsmState === 'TESTING') return;
 
@@ -2108,13 +2136,17 @@
         App.Audio.playSE(660, 0.15, 'triangle', 0.4);
         App.Audio.speak('さん！');
 
-        App.State.registerInterval(() => {
+        const intervalId = App.State.registerInterval(() => {
           App.State.countdownVal--;
           if (App.State.countdownVal > 0) {
             if (numEl) numEl.textContent = App.State.countdownVal;
             App.Audio.playSE(660, 0.15, 'triangle', 0.4);
             App.Audio.speak(App.State.countdownVal === 2 ? 'に！' : 'いち！');
           } else if (App.State.countdownVal === 0) {
+            // GOの瞬間にカウントダウンタイマーを即座に破棄
+            clearInterval(intervalId);
+            App.State.activeIntervals = App.State.activeIntervals.filter(id => id !== intervalId);
+
             if (numEl) numEl.textContent = 'GO!';
             if (subEl) subEl.textContent = '息を吐きながらパカーン！';
             App.Audio.playWhistle();
@@ -2122,12 +2154,13 @@
 
             App.State.fsmState = 'TESTING';
             App.Drill.startLocalRecording();
-          } else {
-            App.State.activeIntervals.forEach(id => clearInterval(id));
-            App.State.activeIntervals = [];
 
-            if (layer) layer.classList.add('hidden');
+            // 0.4秒後にカウントダウン幕を消灯
+            App.State.registerTimeout(() => {
+              if (layer) layer.classList.add('hidden');
+            }, 400);
 
+            // 実測フェーズタイマー開始
             App.State.registerTimeout(() => {
               if (App.State.fsmState !== 'TESTING') return;
 
@@ -2436,7 +2469,7 @@
 
         App.Storage.renderChartList();
         App.UI.updateBalanceHeader();
-        console.info('🦴 Mobility Dock v3.2 Initialized successfully.');
+        console.info('🦴 Mobility Dock v3.3 Refactored & Initialized successfully.');
       }
     };
 
