@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v2.5 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v2.6 | Mobility & Twist Dock</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
@@ -241,7 +241,7 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.5</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.6</span>
         </div>
       </div>
 
@@ -453,6 +453,7 @@
       </button>
     </footer>
   </main>
+
   <!-- モーダル群 -->
   <div id="modalGuidance" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="panel-brawl w-full max-w-sm p-4 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
@@ -615,6 +616,7 @@
       <span id="toastMsg">通知テキスト</span>
     </div>
   </div>
+
   <script>
     /**
      * One Euro Filter (1€ Filter)
@@ -708,18 +710,18 @@
     }
 
     /**
-     * Mobility & Twist Dock v2.5
+     * Mobility & Twist Dock v2.6
      */
     const App = {
       Config: {
-        STABLE_DISTANCE_THRESHOLD: 0.060, // 構え時の静止許容幅を子ども向けに最適化
+        STABLE_DISTANCE_THRESHOLD: 0.060, // 構え時の静止許容幅
         AUTO_TRIGGER_HOLD_MS: 1100,
         TEST_DURATION_MS: 3500,
         MAX_STORED_LOGS: 20
       },
 
       State: {
-        fsmState: 'IDLE',        // IDLE | LOCKON | COUNTDOWN | TESTING | DRILL
+        fsmState: 'IDLE',        // IDLE | LOCKON | COUNTDOWN | TESTING | DRILL | RESULT
         testType: 'THORACIC',    // THORACIC | HIP_IR | HINGE
         cameraFacing: 'user',    // user | environment
         activeSide: 'RIGHT',     // RIGHT | LEFT
@@ -916,6 +918,7 @@
           }
         }
       },
+
       UI: {
         _toastTimer: null,
         elements: {},
@@ -976,10 +979,19 @@
             'drillHudLayer', 'drillTimerText', 'mainActionBtn', 'mainBtnLabel', 'toastNotification', 'toastIcon',
             'toastMsg', 'reportTitleBadge', 'reportRankDesc', 'reportRightVal', 'reportLeftVal', 'reportBarRight',
             'reportBarLeft', 'reportDiffVal', 'reportDiffAdvice', 'reportBaseballImpact', 'replayVideo',
-            'replayImageFallback', 'replayPlaceholder', 'chartLogsList', 'headerBalanceText', 'tiltValText'
+            'replayImageFallback', 'replayPlaceholder', 'chartLogsList', 'headerBalanceText', 'tiltValText',
+            'modalGuidance', 'modalReport', 'modalPrescription', 'modalChart'
           ];
           ids.forEach(id => {
             this.elements[id] = document.getElementById(id);
+          });
+        },
+
+        isModalOpen() {
+          const modalIds = ['modalGuidance', 'modalReport', 'modalPrescription', 'modalChart'];
+          return modalIds.some(id => {
+            const el = this.elements[id] || document.getElementById(id);
+            return el && !el.classList.contains('hidden');
           });
         },
 
@@ -1080,6 +1092,7 @@
           const modal = document.getElementById(id);
           if (modal) {
             modal.classList.remove('hidden');
+            App.Sensor.resetGateInState();
             App.Audio.playSE(440, 0.08, 'sine');
           }
         },
@@ -1089,6 +1102,10 @@
           if (modal) {
             modal.classList.add('hidden');
             App.Audio.playSE(330, 0.06, 'sine');
+            if (App.State.fsmState === 'RESULT') {
+              App.State.fsmState = 'IDLE';
+            }
+            App.Sensor.resetGateInState();
           }
         },
 
@@ -1127,6 +1144,7 @@
           }, 2200);
         }
       },
+
       Sensor: {
         isPoseReady: false,
         lastLandmarks: null,
@@ -1279,6 +1297,14 @@
           const correctedLm = App.Engine.correctPerspectiveTilt(smoothLm, App.State.tiltPitchDeg);
           this.lastLandmarks = correctedLm;
 
+          // モーダル表示中または結果確認中（RESULT）は角度計算と自動開始を安全に停止
+          if (App.UI.isModalOpen() || App.State.fsmState === 'RESULT') {
+            this.resetGateInState();
+            this.renderPoseSkeleton(ctx, correctedLm, w, h, 0);
+            ctx.restore();
+            return;
+          }
+
           const cheat = this.detectCheating(correctedLm, App.State.testType);
           this.handleCheatStatus(cheat);
 
@@ -1298,7 +1324,6 @@
           } else if (App.State.fsmState === 'TESTING') {
             App.Engine.recordCurrentTestAngle(currentAngle);
           } else if (App.State.fsmState === 'IDLE' || App.State.fsmState === 'LOCKON') {
-            // スタート構え判定時にはカンニングによる過剰遮断を回避
             this.checkAutoTriggerGateIn(correctedLm);
           }
 
@@ -1322,10 +1347,6 @@
           return true;
         },
 
-        /**
-         * 【徹底改修】テスト別のスタート準備ポーズ検知
-         * 手を頭の後ろに回した際の遮蔽（手首隠れ）を、肘および頭部近接との複合判定で完全解消
-         */
         checkStartPoseReady(lm, testType, activeSide) {
           if (!lm) return { ready: false, prompt: 'カメラに映ってね！' };
 
@@ -1341,12 +1362,10 @@
               return { ready: false, prompt: '肩をカメラに映してね！' };
             }
 
-            // 右手・左手どちらでも頭・耳周辺に手があるか、肘が肩より上がっていればOK
+            // 手首隠れ（後頭部遮蔽）に対応した複合判定
             const checkArmReady = (wrist, elbow, shoulder) => {
               if (!shoulder) return false;
-              // 手首が肩より高い位置にある（頭や耳の高さ）
               const wristHigh = wrist && (wrist.visibility ?? 1) > 0.15 && (wrist.y < shoulder.y + 0.15);
-              // 手首が後頭部に隠れた場合、肘が外側に持ち上がって肩の高さ付近にあるか
               const elbowRaised = elbow && (elbow.visibility ?? 1) > 0.20 && (elbow.y < shoulder.y + 0.18);
               return wristHigh || elbowRaised;
             };
@@ -1513,7 +1532,6 @@
         detectCheating(landmarks, testType) {
           if (!landmarks) return { isCheating: false, reason: '' };
 
-          // 測定中またはドリル中のみ代償動作警告を作動
           if (App.State.fsmState !== 'TESTING' && App.State.fsmState !== 'DRILL') {
             return { isCheating: false, reason: '' };
           }
@@ -1645,6 +1663,7 @@
           ctx.restore();
         }
       },
+
       Engine: {
         peakRecordedAngle: 0,
 
@@ -1710,10 +1729,6 @@
           return Math.min(55, Math.max(0, Math.round(deg)));
         },
 
-        /**
-         * 【徹底是正】立ちペタ前屈（骨盤ヒンジ）評価
-         * 直立時は0°から始まり、前屈して指先が下がるにつれて自然に角度が伸びるよう再計算
-         */
         evaluatePelvicHinge(landmarks) {
           const lWrist = landmarks[15], rWrist = landmarks[16];
           const lHip = landmarks[23], rHip = landmarks[24];
@@ -1727,22 +1742,17 @@
           const kneeY = (lKnee.y + rKnee.y) / 2;
           const ankleY = (lAnkle.y + rAnkle.y) / 2;
 
-          // 手首が取れない場合は腰〜膝の比率から概算
           const currentY = wrist ? wrist.y : (hip ? hip.y + 0.15 : 0.4);
-
-          // 基準点：股関節/太もも〜膝〜足首の距離スパン
           const hipToKneeSpan = hip ? (kneeY - hip.y) : 0.25;
           const kneeToAnkleSpan = Math.max(0.1, ankleY - kneeY);
 
-          // 手が太もも・お尻にある直立時: 0〜20°
+          // 直立時（0°スタート）〜 膝（約42°）〜 足首（85°）〜 床（98°）
           if (currentY <= kneeY) {
             const startRatio = hip ? Math.max(0, (currentY - hip.y) / Math.max(0.08, hipToKneeSpan)) : 0.3;
-            return Math.round(startRatio * 42); // 膝到達で約42°
+            return Math.round(startRatio * 42);
           }
 
-          // 膝から足首・床へ向かうストローク
           const belowKneeProgress = (currentY - kneeY) / kneeToAnkleSpan;
-          // 膝(42°) 〜 足首くるぶし(85°) 〜 床ペタ(98°)
           const score = 42 + Math.min(1.3, belowKneeProgress) * 45;
           return Math.min(105, Math.max(0, Math.round(score)));
         },
@@ -1799,6 +1809,7 @@
           return { rank: '⚡ レベル判定中', desc: '', color: 'text-white' };
         }
       },
+
       Drill: {
         mediaRecorder: null,
         recordedChunks: [],
@@ -2010,7 +2021,8 @@
             App.State.registerTimeout(() => {
               if (App.State.fsmState !== 'TESTING') return;
 
-              App.State.fsmState = 'IDLE';
+              // 測定完了後はRESULT状態へ移行（背景での誤測定・誤トリガーを完全遮断）
+              App.State.fsmState = 'RESULT';
               App.Drill.stopLocalRecording();
 
               const finalScore = App.Engine.peakRecordedAngle;
@@ -2298,7 +2310,7 @@
         });
 
         App.Storage.renderChartList();
-        console.info('🦴 Mobility Dock v2.5 Initialized successfully.');
+        console.info('🦴 Mobility Dock v2.6 Initialized successfully.');
       }
     };
 
