@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v2.9</title>
+  <title>🦴 柔軟性・しなりドック v3.1</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -186,7 +186,7 @@
     <div class="flex items-center gap-1">
       <span class="text-lg">🦴</span>
       <h1 class="text-xs sm:text-sm font-black text-yellow-300 brawl-text tracking-wider">しなりドック</h1>
-      <span class="text-[9px] bg-slate-800 text-sky-400 border border-sky-500/60 rounded px-1 font-extrabold">v2.9</span>
+      <span class="text-[9px] bg-slate-800 text-sky-400 border border-sky-500/60 rounded px-1 font-extrabold">v3.1</span>
     </div>
 
     <div class="flex items-center gap-1">
@@ -278,65 +278,72 @@
       <p class="text-[11px] text-slate-300 max-w-xs mb-3 leading-relaxed" id="cameraErrorDesc">
         カメラデバイスが接続されていないか、アクセス許可がオフになっている可能性があります。
       </p>
-      <button id="retryCameraBtn" class="btn-brawl btn-emerald px-4 py-2 text-xs font-black">
-        🔄 カメラ接続を再試行する
-      </button>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <button id="retryCameraBtn" class="btn-brawl btn-emerald px-4 py-2 text-xs font-black">
+          🔄 カメラ接続を再試行する
+        </button>
+        <button id="startDemoModeBtn" class="btn-brawl btn-gold px-4 py-2 text-xs font-black text-amber-950">
+          🎮 デモ・体験モードで試す
+        </button>
+      </div>
     </div>
 
     <!-- 姿勢ガイド枠＆中央動的オーバーレイ（重なり防止レイアウト） -->
-    <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5">
-      <!-- 上部：左右HUDとの衝突を避ける一段下げレイアウト -->
-      <div class="w-full flex items-center justify-center gap-1.5 pt-9 sm:pt-10">
-        <div class="bg-black/85 border border-slate-700 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg backdrop-blur-sm">
-          <div class="flex items-center gap-1">
-            <span id="stepDotBounds" class="step-dot"></span>
-            <span id="stepDotBoundsLabel" class="text-[8px] text-slate-300">上半身</span>
-          </div>
-          <span class="text-slate-600 text-[8px]">▶</span>
-          <div class="flex items-center gap-1">
-            <span id="stepDotPose" class="step-dot"></span>
-            <span class="text-[8px] text-slate-300">構え</span>
-          </div>
-          <span class="text-slate-600 text-[8px]">▶</span>
-          <div class="flex items-center gap-1">
-            <span id="stepDotStill" class="step-dot"></span>
-            <span class="text-[8px] text-slate-300">静止</span>
-          </div>
+    <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5 transition-all duration-300">
+      <!-- 上部：離れていても一目でわかる遠隔メガ案内バナー -->
+      <div class="w-full flex flex-col items-center pt-8 sm:pt-9 gap-1">
+        <!-- 遠隔メガ案内バナー（2m離れてもハッキリ読める特大サイズ） -->
+        <div id="megaGuideBanner" class="bg-black/90 border-2 border-yellow-400 px-3 py-1.5 rounded-2xl shadow-2xl flex items-center gap-2 max-w-[95%] backdrop-blur-md transition-all duration-200">
+          <span id="megaGuideIcon" class="text-xl sm:text-2xl animate-bounce">👉</span>
+          <span id="megaGuideText" class="text-xs sm:text-sm font-black text-yellow-300 brawl-text leading-tight text-center">
+            軽くお辞儀して手を頭と膝へ！
+          </span>
         </div>
 
-        <div id="modelPoseCard" class="bg-slate-900/90 border-2 border-yellow-400/80 px-2 py-0.5 rounded-xl shadow-lg flex items-center gap-1 pointer-events-auto cursor-pointer active:scale-95 transition-transform backdrop-blur-sm" title="タップでお手本を大きく確認">
-          <span id="modelPoseIcon" class="text-xs">🏌️‍♂️</span>
-          <span id="modelPoseText" class="text-[9px] text-yellow-300 font-black brawl-text">お辞儀＆頭へ手！</span>
+        <div class="flex items-center gap-2">
+          <div class="bg-black/85 border border-slate-700 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg backdrop-blur-sm">
+            <div class="flex items-center gap-1">
+              <span id="stepDotBounds" class="step-dot"></span>
+              <span id="stepDotBoundsLabel" class="text-[8px] text-slate-300">上半身</span>
+            </div>
+            <span class="text-slate-600 text-[8px]">▶</span>
+            <div class="flex items-center gap-1">
+              <span id="stepDotPose" class="step-dot"></span>
+              <span class="text-[8px] text-slate-300">構え</span>
+            </div>
+            <span class="text-slate-600 text-[8px]">▶</span>
+            <div class="flex items-center gap-1">
+              <span id="stepDotStill" class="step-dot"></span>
+              <span class="text-[8px] text-slate-300">静止</span>
+            </div>
+          </div>
+
+          <div id="modelPoseCard" class="bg-slate-900/90 border-2 border-yellow-400/80 px-2 py-0.5 rounded-xl shadow-lg flex items-center gap-1 pointer-events-auto cursor-pointer active:scale-95 transition-transform backdrop-blur-sm" title="タップでお手本を大きく確認">
+            <span id="modelPoseIcon" class="text-xs">🏌️‍♂️</span>
+            <span id="modelPoseText" class="text-[9px] text-yellow-300 font-black brawl-text">お辞儀＆頭へ手！</span>
+          </div>
         </div>
       </div>
 
-      <!-- 中央：ロックオン進行度 -->
+      <!-- 中央：ロックオン進行度（大型化） -->
       <div class="flex flex-col items-center gap-2">
-        <div id="lockonChargeBox" class="hidden flex flex-col items-center gap-1 bg-black/85 px-4 py-2 rounded-2xl border-2 border-sky-400 shadow-2xl backdrop-blur-md">
+        <div id="lockonChargeBox" class="hidden flex flex-col items-center gap-1 bg-black/90 px-5 py-2.5 rounded-2xl border-2 border-sky-400 shadow-2xl backdrop-blur-md scale-105">
           <div class="flex items-center gap-2">
-            <span class="text-lg animate-spin">⚡</span>
-            <span class="text-xs font-black text-sky-300 brawl-text">構えOK！ロックオン中...</span>
+            <span class="text-xl animate-spin">⚡</span>
+            <span class="text-sm font-black text-sky-300 brawl-text">構えOK！そのままストップ！</span>
           </div>
-          <div class="w-36 bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-600">
-            <div id="lockonProgressBar" class="bg-gradient-to-r from-sky-400 to-yellow-400 h-full w-0 transition-all duration-75"></div>
+          <div class="w-48 bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-600">
+            <div id="lockonProgressBar" class="bg-gradient-to-r from-sky-400 via-emerald-400 to-yellow-400 h-full w-0 transition-all duration-75"></div>
           </div>
         </div>
 
-        <div id="lockonStatusPill" class="hidden bg-sky-500/90 border border-white px-3 py-0.5 rounded-full text-[10px] text-white brawl-text shadow-lg flex items-center gap-1.5 animate-pulse">
-          <span>⚡</span> <span id="lockonStatusText">前傾構えOK！そのままストップ！</span>
-        </div>
-
-        <div id="cheatWarningPill" class="hidden bg-red-600/90 border-2 border-white px-2.5 py-0.5 rounded-full text-[10px] text-white brawl-text alert-pulse flex items-center gap-1.5 shadow-lg">
-          <span>⚠️</span> <span id="cheatWarningText">腰が浮いてるぞ！骨盤は固定して胸だけ開こう！</span>
+        <div id="cheatWarningPill" class="hidden bg-red-600/95 border-2 border-white px-3 py-1 rounded-full text-xs font-black text-white brawl-text alert-pulse flex items-center gap-1.5 shadow-2xl">
+          <span class="text-base">⚠️</span> <span id="cheatWarningText">腰が浮いてるぞ！胸だけ開こう！</span>
         </div>
       </div>
 
-      <!-- 下部：最下部バーとの重なりを完全排除した底上げレイアウト -->
-      <div class="w-full flex flex-col items-center pb-8 sm:pb-9">
-        <div id="poseCheckPromptPill" class="bg-slate-900/95 border-2 border-yellow-400 px-3 py-1 rounded-full text-[10px] sm:text-[11px] text-yellow-300 brawl-text shadow-xl flex items-center gap-1.5 backdrop-blur-sm">
-          <span class="animate-bounce text-xs">👉</span> <span id="poseCheckPromptText">軽くお辞儀して、片手を頭・反対の手を膝へ！</span>
-        </div>
-      </div>
+      <!-- 下部スペース（重なり防止用空ブロック） -->
+      <div class="w-full h-8"></div>
     </div>
 
     <!-- HUD数値表示（上部左右固定） -->
@@ -665,8 +672,8 @@
      */
     const App = {
       Config: {
-        STABLE_DISTANCE_THRESHOLD: 0.05,
-        AUTO_TRIGGER_HOLD_MS: 1100,
+        STABLE_DISTANCE_THRESHOLD: 0.075, // 前傾姿勢の微小な揺れを許容しやすく緩和
+        AUTO_TRIGGER_HOLD_MS: 1000,       // ロックオン所要時間をテンポよく1秒に
         TEST_DURATION_MS: 3800,
         MAX_STORED_LOGS: 25
       },
@@ -909,8 +916,8 @@
           const ids = [
             'cameraVideo', 'poseCanvas', 'ghostContainer', 'cameraErrorOverlay', 'cameraErrorDesc',
             'guideOverlay', 'stepDotBounds', 'stepDotBoundsLabel', 'stepDotPose', 'stepDotStill',
-            'modelPoseCard', 'modelPoseIcon', 'modelPoseText', 'poseCheckPromptPill', 'poseCheckPromptText',
-            'lockonChargeBox', 'lockonProgressBar', 'lockonStatusPill', 'cheatWarningPill', 'cheatWarningText',
+            'modelPoseCard', 'modelPoseIcon', 'modelPoseText', 'megaGuideBanner', 'megaGuideIcon', 'megaGuideText',
+            'lockonChargeBox', 'lockonProgressBar', 'cheatWarningPill', 'cheatWarningText',
             'hudMainIcon', 'hudMainLabel', 'hudAngleVal', 'hudTargetVal', 'rankPreviewBadge', 'activeSideBadge',
             'countdownLayer', 'countdownNumber', 'countdownSubtitle', 'statusInstruction', 'instructionText',
             'drillHudLayer', 'drillTimerText', 'mainActionBtn', 'mainBtnLabel', 'toastNotification', 'toastIcon',
@@ -931,97 +938,29 @@
           });
         },
 
-        selectTest(type) {
-          App.State.clearAllActiveTimers();
-          App.State.fsmState = 'IDLE';
+        // 2m離れても一目でわかるメガバナー更新 ＆ 音声アシスト
+        updateMegaBanner(text, icon = '👉', type = 'warning') {
+          const banner = this.elements.megaGuideBanner;
+          const textEl = this.elements.megaGuideText;
+          const iconEl = this.elements.megaGuideIcon;
+          const overlay = this.elements.guideOverlay;
+          if (!banner || !textEl) return;
 
-          if (this.elements.countdownLayer) this.elements.countdownLayer.classList.add('hidden');
+          textEl.textContent = text;
+          if (iconEl) iconEl.textContent = icon;
 
-          App.State.testType = type;
-          const meta = this.testsMeta[type];
-
-          if (this.elements.stepDotBoundsLabel) {
-            this.elements.stepDotBoundsLabel.textContent = type === 'THORACIC' ? '上半身' : '全身';
-          }
-
-          ['tabThoracic', 'tabHipIR', 'tabHinge'].forEach(id => {
-            const btn = document.getElementById(id);
-            if (btn) {
-              const testKey = btn.getAttribute('data-test');
-              if (testKey === type) {
-                btn.className = 'btn-brawl btn-emerald py-1 px-1 flex items-center justify-center gap-1 transition-all border-white shadow-md';
-              } else {
-                btn.className = 'btn-brawl btn-dark py-1 px-1 flex items-center justify-center gap-1 transition-all opacity-85';
-              }
-            }
-          });
-
-          ['ghostPathThoracic', 'ghostPathHipIR', 'ghostPathHinge'].forEach(gid => {
-            const gEl = document.getElementById(gid);
-            if (gEl) {
-              if (gid === meta.ghostId) gEl.classList.remove('hidden');
-              else gEl.classList.add('hidden');
-            }
-          });
-
-          if (this.elements.modelPoseIcon) this.elements.modelPoseIcon.textContent = meta.modelIcon;
-          if (this.elements.modelPoseText) this.elements.modelPoseText.textContent = meta.modelPrompt;
-          if (this.elements.hudMainIcon) this.elements.hudMainIcon.textContent = meta.icon;
-          if (this.elements.hudMainLabel) this.elements.hudMainLabel.textContent = `${meta.name}角度`;
-          if (this.elements.hudTargetVal) this.elements.hudTargetVal.textContent = `${meta.target}°`;
-          if (this.elements.instructionText) this.elements.instructionText.textContent = meta.instruction;
-
-          const gModalIcon = document.getElementById('guideModalIcon');
-          const gModalTitle = document.getElementById('guideModalTitle');
-          const gPoseDesc = document.getElementById('guidePoseDesc');
-          const gCheatDesc = document.getElementById('guideCheatDesc');
-          const gBaseball = document.getElementById('guideBaseballEffect');
-
-          if (gModalIcon) gModalIcon.textContent = meta.icon;
-          if (gModalTitle) gModalTitle.textContent = `${meta.name}（${meta.sub}）のコツ`;
-          if (gPoseDesc) gPoseDesc.textContent = meta.guideTarget;
-          if (gCheatDesc) gCheatDesc.textContent = meta.cheatDesc;
-          if (gBaseball) gBaseball.textContent = meta.effect;
-
-          App.Audio.playSE(520, 0.06, 'triangle');
-          this.showToast(`🎯 テスト切替: ${meta.name}`);
-          App.Audio.speak(meta.voiceIntro);
-
-          App.State.poseFilter.reset();
-          App.Sensor.resetGateInState();
-          this.updateBalanceHeader();
-        },
-
-        updateStepLamps(inBounds, poseReady, isStill) {
-          if (this.elements.stepDotBounds) this.elements.stepDotBounds.classList.toggle('active', inBounds);
-          if (this.elements.stepDotPose) {
-            this.elements.stepDotPose.classList.toggle('active', poseReady);
-            if (this.elements.ghostContainer) this.elements.ghostContainer.classList.toggle('matched', poseReady);
-          }
-          if (this.elements.stepDotStill) this.elements.stepDotStill.classList.toggle('active', isStill);
-        },
-
-        updateBadges(mainVal) {
-          if (this.elements.hudAngleVal) {
-            this.elements.hudAngleVal.textContent = `${Math.round(mainVal)}°`;
-          }
-
-          const rankBadge = this.elements.rankPreviewBadge;
-          const target = this.testsMeta[App.State.testType].target;
-          if (rankBadge) {
-            if (mainVal >= target + 5) {
-              rankBadge.className = 'badge-brawl text-[9px] py-0.5 px-1.5 bg-yellow-950 text-yellow-300 border-yellow-400';
-              rankBadge.textContent = '🌟 SUPER DRAGON達成！';
-            } else if (mainVal >= target) {
-              rankBadge.className = 'badge-brawl text-[9px] py-0.5 px-1.5 bg-emerald-950 text-emerald-300 border-emerald-400';
-              rankBadge.textContent = '⚡ LEVEL 2 実戦マスター';
-            } else if (mainVal >= target * 0.7) {
-              rankBadge.className = 'badge-brawl text-[9px] py-0.5 px-1.5 bg-blue-950 text-blue-300 border-blue-400';
-              rankBadge.textContent = '🔒 あと少しで覚醒！';
-            } else {
-              rankBadge.className = 'badge-brawl text-[9px] py-0.5 px-1.5 bg-red-950 text-red-300 border-red-400 alert-pulse';
-              rankBadge.textContent = '⚠️ カチコチ要解除';
-            }
+          if (type === 'danger') {
+            banner.className = 'bg-red-950/95 border-2 border-red-500 px-3 py-1.5 rounded-2xl shadow-2xl flex items-center gap-2 max-w-[95%] backdrop-blur-md animate-pulse';
+            textEl.className = 'text-xs sm:text-sm font-black text-red-300 brawl-text leading-tight text-center';
+            if (overlay) overlay.style.borderColor = '#ef4444';
+          } else if (type === 'success') {
+            banner.className = 'bg-emerald-950/95 border-2 border-emerald-400 px-3 py-1.5 rounded-2xl shadow-2xl flex items-center gap-2 max-w-[95%] backdrop-blur-md';
+            textEl.className = 'text-xs sm:text-sm font-black text-emerald-300 brawl-text leading-tight text-center';
+            if (overlay) overlay.style.borderColor = '#34d399';
+          } else {
+            banner.className = 'bg-black/90 border-2 border-yellow-400 px-3 py-1.5 rounded-2xl shadow-2xl flex items-center gap-2 max-w-[95%] backdrop-blur-md';
+            textEl.className = 'text-xs sm:text-sm font-black text-yellow-300 brawl-text leading-tight text-center';
+            if (overlay) overlay.style.borderColor = 'rgba(56, 189, 248, 0.6)';
           }
         },
 
@@ -1110,83 +1049,96 @@
         lastLandmarks: null,
         poseInstance: null,
         animFrameId: null,
+        demoFrameId: null,
+        isDemoMode: false,
         stableSince: 0,
         prevKeypointPos: null,
         lastCheatWarningTime: 0,
         isProcessingFrame: false,
         hasPlayedChargeVoice: false,
+        lastVoicePrompt: '',
+        lastVoicePromptTime: 0,
 
-        async initCamera(videoEl, facingMode = 'user') {
-          try {
-            App.UI.hideCameraError();
-
-            if (App.State.stream) {
-              App.State.stream.getTracks().forEach(t => t.stop());
-              App.State.stream = null;
-            }
-
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-              throw new Error('お使いのブラウザはカメラAPIに対応していません。');
-            }
-
-            const isPortrait = window.innerHeight >= window.innerWidth;
-            let stream = null;
-
-            try {
-              stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                  facingMode: { ideal: facingMode },
-                  width: { ideal: isPortrait ? 720 : 1280 },
-                  height: { ideal: isPortrait ? 1280 : 720 }
-                },
-                audio: false
-              });
-            } catch (e1) {
-              try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                  video: { facingMode: { ideal: facingMode } },
-                  audio: false
-                });
-              } catch (e2) {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-              }
-            }
-
-            App.State.stream = stream;
-            videoEl.srcObject = stream;
-
-            const track = stream.getVideoTracks()[0];
-            const currentFacing = track?.getSettings()?.facingMode || facingMode;
-            App.State.cameraFacing = currentFacing;
-
-            const canvas = App.UI.elements.poseCanvas;
-            const transformStyle = currentFacing === 'environment' ? 'scaleX(1)' : 'scaleX(-1)';
-            videoEl.style.transform = transformStyle;
-            if (canvas) canvas.style.transform = transformStyle;
-
-            await new Promise((resolve) => {
-              if (videoEl.readyState >= 1 && videoEl.videoWidth > 0) {
-                resolve();
-              } else {
-                videoEl.onloadedmetadata = () => resolve();
-              }
-            });
-
-            await videoEl.play();
-
-            if (canvas) {
-              canvas.width = videoEl.videoWidth || 720;
-              canvas.height = videoEl.videoHeight || 1280;
-            }
-
-            this.initMediaPipe(videoEl, canvas);
-            App.UI.showToast('📷 カメラ接続完了！');
-            return true;
-          } catch (err) {
-            console.error('Camera Access Error:', err);
-            App.UI.showCameraError(err);
-            return false;
+        // 離れているユーザーへ定期的かつ重複なく音声ガイド
+        speakGuidance(text, interval = 3500) {
+          const now = Date.now();
+          if (this.lastVoicePrompt !== text || (now - this.lastVoicePromptTime > interval)) {
+            this.lastVoicePrompt = text;
+            this.lastVoicePromptTime = now;
+            App.Audio.speak(text);
           }
+        },
+
+        startDemoSimulation(canvasEl) {
+          this.isDemoMode = true;
+          App.UI.hideCameraError();
+          App.UI.showToast('🎮 デモ体験モード起動中！', '⚡');
+          if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
+          if (this.demoFrameId) cancelAnimationFrame(this.demoFrameId);
+
+          const startTime = performance.now();
+          const demoLoop = () => {
+            if (!this.isDemoMode) return;
+            const elapsed = (performance.now() - startTime) / 1000;
+            const mockLm = this.generateMockLandmarks(elapsed, App.State.testType);
+            this.onPoseResults({ poseLandmarks: mockLm }, canvasEl);
+            this.demoFrameId = requestAnimationFrame(demoLoop);
+          };
+          this.demoFrameId = requestAnimationFrame(demoLoop);
+        },
+
+        stopDemoSimulation() {
+          this.isDemoMode = false;
+          if (this.demoFrameId) {
+            cancelAnimationFrame(this.demoFrameId);
+            this.demoFrameId = null;
+          }
+        },
+
+        generateMockLandmarks(t, testType) {
+          // デモ用擬似骨格生成（滑らかな動きをシミュレート）
+          const baseLm = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
+          
+          if (testType === 'THORACIC') {
+            // 前傾姿勢シミュレーション
+            const twistCycle = Math.sin(t * 1.5);
+            const shoulderTilt = twistCycle * 0.12;
+            baseLm[11] = { x: 0.40, y: 0.38 - shoulderTilt, z: 0, visibility: 0.95 }; // 左肩
+            baseLm[12] = { x: 0.60, y: 0.38 + shoulderTilt, z: 0, visibility: 0.95 }; // 右肩
+            baseLm[13] = { x: 0.32, y: 0.34, z: 0, visibility: 0.9 }; // 左肘
+            baseLm[14] = { x: 0.68, y: 0.48, z: 0, visibility: 0.9 }; // 右肘
+            baseLm[15] = { x: 0.45, y: 0.22, z: 0, visibility: 0.95 }; // 左手（頭）
+            baseLm[16] = { x: 0.45, y: 0.62, z: 0, visibility: 0.95 }; // 右手（膝）
+            baseLm[23] = { x: 0.44, y: 0.58, z: 0, visibility: 0.95 }; // 左腰
+            baseLm[24] = { x: 0.56, y: 0.58, z: 0, visibility: 0.95 }; // 右腰
+            baseLm[25] = { x: 0.44, y: 0.72, z: 0, visibility: 0.9 };
+            baseLm[26] = { x: 0.56, y: 0.72, z: 0, visibility: 0.9 };
+            baseLm[27] = { x: 0.44, y: 0.88, z: 0, visibility: 0.9 };
+            baseLm[28] = { x: 0.56, y: 0.88, z: 0, visibility: 0.9 };
+          } else if (testType === 'HIP_IR') {
+            const wiper = Math.max(0, Math.sin(t * 1.8)) * 0.14;
+            baseLm[11] = { x: 0.42, y: 0.28, z: 0, visibility: 0.95 };
+            baseLm[12] = { x: 0.58, y: 0.28, z: 0, visibility: 0.95 };
+            baseLm[23] = { x: 0.44, y: 0.50, z: 0, visibility: 0.95 };
+            baseLm[24] = { x: 0.56, y: 0.50, z: 0, visibility: 0.95 };
+            baseLm[25] = { x: 0.44, y: 0.74, z: 0, visibility: 0.95 };
+            baseLm[26] = { x: 0.56, y: 0.64, z: 0, visibility: 0.95 }; // 右膝持ち上げ
+            baseLm[27] = { x: 0.44, y: 0.92, z: 0, visibility: 0.95 };
+            baseLm[28] = { x: 0.56 - wiper, y: 0.82, z: 0, visibility: 0.95 }; // 足首ワイパー
+          } else {
+            const bend = Math.max(0, Math.sin(t * 1.4)) * 0.24;
+            baseLm[11] = { x: 0.42, y: 0.30 + bend * 0.5, z: 0, visibility: 0.95 };
+            baseLm[12] = { x: 0.58, y: 0.30 + bend * 0.5, z: 0, visibility: 0.95 };
+            baseLm[15] = { x: 0.46, y: 0.52 + bend, z: 0, visibility: 0.95 };
+            baseLm[16] = { x: 0.54, y: 0.52 + bend, z: 0, visibility: 0.95 };
+            baseLm[23] = { x: 0.44, y: 0.52, z: 0, visibility: 0.95 };
+            baseLm[24] = { x: 0.56, y: 0.52, z: 0, visibility: 0.95 };
+            baseLm[25] = { x: 0.44, y: 0.72, z: 0, visibility: 0.95 };
+            baseLm[26] = { x: 0.56, y: 0.72, z: 0, visibility: 0.95 };
+            baseLm[27] = { x: 0.44, y: 0.92, z: 0, visibility: 0.95 };
+            baseLm[28] = { x: 0.56, y: 0.92, z: 0, visibility: 0.95 };
+          }
+          return baseLm;
         },
 
         initMediaPipe(videoEl, canvasEl) {
@@ -1293,10 +1245,10 @@
         isPoseInBounds(lm, testType) {
           const lSh = lm[11], rSh = lm[12];
           if (!lSh || !rSh) return false;
-          if ((lSh.visibility ?? 1) < 0.35 || (rSh.visibility ?? 1) < 0.35) return false;
+          if ((lSh.visibility ?? 1) < 0.25 || (rSh.visibility ?? 1) < 0.25) return false;
 
           const midX = (lSh.x + rSh.x) / 2;
-          if (midX < 0.08 || midX > 0.92) return false;
+          if (midX < 0.05 || midX > 0.95) return false;
 
           if (testType === 'HIP_IR' || testType === 'HINGE') {
             const lHip = lm[23], rHip = lm[24];
@@ -1306,9 +1258,9 @@
           return true;
         },
 
-        // ゴルフTPI式「前傾胸パカーン」構え判定
+        // ゴルフTPI式「前傾胸パカーン」構え判定（離れていても認識しやすい高感度版）
         checkStartPoseReady(lm, testType, activeSide) {
-          if (!lm) return { ready: false, prompt: 'カメラに映ってね！' };
+          if (!lm) return { ready: false, prompt: 'カメラに全身を映してね！', voice: 'カメラの正面に立ってね！' };
 
           const lSh = lm[11], rSh = lm[12];
           const lHip = lm[23], rHip = lm[24];
@@ -1318,17 +1270,21 @@
           const lElbow = lm[13], rElbow = lm[14];
 
           if (testType === 'THORACIC') {
-            if (!lSh || !rSh || (lSh.visibility ?? 1) < 0.35 || (rSh.visibility ?? 1) < 0.35) {
-              return { ready: false, prompt: '胸と肩をカメラの正面に向けよう！' };
+            if (!lSh || !rSh || (lSh.visibility ?? 1) < 0.25 || (rSh.visibility ?? 1) < 0.25) {
+              return { 
+                ready: false, 
+                prompt: '胸と肩をカメラの正面に向けよう！', 
+                voice: '胸と肩をカメラに向けてね！' 
+              };
             }
 
-            const shoulderDist = Math.hypot(lSh.x - rSh.x, lSh.y - rSh.y);
+            // 片手を頭、もう片方の手を反対の膝周辺にセットしているか判定
             const handNearHead = (wrist, elbow, shoulder) => {
-              if (wrist && (wrist.visibility ?? 1) > 0.25) {
-                if (wrist.y < shoulder.y + 0.15) return true;
+              if (wrist && (wrist.visibility ?? 1) > 0.2) {
+                if (wrist.y < shoulder.y + 0.18) return true;
               }
-              if (elbow && (elbow.visibility ?? 1) > 0.35) {
-                if (elbow.y < shoulder.y + 0.10 && Math.abs(elbow.x - shoulder.x) > shoulderDist * 0.3) return true;
+              if (elbow && (elbow.visibility ?? 1) > 0.25) {
+                if (elbow.y < shoulder.y + 0.12) return true;
               }
               return false;
             };
@@ -1337,39 +1293,71 @@
             const rightHandUp = handNearHead(rWrist, rElbow, rSh);
 
             if (leftHandUp || rightHandUp) {
-              return { ready: true, prompt: '前傾構えOK！そのままストップ！' };
+              return { 
+                ready: true, 
+                prompt: '前傾構えOK！そのままストップ！', 
+                voice: '構えオッケー！そのままストップ！' 
+              };
             }
-            return { ready: false, prompt: '軽くお辞儀して、片手を頭の後ろにセットしてね！' };
+            return { 
+              ready: false, 
+              prompt: '軽くお辞儀して手を頭と反対の膝へ！', 
+              voice: '軽くお辞儀して、片手を頭、もう片方の手を膝へ！' 
+            };
           }
 
           if (testType === 'HIP_IR') {
             const targetKnee = activeSide === 'RIGHT' ? rKnee : lKnee;
             const supportKnee = activeSide === 'RIGHT' ? lKnee : rKnee;
 
-            if (!targetKnee || !supportKnee || (targetKnee.visibility ?? 1) < 0.35 || (supportKnee.visibility ?? 1) < 0.35) {
-              return { ready: false, prompt: '膝が映る位置（約1.5m）に立とう！' };
+            if (!targetKnee || !supportKnee || (targetKnee.visibility ?? 1) < 0.3 || (supportKnee.visibility ?? 1) < 0.3) {
+              return { 
+                ready: false, 
+                prompt: '膝が映る位置（約1.5m）に立とう！', 
+                voice: '膝が映る位置に立ってね！' 
+              };
             }
-            if ((supportKnee.y - targetKnee.y) > 0.04) {
-              return { ready: true, prompt: '片足タメ構えOK！動かないで！' };
+            if ((supportKnee.y - targetKnee.y) > 0.035) {
+              return { 
+                ready: true, 
+                prompt: '片足タメ構えOK！動かないで！', 
+                voice: '構えオッケー！そのままストップ！' 
+              };
             }
-            return { ready: false, prompt: '片膝を前に持ち上げてね！（壁タッチOK）' };
+            return { 
+              ready: false, 
+              prompt: '片膝を前に持ち上げてね！（壁タッチOK）', 
+              voice: '片膝を持ち上げてスタンバイ！' 
+            };
           }
 
           if (testType === 'HINGE') {
             const hip = rHip || lHip;
             const knee = rKnee || lKnee;
             const ankle = rAnkle || lAnkle;
-            if (!knee || !ankle || (knee.visibility ?? 1) < 0.35 || (ankle.visibility ?? 1) < 0.35) {
-              return { ready: false, prompt: '足元まで映るように少し離れよう！' };
+            if (!knee || !ankle || (knee.visibility ?? 1) < 0.3 || (ankle.visibility ?? 1) < 0.3) {
+              return { 
+                ready: false, 
+                prompt: '足元まで映るように少し離れよう！', 
+                voice: '足元まで映るように離れてね！' 
+              };
             }
             const kneeAngle = App.Engine.calculateJointAngle(hip, knee, ankle);
-            if (kneeAngle > 145) {
-              return { ready: true, prompt: '直立OK！そのままストップ！' };
+            if (kneeAngle > 142) {
+              return { 
+                ready: true, 
+                prompt: '直立OK！そのままストップ！', 
+                voice: '直立オッケー！そのままストップ！' 
+              };
             }
-            return { ready: false, prompt: '膝を伸ばしてまっすぐ立とう！' };
+            return { 
+              ready: false, 
+              prompt: '膝を伸ばしてまっすぐ立とう！', 
+              voice: '膝を伸ばしてまっすぐ立ってね！' 
+            };
           }
 
-          return { ready: true, prompt: '姿勢OK！' };
+          return { ready: true, prompt: '姿勢OK！', voice: 'オッケー！' };
         },
 
         checkAutoTriggerGateIn(lm, isCheating) {
@@ -1379,15 +1367,12 @@
             return;
           }
 
-          const promptPill = App.UI.elements.poseCheckPromptPill;
-          const promptText = App.UI.elements.poseCheckPromptText;
           const chargeBox = App.UI.elements.lockonChargeBox;
           const progressBar = App.UI.elements.lockonProgressBar;
 
           if (isCheating) {
             this.resetGateInState();
             App.UI.updateStepLamps(false, false, false);
-            if (promptPill) promptPill.classList.add('hidden');
             return;
           }
 
@@ -1395,12 +1380,11 @@
           if (!inBounds) {
             this.resetGateInState();
             App.UI.updateStepLamps(false, false, false);
-            if (promptPill && promptText) {
-              promptText.textContent = App.State.testType === 'THORACIC'
-                ? '胸と肩をカメラの正面に向けよう！'
-                : 'カメラから少し離れて全身を映そう！';
-              promptPill.classList.remove('hidden');
-            }
+            const msg = App.State.testType === 'THORACIC'
+              ? '胸と肩をカメラの正面に向けよう！'
+              : 'カメラから少し離れて全身を映そう！';
+            App.UI.updateMegaBanner(msg, '📷', 'danger');
+            this.speakGuidance(msg);
             return;
           }
 
@@ -1408,23 +1392,17 @@
           if (!poseStatus.ready) {
             this.resetGateInState();
             App.UI.updateStepLamps(true, false, false);
-            if (promptPill && promptText) {
-              promptText.textContent = poseStatus.prompt;
-              promptPill.classList.remove('hidden');
-            }
+            App.UI.updateMegaBanner(poseStatus.prompt, '👉', 'warning');
+            this.speakGuidance(poseStatus.voice || poseStatus.prompt);
             return;
           }
 
           App.UI.updateStepLamps(true, true, false);
-          if (promptPill && promptText) {
-            promptText.textContent = poseStatus.prompt;
-            promptPill.classList.remove('hidden');
-          }
+          App.UI.updateMegaBanner(poseStatus.prompt, '⚡', 'success');
 
           const lSh = lm[11], rSh = lm[12];
           const currentPos = { x: (lSh.x + rSh.x) / 2, y: (lSh.y + rSh.y) / 2 };
           const box = App.UI.elements.guideOverlay;
-          const pill = App.UI.elements.lockonStatusPill;
 
           if (this.prevKeypointPos) {
             const dist = Math.hypot(currentPos.x - this.prevKeypointPos.x, currentPos.y - this.prevKeypointPos.y);
@@ -1435,19 +1413,15 @@
               if (this.stableSince === 0) {
                 this.stableSince = now;
                 App.State.fsmState = 'LOCKON';
-                if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5 charging';
-                if (pill) pill.classList.remove('hidden');
+                if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5 charging transition-all duration-300';
                 if (chargeBox) chargeBox.classList.remove('hidden');
+                App.UI.updateMegaBanner('そのままストップ！ロックオン中...', '⚡', 'success');
                 App.Audio.playChargeSE();
+                this.speakGuidance('そのまま動かないで！', 2000);
               } else {
                 const elapsed = now - this.stableSince;
                 const progressPct = Math.min(100, Math.round((elapsed / App.Config.AUTO_TRIGGER_HOLD_MS) * 100));
                 if (progressBar) progressBar.style.width = `${progressPct}%`;
-
-                if (elapsed >= 300 && !this.hasPlayedChargeVoice) {
-                  this.hasPlayedChargeVoice = true;
-                  App.Audio.speak('前傾構えOK！そのままストップ！');
-                }
 
                 if (elapsed >= App.Config.AUTO_TRIGGER_HOLD_MS) {
                   this.triggerAutoStart();
@@ -1468,10 +1442,7 @@
           if (App.State.fsmState === 'LOCKON') App.State.fsmState = 'IDLE';
 
           const box = App.UI.elements.guideOverlay;
-          if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5';
-
-          const pill = App.UI.elements.lockonStatusPill;
-          if (pill) pill.classList.add('hidden');
+          if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5 transition-all duration-300';
 
           const chargeBox = App.UI.elements.lockonChargeBox;
           if (chargeBox) chargeBox.classList.add('hidden');
@@ -1482,11 +1453,10 @@
 
         triggerAutoStart() {
           const box = App.UI.elements.guideOverlay;
-          if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5 locked';
+          if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5 locked transition-all duration-300';
 
-          if (App.UI.elements.lockonStatusPill) App.UI.elements.lockonStatusPill.classList.add('hidden');
           if (App.UI.elements.lockonChargeBox) App.UI.elements.lockonChargeBox.classList.add('hidden');
-          if (App.UI.elements.poseCheckPromptPill) App.UI.elements.poseCheckPromptPill.classList.add('hidden');
+          App.UI.updateMegaBanner('🎯 ロックオン完了！いくぞ！', '🔥', 'success');
 
           // ロックオン完了時点の初期傾斜をキャリブレーション原点として記録
           if (this.lastLandmarks) {
@@ -2220,7 +2190,15 @@
 
         const flipCamBtn = document.getElementById('flipCamBtn');
         if (flipCamBtn) {
-          flipCamBtn.addEventListener('click', () => {
+          flipCamBtn.addEventListener('click', async () => {
+            try {
+              const devices = await navigator.mediaDevices?.enumerateDevices?.();
+              const videoInputs = devices ? devices.filter(d => d.kind === 'videoinput') : [];
+              if (videoInputs.length === 1) {
+                App.UI.showToast('ℹ️ 利用可能なカメラは1台のみです');
+                return;
+              }
+            } catch (e) {}
             App.State.cameraFacing = App.State.cameraFacing === 'user' ? 'environment' : 'user';
             App.Sensor.initCamera(videoEl, App.State.cameraFacing);
           });
@@ -2230,6 +2208,18 @@
         if (retryCameraBtn) {
           retryCameraBtn.addEventListener('click', () => {
             App.Sensor.initCamera(videoEl, App.State.cameraFacing);
+          });
+        }
+
+        const startDemoModeBtn = document.getElementById('startDemoModeBtn');
+        if (startDemoModeBtn) {
+          startDemoModeBtn.addEventListener('click', () => {
+            const canvas = App.UI.elements.poseCanvas;
+            if (canvas) {
+              canvas.width = canvas.clientWidth || 720;
+              canvas.height = canvas.clientHeight || 1280;
+            }
+            App.Sensor.startDemoSimulation(canvas);
           });
         }
 
