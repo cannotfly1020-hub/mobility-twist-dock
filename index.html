@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>しなりドラゴン プロ v2.5.0 | ジュニアアスリート柔軟性チェッカー</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -87,9 +87,14 @@
       background: #475569;
       border-radius: 9999px;
     }
+
+    /* iOSホームバー・ツールバーのセーフエリア対応 */
+    .safe-bottom-padding {
+      padding-bottom: max(0.6rem, env(safe-area-inset-bottom, 0px));
+    }
   </style>
 </head>
-<body class="relative w-screen h-screen flex flex-col justify-between overflow-hidden bg-slate-950">
+<body class="relative w-screen h-screen h-[100dvh] flex flex-col justify-between overflow-hidden bg-slate-950">
 
   <!-- 
     カメラ映像（フレーム供給用ソース）
@@ -188,7 +193,7 @@
     </div>
 
     <!-- 3. 右下固定: お手本ミニワイプ（PIPアニメーション） -->
-    <div class="absolute right-4 bottom-16 bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28 sm:w-32">
+    <div class="absolute right-4 bottom-20 bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28 sm:w-32">
       <div class="text-[9px] font-black text-cyan-300 mb-1 flex items-center space-x-1">
         <span>💡 お手本動作</span>
       </div>
@@ -200,7 +205,7 @@
   </div>
 
   <!-- 4. 音声コーチ字幕ピルタグ -->
-  <div class="relative z-10 flex justify-center mb-16 pointer-events-none px-4">
+  <div class="relative z-10 flex justify-center mb-20 pointer-events-none px-4">
     <div id="voiceCoachIndicator" class="bg-slate-950/85 backdrop-blur-md border border-amber-400/60 px-4 py-1.5 rounded-full shadow-lg flex items-center space-x-2 text-xs font-bold text-amber-200 max-w-sm transition-opacity duration-300">
       <span class="animate-pulse">🔊</span>
       <span id="voiceCoachText" class="truncate">椅子に座って、両膝を閉じてね！</span>
@@ -216,27 +221,27 @@
   </div>
 
   <!-- 6. 下部操作バー（種目切替タブ＆左右切替） -->
-  <footer class="relative z-20 bg-slate-900/90 backdrop-blur-md border-t border-slate-800 px-3 py-2">
+  <footer class="relative z-20 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-3 pt-2 safe-bottom-padding shrink-0 shadow-[0_-8px_20px_rgba(0,0,0,0.5)]">
     <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
       <!-- 左右切替ボタン -->
       <div class="flex items-center bg-slate-950 border border-slate-700 rounded-xl p-0.5 shrink-0">
-        <button id="sideLeftBtn" class="px-2.5 py-1 rounded-lg text-[11px] font-black transition text-slate-400">
+        <button id="sideLeftBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400">
           左側
         </button>
-        <button id="sideRightBtn" class="px-2.5 py-1 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow">
+        <button id="sideRightBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow">
           右側
         </button>
       </div>
 
       <!-- 種目選択タブ -->
       <div class="grid grid-cols-3 gap-1.5 flex-1">
-        <button id="tabThoracic" class="btn-3d py-1.5 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300">
+        <button id="tabThoracic" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300">
           ① 胸パカーン
         </button>
-        <button id="tabHip" class="btn-3d py-1.5 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700">
+        <button id="tabHip" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700">
           ② タメ絞り
         </button>
-        <button id="tabAslr" class="btn-3d py-1.5 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700">
+        <button id="tabAslr" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700">
           ③ 床レッグ
         </button>
       </div>
