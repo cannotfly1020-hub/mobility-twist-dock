@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v3.3</title>
+  <title>🦴 柔軟性・しなりドック v3.4</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -12,9 +12,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
   
-  <!-- MediaPipe Pose CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  <!-- MediaPipe Pose CDN (バージョン完全固定でWASM破損・404を防止) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
 
   <style>
     * {
@@ -185,7 +185,7 @@
     <div class="flex items-center gap-1">
       <span class="text-lg">🦴</span>
       <h1 class="text-xs sm:text-sm font-black text-yellow-300 brawl-text tracking-wider">しなりドック</h1>
-      <span class="text-[9px] bg-slate-800 text-sky-400 border border-sky-500/60 rounded px-1 font-extrabold">v3.3</span>
+      <span class="text-[9px] bg-slate-800 text-sky-400 border border-sky-500/60 rounded px-1 font-extrabold">v3.4</span>
     </div>
 
     <div class="flex items-center gap-1">
@@ -234,8 +234,10 @@
 
   <!-- 中央カメラセクション -->
   <section id="mainCameraSection" class="relative w-full flex-1 my-0.5 panel-brawl overflow-hidden rounded-2xl flex items-center justify-center bg-slate-950">
+    <!-- カメラ映像要素（object-coverでコンテナ全体にフィット） -->
     <video id="cameraVideo" class="absolute inset-0 w-full h-full object-cover transition-transform duration-200" playsinline muted autoplay></video>
-    <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-cover pointer-events-none z-10 transition-transform duration-200"></canvas>
+    <!-- 骨格描画キャンバス（親サイズと完全一致・ピクセル単位で同期） -->
+    <canvas id="poseCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10 transition-transform duration-200"></canvas>
 
     <!-- ゴースト人型シルエット -->
     <div id="ghostContainer" class="ghost-silhouette">
@@ -344,7 +346,7 @@
       <div class="w-full h-8"></div>
     </div>
 
-    <!-- HUD数値表示 -->
+    <!-- HUD数値表示（左上） -->
     <div class="absolute top-1.5 left-1.5 z-30 flex flex-col gap-1">
       <div class="panel-brawl px-2 py-1 flex items-center gap-1.5 border-emerald-500/60">
         <span id="hudMainIcon" class="text-base">🏹</span>
@@ -358,6 +360,7 @@
       </div>
     </div>
 
+    <!-- HUD数値表示（右上） -->
     <div class="absolute top-1.5 right-1.5 z-30 flex flex-col items-end gap-1">
       <div class="panel-brawl px-2 py-1 flex items-center gap-1.5 border-amber-500/60">
         <div class="flex flex-col text-right">
@@ -369,6 +372,12 @@
       <div id="rankPreviewBadge" class="badge-brawl text-[9px] py-0.5 px-1.5 bg-slate-900/90 text-yellow-300 border-yellow-500">
         🔒 未測定
       </div>
+    </div>
+
+    <!-- AI稼働リアルタイム診断HUD（右下） -->
+    <div class="absolute bottom-9 right-2 z-30 pointer-events-none opacity-80 flex items-center gap-1 bg-black/70 px-1.5 py-0.5 rounded border border-slate-700 text-[8px] text-slate-300">
+      <span id="aiStatusDot" class="w-2 h-2 rounded-full bg-red-500"></span>
+      <span id="aiStatusText">AI待機中</span>
     </div>
 
     <!-- カウントダウンレイヤー -->
@@ -629,14 +638,14 @@
     }
 
     /**
-     * 全33ランドマーク専用フィルターマネージャー
+     * 全33ランドマーク専用フィルターマネージャー（自然な追従感に調整）
      */
     class PoseLandmarksFilter {
       constructor() {
         this.filters = Array.from({ length: 33 }, () => ({
-          x: new OneEuroFilter(1.2, 0.015, 1.0),
-          y: new OneEuroFilter(1.2, 0.015, 1.0),
-          z: new OneEuroFilter(1.0, 0.010, 1.0)
+          x: new OneEuroFilter(1.0, 0.02, 1.0),
+          y: new OneEuroFilter(1.0, 0.02, 1.0),
+          z: new OneEuroFilter(0.8, 0.01, 1.0)
         }));
       }
 
@@ -665,11 +674,11 @@
 
     const App = {
       Config: {
-        STABLE_DISTANCE_THRESHOLD: 0.075,
-        AUTO_TRIGGER_HOLD_MS: 1000,
+        STABLE_DISTANCE_THRESHOLD: 0.09, // 前傾時の微動を許容
+        AUTO_TRIGGER_HOLD_MS: 950,       // 判定待ち時間を快適化
         TEST_DURATION_MS: 3800,
         MAX_STORED_LOGS: 25,
-        VOICE_DEBOUNCE_MS: 1800 // [Critical 1 Fix] 音声連打・クラッシュ防止デバウンス
+        VOICE_DEBOUNCE_MS: 1800
       },
 
       State: {
@@ -687,6 +696,8 @@
         poseFilter: new PoseLandmarksFilter(),
         activeTimeouts: [],
         activeIntervals: [],
+        // 映像とキャンバスのアスペクト比射影変換マッピングパラメータ
+        viewportMapping: { scale: 1, offsetX: 0, offsetY: 0, renderW: 0, renderH: 0 },
         scores: {
           thoracic: { right: null, left: null },
           hipIR:    { right: null, left: null },
@@ -918,7 +929,7 @@
             'toastMsg', 'reportTitleBadge', 'reportRankDesc', 'reportRightVal', 'reportLeftVal', 'reportBarRight',
             'reportBarLeft', 'reportDiffVal', 'reportDiffAdvice', 'reportBaseballImpact', 'replayVideo',
             'replayImageFallback', 'replayPlaceholder', 'chartLogsList', 'headerBalanceText', 'tiltValText',
-            'headerBalanceIcon'
+            'headerBalanceIcon', 'aiStatusDot', 'aiStatusText'
           ];
           ids.forEach(id => {
             this.elements[id] = document.getElementById(id);
@@ -1133,6 +1144,7 @@
         isPoseReady: false,
         lastLandmarks: null,
         poseInstance: null,
+        cameraUtilInstance: null,
         animFrameId: null,
         demoFrameId: null,
         isDemoMode: false,
@@ -1143,6 +1155,8 @@
         hasPlayedChargeVoice: false,
         lastVoicePrompt: '',
         lastVoicePromptTime: 0,
+        lastFpsTimestamp: 0,
+        frameCount: 0,
 
         async initCamera(videoEl, facingMode = 'user') {
           try {
@@ -1216,11 +1230,11 @@
             });
 
             await videoEl.play();
+            this.updateCanvasResolution(videoEl, canvas);
 
-            if (canvas) {
-              canvas.width = videoEl.videoWidth || 720;
-              canvas.height = videoEl.videoHeight || 1280;
-            }
+            window.addEventListener('resize', () => {
+              this.updateCanvasResolution(videoEl, canvas);
+            });
 
             this.initMediaPipe(videoEl, canvas);
             App.UI.showToast('📷 カメラ接続完了！');
@@ -1232,11 +1246,44 @@
           }
         },
 
-        // [Critical 1 Fix] 絶対的デバウンスを適用した音声ガイド発話
+        // コンテナのCSSピクセルサイズとビデオのobject-cover比率を完全同期
+        updateCanvasResolution(videoEl, canvasEl) {
+          if (!videoEl || !canvasEl) return;
+          const section = App.UI.elements.cameraVideo?.parentElement;
+          const rect = section ? section.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight };
+
+          const clientW = Math.round(rect.width);
+          const clientH = Math.round(rect.height);
+          canvasEl.width = clientW;
+          canvasEl.height = clientH;
+
+          const videoW = videoEl.videoWidth || 720;
+          const videoH = videoEl.videoHeight || 1280;
+
+          // object-cover (アスペクト比保持で切り取る) の射影幾何パラメータ算出
+          const scale = Math.max(clientW / videoW, clientH / videoH);
+          const renderW = videoW * scale;
+          const renderH = videoH * scale;
+          const offsetX = (clientW - renderW) / 2;
+          const offsetY = (clientH - renderH) / 2;
+
+          App.State.viewportMapping = { scale, offsetX, offsetY, renderW, renderH, clientW, clientH };
+        },
+
+        // 正規化座標 (0.0〜1.0) を画面上のピクセル位置へ精密射影
+        projectLandmark(lm) {
+          const map = App.State.viewportMapping;
+          return {
+            x: map.offsetX + lm.x * map.renderW,
+            y: map.offsetY + lm.y * map.renderH,
+            visibility: lm.visibility ?? 1
+          };
+        },
+
         speakGuidance(text, interval = 3500) {
           const now = Date.now();
           if (now - this.lastVoicePromptTime < App.Config.VOICE_DEBOUNCE_MS) {
-            return; // 最小インターバル未満は絶対に無視して音声キューの破綻を防止
+            return;
           }
           if (this.lastVoicePrompt !== text || (now - this.lastVoicePromptTime > interval)) {
             this.lastVoicePrompt = text;
@@ -1317,27 +1364,33 @@
 
         initMediaPipe(videoEl, canvasEl) {
           if (typeof window.Pose === 'undefined') {
-            App.State.registerTimeout(() => this.initMediaPipe(videoEl, canvasEl), 400);
+            App.State.registerTimeout(() => this.initMediaPipe(videoEl, canvasEl), 300);
             return;
           }
 
           if (!this.poseInstance) {
+            // バージョン明示指定の確実なWASM/モデルファイルロード
             const pose = new window.Pose({
-              locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+              locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
             });
 
             pose.setOptions({
               modelComplexity: 1,
-              smoothLandmarks: false,
+              smoothLandmarks: true, // 内部スムージングを有効化してジッター抑制
               enableSegmentation: false,
               smoothSegmentation: false,
-              minDetectionConfidence: 0.5,
-              minTrackingConfidence: 0.5
+              minDetectionConfidence: 0.45,
+              minTrackingConfidence: 0.45
             });
 
             pose.onResults((results) => this.onPoseResults(results, canvasEl));
             this.poseInstance = pose;
             this.isPoseReady = true;
+
+            const dot = App.UI.elements.aiStatusDot;
+            const text = App.UI.elements.aiStatusText;
+            if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+            if (text) text.textContent = 'AI準備完了';
           }
 
           if (this.animFrameId) {
@@ -1371,6 +1424,19 @@
           ctx.save();
           ctx.clearRect(0, 0, w, h);
 
+          // FPSおよびAI稼働診断
+          const nowMs = performance.now();
+          this.frameCount++;
+          if (nowMs - this.lastFpsTimestamp >= 1000) {
+            const currentFps = this.frameCount;
+            this.frameCount = 0;
+            this.lastFpsTimestamp = nowMs;
+            const text = App.UI.elements.aiStatusText;
+            const dot = App.UI.elements.aiStatusDot;
+            if (text) text.textContent = results?.poseLandmarks ? `AI稼働中 (${currentFps}fps)` : '身体を探しています';
+            if (dot) dot.className = results?.poseLandmarks ? 'w-2 h-2 rounded-full bg-emerald-400' : 'w-2 h-2 rounded-full bg-amber-400';
+          }
+
           if (!results || !results.poseLandmarks) {
             this.lastLandmarks = null;
             this.resetGateInState();
@@ -1383,7 +1449,6 @@
             return;
           }
 
-          const nowMs = performance.now();
           const smoothLm = App.State.poseFilter.apply(results.poseLandmarks, nowMs);
           const correctedLm = App.Engine.correctPerspectiveTilt(smoothLm, App.State.tiltPitchDeg);
           this.lastLandmarks = correctedLm;
@@ -1417,15 +1482,16 @@
         isPoseInBounds(lm, testType) {
           const lSh = lm[11], rSh = lm[12];
           if (!lSh || !rSh) return false;
-          if ((lSh.visibility ?? 1) < 0.25 || (rSh.visibility ?? 1) < 0.25) return false;
+          // 視認性閾値を実用的な0.15に緩和（前傾姿勢対応）
+          if ((lSh.visibility ?? 1) < 0.15 || (rSh.visibility ?? 1) < 0.15) return false;
 
           const midX = (lSh.x + rSh.x) / 2;
-          if (midX < 0.05 || midX > 0.95) return false;
+          if (midX < 0.04 || midX > 0.96) return false;
 
           if (testType === 'HIP_IR' || testType === 'HINGE') {
             const lHip = lm[23], rHip = lm[24];
             if (!lHip || !rHip) return false;
-            if ((lHip.visibility ?? 1) < 0.25 || (rHip.visibility ?? 1) < 0.25) return false;
+            if ((lHip.visibility ?? 1) < 0.15 || (rHip.visibility ?? 1) < 0.15) return false;
           }
           return true;
         },
@@ -1441,7 +1507,7 @@
           const lElbow = lm[13], rElbow = lm[14];
 
           if (testType === 'THORACIC') {
-            if (!lSh || !rSh || (lSh.visibility ?? 1) < 0.25 || (rSh.visibility ?? 1) < 0.25) {
+            if (!lSh || !rSh || (lSh.visibility ?? 1) < 0.15 || (rSh.visibility ?? 1) < 0.15) {
               return { 
                 ready: false, 
                 prompt: '胸と肩をカメラの正面に向けよう！', 
@@ -1449,12 +1515,13 @@
               };
             }
 
+            // 前傾姿勢で手が頭の後ろに隠れても肘の高さで柔軟に判定
             const handNearHead = (wrist, elbow, shoulder) => {
-              if (wrist && (wrist.visibility ?? 1) > 0.2) {
-                if (wrist.y < shoulder.y + 0.18) return true;
+              if (wrist && (wrist.visibility ?? 1) > 0.1) {
+                if (wrist.y < shoulder.y + 0.22) return true;
               }
-              if (elbow && (elbow.visibility ?? 1) > 0.25) {
-                if (elbow.y < shoulder.y + 0.12) return true;
+              if (elbow && (elbow.visibility ?? 1) > 0.15) {
+                if (elbow.y < shoulder.y + 0.16) return true;
               }
               return false;
             };
@@ -1462,7 +1529,7 @@
             const leftHandUp = handNearHead(lWrist, lElbow, lSh);
             const rightHandUp = handNearHead(rWrist, rElbow, rSh);
 
-            // [Critical 3 Fix] 上がった手を自動追従して activeSide を補正
+            // 上がった手を自動追従して activeSide を自動補正
             if (leftHandUp && !rightHandUp && App.State.activeSide !== 'LEFT') {
               App.State.activeSide = 'LEFT';
               const sideBadge = App.UI.elements.activeSideBadge;
@@ -1491,14 +1558,14 @@
             const targetKnee = activeSide === 'RIGHT' ? rKnee : lKnee;
             const supportKnee = activeSide === 'RIGHT' ? lKnee : rKnee;
 
-            if (!targetKnee || !supportKnee || (targetKnee.visibility ?? 1) < 0.3 || (supportKnee.visibility ?? 1) < 0.3) {
+            if (!targetKnee || !supportKnee || (targetKnee.visibility ?? 1) < 0.2 || (supportKnee.visibility ?? 1) < 0.2) {
               return { 
                 ready: false, 
                 prompt: '膝が映る位置（約1.5m）に立とう！', 
                 voice: '膝が映る位置に立ってね！' 
               };
             }
-            if ((supportKnee.y - targetKnee.y) > 0.035) {
+            if ((supportKnee.y - targetKnee.y) > 0.03) {
               return { 
                 ready: true, 
                 prompt: '片足タメ構えOK！動かないで！', 
@@ -1516,7 +1583,7 @@
             const hip = rHip || lHip;
             const knee = rKnee || lKnee;
             const ankle = rAnkle || lAnkle;
-            if (!knee || !ankle || (knee.visibility ?? 1) < 0.3 || (ankle.visibility ?? 1) < 0.3) {
+            if (!knee || !ankle || (knee.visibility ?? 1) < 0.2 || (ankle.visibility ?? 1) < 0.2) {
               return { 
                 ready: false, 
                 prompt: '足元まで映るように少し離れよう！', 
@@ -1524,7 +1591,7 @@
               };
             }
             const kneeAngle = App.Engine.calculateJointAngle(hip, knee, ankle);
-            if (kneeAngle > 142) {
+            if (kneeAngle > 140) {
               return { 
                 ready: true, 
                 prompt: '直立OK！そのままストップ！', 
@@ -1660,7 +1727,7 @@
           if (testType === 'THORACIC') {
             if (App.State.fsmState === 'TESTING') {
               const lHip = landmarks[23], rHip = landmarks[24];
-              if (lHip && rHip && (lHip.visibility ?? 1) > 0.35 && (rHip.visibility ?? 1) > 0.35) {
+              if (lHip && rHip && (lHip.visibility ?? 1) > 0.25 && (rHip.visibility ?? 1) > 0.25) {
                 const currentHipSlope = App.Engine.calculateSlopeAngle(lHip, rHip);
                 const hipSlopeDelta = Math.abs(currentHipSlope - App.State.baselineHipSlopeDeg);
                 if (hipSlopeDelta > 28) {
@@ -1672,7 +1739,7 @@
             const side = App.State.activeSide;
             const knee = side === 'RIGHT' ? landmarks[26] : landmarks[25];
             const hip = side === 'RIGHT' ? landmarks[24] : landmarks[23];
-            if (knee && hip && (knee.visibility ?? 1) > 0.3 && (hip.visibility ?? 1) > 0.3) {
+            if (knee && hip && (knee.visibility ?? 1) > 0.2 && (hip.visibility ?? 1) > 0.2) {
               const dx = (knee.x - hip.x);
               if ((side === 'RIGHT' && dx < -0.07) || (side === 'LEFT' && dx > 0.07)) {
                 return { isCheating: true, reason: '膝をまっすぐキープ！足首だけを外側へ振ろう！' };
@@ -1682,9 +1749,9 @@
             const hip = landmarks[24] || landmarks[23];
             const knee = landmarks[26] || landmarks[25];
             const ankle = landmarks[28] || landmarks[27];
-            if (hip && knee && ankle && (knee.visibility ?? 1) > 0.3 && (ankle.visibility ?? 1) > 0.3) {
+            if (hip && knee && ankle && (knee.visibility ?? 1) > 0.2 && (ankle.visibility ?? 1) > 0.2) {
               const kneeAngle = App.Engine.calculateJointAngle(hip, knee, ankle);
-              if (kneeAngle < 145) {
+              if (kneeAngle < 142) {
                 return { isCheating: true, reason: '膝が曲がってるぞ！膝をピンと伸ばしてお尻を引こう！' };
               }
             }
@@ -1712,6 +1779,7 @@
           }
         },
 
+        // ピクセル完全一致による骨格＆角度ゲージの描画
         renderPoseSkeleton(ctx, lm, w, h, angleVal) {
           const connections = [
             [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
@@ -1719,25 +1787,28 @@
             [23, 25], [24, 26], [25, 27], [26, 28]
           ];
 
+          // 射影変換済みピクセル座標配列の生成
+          const pts = lm.map(p => this.projectLandmark(p));
+
           ctx.lineWidth = 4;
           ctx.strokeStyle = '#10b981';
           ctx.fillStyle = '#facc15';
 
           connections.forEach(([i, j]) => {
-            const p1 = lm[i], p2 = lm[j];
-            if (p1 && p2 && (p1.visibility ?? 1) > 0.35 && (p2.visibility ?? 1) > 0.35) {
+            const p1 = pts[i], p2 = pts[j];
+            if (p1 && p2 && p1.visibility > 0.2 && p2.visibility > 0.2) {
               ctx.beginPath();
-              ctx.moveTo(p1.x * w, p1.y * h);
-              ctx.lineTo(p2.x * w, p2.y * h);
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
               ctx.stroke();
             }
           });
 
           [11, 12, 13, 14, 23, 24, 25, 26, 27, 28].forEach(idx => {
-            const p = lm[idx];
-            if (p && (p.visibility ?? 1) > 0.35) {
+            const p = pts[idx];
+            if (p && p.visibility > 0.2) {
               ctx.beginPath();
-              ctx.arc(p.x * w, p.y * h, 6, 0, 2 * Math.PI);
+              ctx.arc(p.x, p.y, 6, 0, 2 * Math.PI);
               ctx.fill();
               ctx.lineWidth = 2;
               ctx.strokeStyle = '#000000';
@@ -1746,23 +1817,22 @@
           });
 
           if (App.State.testType === 'THORACIC') {
-            const lSh = lm[11], rSh = lm[12];
-            if (lSh && rSh && (lSh.visibility ?? 1) > 0.35 && (rSh.visibility ?? 1) > 0.35) {
-              const cx = ((lSh.x + rSh.x) / 2) * w;
-              const cy = ((lSh.y + rSh.y) / 2) * h;
-              // [Critical 2 Fix] 左開きでも天井方向へ正しく開く幾何角度計算
+            const pL = pts[11], pR = pts[12];
+            if (pL && pR && pL.visibility > 0.2 && pR.visibility > 0.2) {
+              const cx = (pL.x + pR.x) / 2;
+              const cy = (pL.y + pR.y) / 2;
               const isRight = App.State.activeSide === 'RIGHT';
               const baseDeg = isRight ? 0 : 180;
-              const sweep = isRight ? -angleVal : angleVal; // 時計逆回りで天井へ
+              const sweep = isRight ? -angleVal : angleVal;
               this.drawAngleArc(ctx, cx, cy, 45, baseDeg, sweep, !isRight);
             }
           } else if (App.State.testType === 'HIP_IR') {
             const side = App.State.activeSide;
-            const knee = side === 'RIGHT' ? lm[26] : lm[25];
-            if (knee && (knee.visibility ?? 1) > 0.35) {
+            const knee = side === 'RIGHT' ? pts[26] : pts[25];
+            if (knee && knee.visibility > 0.2) {
               const baseDeg = 90;
               const sweep = side === 'RIGHT' ? angleVal : -angleVal;
-              this.drawAngleArc(ctx, knee.x * w, knee.y * h, 40, baseDeg, sweep);
+              this.drawAngleArc(ctx, knee.x, knee.y, 40, baseDeg, sweep);
             }
           }
         },
@@ -1823,7 +1893,7 @@
           const lSh = landmarks[11], rSh = landmarks[12];
           const lHip = landmarks[23], rHip = landmarks[24];
           if (!lSh || !rSh) return 0;
-          if ((lSh.visibility ?? 1) < 0.3 || (rSh.visibility ?? 1) < 0.3) return 0;
+          if ((lSh.visibility ?? 1) < 0.2 || (rSh.visibility ?? 1) < 0.2) return 0;
 
           const currentShoulderSlope = this.calculateSlopeAngle(lSh, rSh);
           let deltaShoulder = 0;
@@ -1835,7 +1905,7 @@
           }
 
           let deltaHip = 0;
-          if (lHip && rHip && (lHip.visibility ?? 1) > 0.3 && (rHip.visibility ?? 1) > 0.3) {
+          if (lHip && rHip && (lHip.visibility ?? 1) > 0.2 && (rHip.visibility ?? 1) > 0.2) {
             const currentHipSlope = this.calculateSlopeAngle(lHip, rHip);
             if (side === 'RIGHT') {
               deltaHip = -(currentHipSlope - App.State.baselineHipSlopeDeg);
@@ -1851,7 +1921,7 @@
         evaluateHipInternalRotation(landmarks, side = 'RIGHT', cameraFacing = 'user') {
           const knee = side === 'RIGHT' ? landmarks[26] : landmarks[25];
           const ankle = side === 'RIGHT' ? landmarks[28] : landmarks[27];
-          if (!knee || !ankle || (knee.visibility ?? 1) < 0.3 || (ankle.visibility ?? 1) < 0.3) return 0;
+          if (!knee || !ankle || (knee.visibility ?? 1) < 0.2 || (ankle.visibility ?? 1) < 0.2) return 0;
 
           const rawDx = ankle.x - knee.x;
           const dx = side === 'RIGHT' ? -rawDx : rawDx;
@@ -2039,7 +2109,7 @@
           try {
             this.recordedChunks = [];
             const stream = canvas.captureStream(30);
-            this.recordedStream = stream; // [Warning 4 Fix] リソース解放追跡用
+            this.recordedStream = stream;
             let mimeType = 'video/webm;codecs=vp8';
             if (!MediaRecorder.isTypeSupported(mimeType)) {
               mimeType = 'video/mp4';
@@ -2055,7 +2125,6 @@
             };
 
             recorder.onstop = () => {
-              // [Warning 4 Fix] 録画完了時にストリームの全トラックを確実に停止
               if (this.recordedStream) {
                 this.recordedStream.getTracks().forEach(t => t.stop());
                 this.recordedStream = null;
@@ -2117,7 +2186,6 @@
         }
       },
 
-      // [Warning 5 Fix] カウントダウンから実測への遷移遅延（-1秒問題）を完全是正
       startCountdownSequence() {
         if (App.State.fsmState === 'COUNTDOWN' || App.State.fsmState === 'TESTING') return;
 
@@ -2143,7 +2211,6 @@
             App.Audio.playSE(660, 0.15, 'triangle', 0.4);
             App.Audio.speak(App.State.countdownVal === 2 ? 'に！' : 'いち！');
           } else if (App.State.countdownVal === 0) {
-            // GOの瞬間にカウントダウンタイマーを即座に破棄
             clearInterval(intervalId);
             App.State.activeIntervals = App.State.activeIntervals.filter(id => id !== intervalId);
 
@@ -2155,12 +2222,10 @@
             App.State.fsmState = 'TESTING';
             App.Drill.startLocalRecording();
 
-            // 0.4秒後にカウントダウン幕を消灯
             App.State.registerTimeout(() => {
               if (layer) layer.classList.add('hidden');
             }, 400);
 
-            // 実測フェーズタイマー開始
             App.State.registerTimeout(() => {
               if (App.State.fsmState !== 'TESTING') return;
 
@@ -2469,7 +2534,7 @@
 
         App.Storage.renderChartList();
         App.UI.updateBalanceHeader();
-        console.info('🦴 Mobility Dock v3.3 Refactored & Initialized successfully.');
+        console.info('🦴 Mobility Dock v3.4 Initialized with pixel-perfect aspect ratio projection.');
       }
     };
 
