@@ -272,8 +272,20 @@
       <!-- カメラ映像要素 (横の黒スペースを完全解消するobject-coverに最適化) -->
       <video id="cameraVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 transition-all duration-200" playsinline muted autoplay></video>
 
-      <!-- 骨格描画・角度扇形ゲージ用キャンバス (映像と完全一致) -->
-      <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-cover pointer-events-none z-10 transition-all duration-200"></canvas>
+      <!-- 骨格描画・角度扇形ゲージ用キャンバス (映像と完全同一の鏡像反転を適用しズレを完全解消) -->
+      <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 pointer-events-none z-10 transition-all duration-200"></canvas>
+
+      <!-- カメラ未検出・エラー時のリカバリーオーバーレイ -->
+      <div id="cameraErrorOverlay" class="absolute inset-0 z-30 bg-slate-950/90 flex flex-col items-center justify-center p-4 text-center hidden">
+        <span class="text-4xl mb-2">📷⚠️</span>
+        <h3 class="text-sm font-black text-amber-300 mb-1 brawl-text">カメラが見つかりません</h3>
+        <p class="text-[11px] text-slate-300 max-w-xs mb-3 leading-relaxed" id="cameraErrorDesc">
+          カメラデバイスが接続されていないか、ブラウザのアクセス許可がオフになっている可能性があります。
+        </p>
+        <button id="retryCameraBtn" class="btn-brawl btn-emerald px-4 py-2 text-xs font-black">
+          🔄 カメラ接続を再試行する
+        </button>
+      </div>
 
       <!-- 姿勢ナビゲーション枠 (テストごとの姿勢ガイド枠) -->
       <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2">
@@ -281,9 +293,14 @@
           <span>🎯</span> <span id="guideTargetText">立ったまま正面カメラに全身を入れよう！</span>
         </div>
 
+        <!-- 準備ポーズ・構え認識ステータス -->
+        <div id="poseCheckPromptPill" class="bg-slate-900/90 border border-yellow-400 px-3 py-1 rounded-full text-[11px] text-yellow-300 brawl-text shadow-lg flex items-center gap-1.5">
+          <span class="animate-bounce">👉</span> <span id="poseCheckPromptText">片手を頭の後ろにセットしてね！</span>
+        </div>
+
         <!-- ロックオン進行度インジケーター -->
         <div id="lockonStatusPill" class="hidden bg-sky-500/90 border border-white px-3 py-1 rounded-full text-[11px] text-white brawl-text shadow-lg flex items-center gap-1.5 animate-pulse">
-          <span>⚡</span> <span id="lockonStatusText">姿勢キャッチ！そのまま動かないで！</span>
+          <span>⚡</span> <span id="lockonStatusText">構えOK！そのままストップ！</span>
         </div>
 
         <!-- カンニング防止リアルタイム警告ピル -->
@@ -798,6 +815,28 @@
           }
         },
 
+        showCameraError(err) {
+          const overlay = document.getElementById('cameraErrorOverlay');
+          const desc = document.getElementById('cameraErrorDesc');
+          if (overlay) {
+            overlay.classList.remove('hidden');
+            if (desc) {
+              if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                desc.textContent = 'カメラの使用が許可されていません。ブラウザ設定でカメラのアクセスを「許可」にして再読み込みしてください。';
+              } else if (err.name === 'NotFoundError' || err.message?.includes('Requested device not found')) {
+                desc.textContent = '指定されたカメラ（イン/外）が見つかりませんでした。PCウェブカメラまたは接続中のカメラで再試行します。';
+              } else {
+                desc.textContent = `カメラ接続エラー (${err.name || 'Error'})。別のアプリがカメラを使用していないか確認してください。`;
+              }
+            }
+          }
+        },
+
+        hideCameraError() {
+          const overlay = document.getElementById('cameraErrorOverlay');
+          if (overlay) overlay.classList.add('hidden');
+        },
+
         showToast(text, icon = '✨') {
           const toast = document.getElementById('toastNotification');
           const msg = document.getElementById('toastMsg');
@@ -827,27 +866,62 @@
 
         async initCamera(videoEl, facingMode = 'user') {
           try {
+            App.UI.hideCameraError();
+
             if (App.State.stream) {
               App.State.stream.getTracks().forEach(t => t.stop());
+              App.State.stream = null;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+              throw new Error('お使いのブラウザはカメラAPIに対応していません。');
             }
 
             const isPortrait = window.innerHeight >= window.innerWidth;
-            const constraints = {
-              video: {
-                facingMode: { ideal: facingMode },
-                width: { ideal: isPortrait ? 720 : 1280 },
-                height: { ideal: isPortrait ? 1280 : 720 },
-                aspectRatio: { ideal: isPortrait ? 9 / 16 : 16 / 9 }
-              },
-              audio: false
-            };
+            let stream = null;
 
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            // 段階的フォールバックチェーン（厳格な制約から徐々に緩和）
+            // 試行1: 向き(facingMode) ＋ 解像度指定
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  facingMode: { ideal: facingMode },
+                  width: { ideal: isPortrait ? 720 : 1280 },
+                  height: { ideal: isPortrait ? 1280 : 720 }
+                },
+                audio: false
+              });
+            } catch (err1) {
+              console.warn('Strict camera constraints failed, attempting relaxed facingMode...', err1);
+              // 試行2: 解像度制約を外し、facingModeのみで取得
+              try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: { facingMode: { ideal: facingMode } },
+                  audio: false
+                });
+              } catch (err2) {
+                console.warn('FacingMode constraint failed, falling back to basic video stream...', err2);
+                // 試行3: 全ての制約を撤廃（PC等のデフォルトカメラ・単一カメラ対応）
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: true,
+                  audio: false
+                });
+              }
+            }
+
             App.State.stream = stream;
             videoEl.srcObject = stream;
-            videoEl.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
 
+            // 実際のトラック設定を確認し、ミラー反転表示を適切に切り替え
             const track = stream.getVideoTracks()[0];
+            const currentFacing = track?.getSettings()?.facingMode || facingMode;
+            const canvas = document.getElementById('poseCanvas');
+            const transformStyle = currentFacing === 'environment' ? 'scaleX(1)' : 'scaleX(-1)';
+            videoEl.style.transform = transformStyle;
+            if (canvas) {
+              canvas.style.transform = transformStyle;
+            }
+
             if (track && typeof track.getCapabilities === 'function') {
               const caps = track.getCapabilities();
               if (caps.zoom) {
@@ -861,10 +935,16 @@
               }
             }
 
+            videoEl.onloadedmetadata = () => {
+              if (canvas) {
+                canvas.width = videoEl.videoWidth || 720;
+                canvas.height = videoEl.videoHeight || 1280;
+              }
+            };
+
             await videoEl.play();
 
-            const canvas = document.getElementById('poseCanvas');
-            if (canvas) {
+            if (canvas && (!canvas.width || canvas.width === 300)) {
               canvas.width = videoEl.videoWidth || 720;
               canvas.height = videoEl.videoHeight || 1280;
             }
@@ -874,6 +954,7 @@
             return true;
           } catch (err) {
             console.error('Camera Access Error:', err);
+            App.UI.showCameraError(err);
             return false;
           }
         },
@@ -976,16 +1057,105 @@
           ctx.restore();
         },
 
+        // テストごとの「構え（スタートポーズ）」を取っているかを厳密判定
+        checkStartPoseReady(lm, testType, activeSide) {
+          if (!lm) return { ready: false, prompt: 'カメラに全身を映してね！' };
+
+          const lSh = lm[11], rSh = lm[12];
+          const lHip = lm[23], rHip = lm[24];
+          const lKnee = lm[25], rKnee = lm[26];
+          const lAnkle = lm[27], rAnkle = lm[28];
+          const lWrist = lm[15], rWrist = lm[16];
+          const nose = lm[0];
+
+          if (!lSh || !rSh || !lHip || !rHip) {
+            return { ready: false, prompt: 'カメラから少し離れて全身を映そう！' };
+          }
+
+          // ① 立ち胸パカーン：片手を頭の後ろ（耳や頭の高さ）にセットしているか？
+          if (testType === 'THORACIC') {
+            // 右手または左手が肩より高く、頭（鼻〜耳）の近くにあるか判定
+            const targetWrist = activeSide === 'RIGHT' ? rWrist : lWrist;
+            const targetShoulder = activeSide === 'RIGHT' ? rSh : lSh;
+            const altWrist = activeSide === 'RIGHT' ? lWrist : rWrist;
+            const altShoulder = activeSide === 'RIGHT' ? lSh : rSh;
+
+            const isTargetHandOnHead = targetWrist && targetShoulder && (targetWrist.y < targetShoulder.y + 0.05);
+            const isAltHandOnHead = altWrist && altShoulder && (altWrist.y < altShoulder.y + 0.05);
+
+            if (isTargetHandOnHead || isAltHandOnHead) {
+              return { ready: true, prompt: '構えOK！そのままストップ！' };
+            }
+            return { ready: false, prompt: '片手を頭の後ろにセットしてね！' };
+          }
+
+          // ② 片足タメ絞り：測定側の片膝が前（上方）に上がっているか？（片足浮かせ構え）
+          if (testType === 'HIP_IR') {
+            const targetKnee = activeSide === 'RIGHT' ? rKnee : lKnee;
+            const supportKnee = activeSide === 'RIGHT' ? lKnee : rKnee;
+
+            if (!targetKnee || !supportKnee || targetKnee.visibility < 0.4 || supportKnee.visibility < 0.4) {
+              return { ready: false, prompt: '膝と足首をしっかり映してね！' };
+            }
+
+            // 上げた膝が支持脚の膝よりも明らかに高い（0.08以上上にある）
+            const kneeLiftDiff = supportKnee.y - targetKnee.y;
+            if (kneeLiftDiff > 0.06) {
+              return { ready: true, prompt: '片足タメ構えOK！動かないで！' };
+            }
+            return { ready: false, prompt: '片膝を前に持ち上げてね！（壁タッチOK）' };
+          }
+
+          // ③ 立ちペタ前屈：ピンと立って構えているか？（膝が曲がっておらず直立状態）
+          if (testType === 'HINGE') {
+            if (!rKnee || !rAnkle || rKnee.visibility < 0.4 || rAnkle.visibility < 0.4) {
+              return { ready: false, prompt: '足元までしっかり映してね！' };
+            }
+            const kneeAngle = App.Engine.calculateJointAngle(rHip, rKnee, rAnkle);
+            if (kneeAngle > 155) {
+              return { ready: true, prompt: '直立OK！そのままストップ！' };
+            }
+            return { ready: false, prompt: '膝を伸ばしてまっすぐ立とう！' };
+          }
+
+          return { ready: true, prompt: '姿勢OK！' };
+        },
+
         checkAutoTriggerGateIn(lm, isCheating) {
+          const promptPill = document.getElementById('poseCheckPromptPill');
+          const promptText = document.getElementById('poseCheckPromptText');
+
           if (isCheating) {
             this.resetGateInState();
+            if (promptPill) promptPill.classList.add('hidden');
             return;
           }
 
           const inBounds = this.isPoseInBounds(lm, App.State.testType);
           if (!inBounds) {
             this.resetGateInState();
+            if (promptPill && promptText) {
+              promptText.textContent = 'カメラの枠の中に立とう！';
+              promptPill.classList.remove('hidden');
+            }
             return;
+          }
+
+          // 構え（スタートポーズ）チェック
+          const poseStatus = this.checkStartPoseReady(lm, App.State.testType, App.State.activeSide);
+          if (!poseStatus.ready) {
+            this.resetGateInState();
+            if (promptPill && promptText) {
+              promptText.textContent = poseStatus.prompt;
+              promptPill.classList.remove('hidden');
+            }
+            return;
+          }
+
+          // 構えOKなのでプロンプトを「キープして！」に更新
+          if (promptPill && promptText) {
+            promptText.textContent = poseStatus.prompt;
+            promptPill.classList.remove('hidden');
           }
 
           // 両肩と両腰の中央位置の静止判定
@@ -1000,7 +1170,7 @@
             const dist = Math.hypot(currentPos.x - this.prevKeypointPos.x, currentPos.y - this.prevKeypointPos.y);
             const now = Date.now();
 
-            if (dist < 0.02) { // 安定静止
+            if (dist < 0.025) { // 安定静止
               if (this.stableSince === 0) {
                 this.stableSince = now;
                 if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2 charging';
@@ -1012,7 +1182,7 @@
                 // 0.4秒静止で予告音声
                 if (elapsed >= 400 && !this.hasPlayedChargeVoice) {
                   this.hasPlayedChargeVoice = true;
-                  App.Audio.speak('姿勢OK！そのままストップ！');
+                  App.Audio.speak('構えOK！そのままストップ！');
                 }
 
                 // 1.2秒静止でオートロックオン完了！
@@ -1036,7 +1206,7 @@
           if (lSh.visibility < 0.4 || rSh.visibility < 0.4 || lHip.visibility < 0.3) return false;
 
           const midX = (lSh.x + rSh.x) / 2;
-          return midX >= 0.15 && midX <= 0.85;
+          return midX >= 0.12 && midX <= 0.88;
         },
 
         resetGateInState() {
@@ -1057,6 +1227,9 @@
 
           const pill = document.getElementById('lockonStatusPill');
           if (pill) pill.classList.add('hidden');
+
+          const promptPill = document.getElementById('poseCheckPromptPill');
+          if (promptPill) promptPill.classList.add('hidden');
 
           App.Audio.playLockOnSE();
           App.Audio.speak('ロックオン完了！いくぞ！');
@@ -1637,6 +1810,14 @@
           App.State.cameraFacing = App.State.cameraFacing === 'user' ? 'environment' : 'user';
           App.Sensor.initCamera(videoEl, App.State.cameraFacing);
         });
+
+        // カメラ再試行ボタン
+        const retryCameraBtn = document.getElementById('retryCameraBtn');
+        if (retryCameraBtn) {
+          retryCameraBtn.addEventListener('click', () => {
+            App.Sensor.initCamera(videoEl, App.State.cameraFacing);
+          });
+        }
 
         // 3. 左右向き切り替え
         const sideBadge = document.getElementById('activeSideBadge');
