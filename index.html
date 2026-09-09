@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>しなりドラゴン プロ v2.5.1 | ジュニアアスリート柔軟性チェッカー</title>
+  <title>しなりドラゴン プロ v2.5.2 | ジュニアアスリート柔軟性チェッカー</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: M PLUS Rounded 1c & Inter -->
@@ -30,11 +30,11 @@
     /* ブロスタ風3D立体ボタン */
     .btn-3d {
       transition: all 0.08s ease;
-      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.5), 0 8px 12px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 6px 10px rgba(0, 0, 0, 0.4);
       cursor: pointer;
     }
     .btn-3d:active {
-      transform: translateY(4px);
+      transform: translateY(3px);
       box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
     }
     .btn-3d:disabled {
@@ -88,9 +88,9 @@
       border-radius: 9999px;
     }
 
-    /* iOSホームバー・ツールバーのセーフエリア対応 */
+    /* iOS Safariのアドレスバー・ホームバー被り完全防止パディング */
     .safe-bottom-padding {
-      padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+      padding-bottom: max(4.75rem, calc(env(safe-area-inset-bottom, 0px) + 3.75rem));
     }
   </style>
 </head>
@@ -98,7 +98,6 @@
 
   <!-- 
     カメラ映像（フレーム供給用ソース）
-    iOS Safari等の「画面外・非表示要素に対する動画再生停止」仕様を回避するため、
     画面内最背面に1x1pxで安全に常駐
   -->
   <video id="webcam" class="fixed bottom-0 right-0 w-1 h-1 opacity-[0.01] pointer-events-none -z-50" playsinline muted autoplay></video>
@@ -110,13 +109,13 @@
   <div id="screenBorder" class="absolute inset-0 border-4 border-slate-700/50 pointer-events-none z-10 transition-colors duration-300"></div>
 
   <!-- カンニング警告HUD -->
-  <div id="cheatWarningHud" class="absolute top-24 left-1/2 -translate-x-1/2 z-30 hidden bg-red-600/95 text-white border-2 border-yellow-300 px-5 py-2.5 rounded-2xl text-xs md:text-sm font-black shadow-2xl tracking-wide flex items-center space-x-2 animate-bounce">
-    <span class="text-lg">⚠️</span>
-    <span id="cheatWarningText">膝をピンと伸ばして！</span>
+  <div id="cheatWarningHud" class="absolute top-24 left-1/2 -translate-x-1/2 z-30 hidden bg-red-600/95 text-white border-2 border-yellow-300 px-4 py-2 rounded-2xl text-xs md:text-sm font-black shadow-2xl tracking-wide flex items-center space-x-2 animate-bounce max-w-[90vw]">
+    <span class="text-base shrink-0">⚠️</span>
+    <span id="cheatWarningText" class="truncate">膝をピンと伸ばして！</span>
   </div>
 
   <!-- 1. スマート・フローティングHUD（ヘッダー） -->
-  <header class="relative z-20 mx-3 mt-3">
+  <header class="relative z-20 mx-3 mt-2.5">
     <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-xl px-3 py-2 flex flex-col gap-1.5 max-w-2xl mx-auto">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-2">
@@ -126,7 +125,7 @@
           <div>
             <div class="text-[9px] font-bold text-amber-300 leading-none">ジュニア柔軟性チェッカー</div>
             <h1 class="text-xs sm:text-sm font-black text-white tracking-wider flex items-center gap-1">
-              しなりドラゴン <span class="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black shadow">PRO v2.5.1</span>
+              しなりドラゴン <span class="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black shadow">PRO v2.5.2</span>
             </h1>
           </div>
         </div>
@@ -160,7 +159,7 @@
         </div>
         <div class="text-[11px] font-black text-slate-300 shrink-0 flex items-center space-x-1">
           <span id="remoteStepIcon">🎯</span>
-          <span id="remoteStepText" class="text-yellow-300">カメラに全身を映して！</span>
+          <span id="remoteStepText" class="text-yellow-300 truncate">カメラに全身を映して！</span>
         </div>
       </div>
 
@@ -171,7 +170,7 @@
     </div>
   </header>
 
-  <!-- 2. 左上: スリム角度メーターHUD（残り秒数・目標・リアルタイムランク） -->
+  <!-- 2. 左上: スリム角度メーターHUD -->
   <div class="relative z-10 flex items-start justify-between px-4 pointer-events-none">
     <div class="bg-slate-900/85 backdrop-blur-md border-2 border-cyan-400/70 rounded-2xl p-2.5 shadow-2xl flex flex-col items-center min-w-[105px]">
       <div class="text-[9px] font-black text-cyan-300 flex items-center space-x-1">
@@ -192,8 +191,8 @@
       </div>
     </div>
 
-    <!-- 3. 右下固定: お手本ミニワイプ（PIPアニメーション） -->
-    <div class="absolute right-4 bottom-28 bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28 sm:w-32">
+    <!-- 3. 右下固定: お手本ミニワイプ（フッター持ち上げに合わせて bottom 拡張） -->
+    <div class="absolute right-4 bottom-36 sm:bottom-40 bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28 sm:w-32">
       <div class="text-[9px] font-black text-cyan-300 mb-1 flex items-center space-x-1">
         <span>💡 お手本動作</span>
       </div>
@@ -204,8 +203,8 @@
     </div>
   </div>
 
-  <!-- 4. 音声コーチ字幕ピルタグ -->
-  <div class="relative z-10 flex justify-center mb-24 pointer-events-none px-4">
+  <!-- 4. 音声コーチ字幕ピルタグ（フッターとの重なり防止） -->
+  <div class="relative z-10 flex justify-center mb-36 sm:mb-40 pointer-events-none px-4">
     <div id="voiceCoachIndicator" class="bg-slate-950/85 backdrop-blur-md border border-amber-400/60 px-4 py-1.5 rounded-full shadow-lg flex items-center space-x-2 text-xs font-bold text-amber-200 max-w-sm transition-opacity duration-300">
       <span class="animate-pulse">🔊</span>
       <span id="voiceCoachText" class="truncate">椅子に座って、両膝を閉じてね！</span>
@@ -220,8 +219,8 @@
     </div>
   </div>
 
-  <!-- 6. 下部操作バー（種目切替タブ＆左右切替） -->
-  <footer class="relative z-20 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-3 pt-2 safe-bottom-padding shrink-0 shadow-[0_-8px_20px_rgba(0,0,0,0.5)]">
+  <!-- 6. 下部操作バー（iOS Safariツールバー被り完全防止のセーフエリア適用） -->
+  <footer class="relative z-20 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-3 pt-2.5 safe-bottom-padding shrink-0 shadow-[0_-8px_20px_rgba(0,0,0,0.5)]">
     <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
       <!-- 左右切替ボタン -->
       <div class="flex items-center bg-slate-950 border border-slate-700 rounded-xl p-0.5 shrink-0">
@@ -248,7 +247,7 @@
     </div>
   </footer>
 
-  <!-- 7. 初回起動スクリーン（バージョン表記・状態詳細案内付き） -->
+  <!-- 7. 初回起動スクリーン -->
   <div id="startCameraScreen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center">
     <div class="relative mb-5">
       <div class="absolute -inset-4 bg-gradient-to-r from-amber-500 to-yellow-300 rounded-full blur-xl opacity-40 animate-pulse"></div>
@@ -259,7 +258,7 @@
 
     <div class="inline-flex items-center space-x-1.5 bg-amber-500/20 border border-amber-400/40 px-3 py-1 rounded-full mb-2">
       <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-      <span class="text-[11px] font-black text-amber-300">しなりドラゴン プロ v2.5.1</span>
+      <span class="text-[11px] font-black text-amber-300">しなりドラゴン プロ v2.5.2</span>
     </div>
 
     <h2 class="text-xl sm:text-2xl font-black text-white mb-2 tracking-wide">
@@ -301,7 +300,7 @@
         <div class="w-96 h-96 bg-gradient-to-r from-yellow-400 to-amber-600 rounded-full animate-sunburst blur-xl"></div>
       </div>
 
-      <div class="text-[10px] font-black text-amber-300 tracking-widest uppercase mb-1">MEASUREMENT RESULT (v2.5.1)</div>
+      <div class="text-[10px] font-black text-amber-300 tracking-widest uppercase mb-1">MEASUREMENT RESULT (v2.5.2)</div>
       <h3 id="reportTestTitle" class="text-sm font-black text-white mb-2">胸パカーン（胸椎回旋）</h3>
 
       <div class="my-2 flex flex-col items-center">
@@ -355,7 +354,7 @@
       <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
         <h2 class="text-sm font-black text-violet-300 flex items-center space-x-1.5">
           <span>📊</span>
-          <span>測定データ履歴 (v2.5.1)</span>
+          <span>測定データ履歴 (v2.5.2)</span>
         </h2>
         <button id="closeHistoryBtn" class="text-slate-400 hover:text-white text-xl font-black">✕</button>
       </div>
@@ -475,7 +474,7 @@
           side: record.side,
           angle: Number(record.angle),
           rank: record.rank,
-          version: 'v2.5.1',
+          version: 'v2.5.2',
           createdAt: new Date().toISOString(),
           timestamp: Date.now()
         });
@@ -554,9 +553,9 @@
   <!-- ==================== メインスクリプト ==================== -->
   <script>
     /**
-     * アプリケーション定数定義 (v2.5.1)
+     * アプリケーション定数定義 (v2.5.2)
      */
-    const APP_VERSION = 'v2.5.1';
+    const APP_VERSION = 'v2.5.2';
 
     const BIOMECHANICS_CONFIG = {
       THORACIC: {
@@ -585,7 +584,7 @@
     };
 
     /* --------------------------------------------------------------------------
-       1. Web Audio API シンセサイザー（安全フォールバック付き）
+       1. Web Audio API シンセサイザー
        -------------------------------------------------------------------------- */
     class SoundFX {
       constructor() {
@@ -700,7 +699,7 @@
     const sound = new SoundFX();
 
     /* --------------------------------------------------------------------------
-       2. Web Speech API 音声コーチ（安全ガード付き）
+       2. Web Speech API 音声コーチ
        -------------------------------------------------------------------------- */
     class SpeechCoach {
       constructor() {
@@ -1418,11 +1417,11 @@
 
       renderSideSelection(side) {
         if (side === 'right') {
-          DOM.sideRightBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow';
-          DOM.sideLeftBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-black transition text-slate-400';
+          DOM.sideRightBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow';
+          DOM.sideLeftBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400';
         } else {
-          DOM.sideLeftBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow';
-          DOM.sideRightBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-black transition text-slate-400';
+          DOM.sideLeftBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow';
+          DOM.sideRightBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400';
         }
       },
 
@@ -1601,7 +1600,7 @@
     };
 
     /* --------------------------------------------------------------------------
-       9. MediaPipe Pose & カメラパイプライン（待機防御＆エラー詳細化）
+       9. MediaPipe Pose & カメラパイプライン
        -------------------------------------------------------------------------- */
     const landmarkFilters = Array.from({ length: 33 }, () => ({
       x: new OneEuroFilter(30, 0.8, 0.005),
@@ -1614,7 +1613,6 @@
     let animFrameId = null;
     let isSwitchingCamera = false;
 
-    // MediaPipe スクリプトの読み込み完了を確実に待機
     async function waitForMediaPipeScript(maxWaitMs = 10000) {
       const startTime = Date.now();
       while (typeof window.Pose === 'undefined') {
@@ -1670,7 +1668,6 @@
         try {
           await poseDetector.send({ image: DOM.video });
         } catch (e) {
-          // フレームスキップ例外の抑制
         } finally {
           isDetecting = false;
         }
@@ -1699,7 +1696,6 @@
           currentStream = null;
         }
 
-        // カメラAPIの存在検証（非HTTPSや権限ブロック時の親切な案内）
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           throw new Error('お使いのブラウザはカメラAPIに対応していないか、安全な接続(HTTPS)で開かれていません。');
         }
@@ -1736,7 +1732,6 @@
         DOM.video.muted = true;
         DOM.video.playsInline = true;
 
-        // ビデオ再生待機
         await new Promise((resolve) => {
           if (DOM.video.readyState >= 2) {
             resolve();
@@ -1808,7 +1803,6 @@
       }
     });
 
-    // カメラ切り替えボタン（非同期排他ロック）
     DOM.cameraSwitchBtn.addEventListener('click', async () => {
       if (isSwitchingCamera) return;
       isSwitchingCamera = true;
