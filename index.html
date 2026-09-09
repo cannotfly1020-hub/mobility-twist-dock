@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v1.2 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v1.3 | Mobility & Twist Dock</title>
   <!-- Google Fonts: M PLUS Rounded 1c (800 / 900) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -228,12 +228,18 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v1.2</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v1.3</span>
         </div>
       </div>
 
       <!-- 右側クイックアクション（省スペース横並び配置） -->
       <div class="flex items-center gap-1">
+        <!-- 自動/手動スタート切替スイッチ -->
+        <button id="startModeToggleBtn" class="badge-brawl text-[10px] py-1 px-2 text-emerald-300 border-emerald-500/80 cursor-pointer active:scale-95 transition-all" title="タップで自動/手動スタート切替">
+          <span id="startModeIcon">🤖</span>
+          <span id="startModeText">自動: ON</span>
+        </button>
+
         <button id="balanceBadgeBtn" class="badge-brawl text-[10px] py-1 px-1.5 text-amber-300 border-amber-500/80 cursor-pointer active:scale-95 transition-transform" title="タップで左右差を解説！">
           <span id="headerBalanceIcon">⚖️</span>
           <span id="headerBalanceText">4° <span class="text-emerald-300">(神!)</span></span>
@@ -296,6 +302,17 @@
         <!-- 準備ポーズ・構え認識ステータス -->
         <div id="poseCheckPromptPill" class="bg-slate-900/90 border border-yellow-400 px-3 py-1 rounded-full text-[11px] text-yellow-300 brawl-text shadow-lg flex items-center gap-1.5">
           <span class="animate-bounce">👉</span> <span id="poseCheckPromptText">片手を頭の後ろにセットしてね！</span>
+        </div>
+
+        <!-- ロックオン進行度リング＆メーター -->
+        <div id="lockonChargeBox" class="hidden flex flex-col items-center gap-1 bg-black/80 px-4 py-2 rounded-2xl border-2 border-sky-400 shadow-2xl backdrop-blur-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-lg animate-spin">⚡</span>
+            <span class="text-xs font-black text-sky-300 brawl-text">ポーズOK！ロックオン中...</span>
+          </div>
+          <div class="w-36 bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-600">
+            <div id="lockonProgressBar" class="bg-gradient-to-r from-sky-400 to-yellow-400 h-full w-0 transition-all duration-75"></div>
+          </div>
         </div>
 
         <!-- ロックオン進行度インジケーター -->
@@ -564,6 +581,7 @@
         testType: 'THORACIC',    // THORACIC (胸椎) | HIP_IR (股関節内旋) | HINGE (ハム前屈)
         cameraFacing: 'user',    // user | environment
         activeSide: 'RIGHT',     // RIGHT | LEFT (左右両方測定)
+        autoStartEnabled: true,  // 自動スタートのON/OFF
         stream: null,
         isCountingDown: false,
         countdownVal: 3,
@@ -1052,10 +1070,147 @@
           }
 
           // 5. 骨格＆扇形ゲージ描画
-          this.renderPoseSkeleton(ctx, lm, w, h, currentAngle);
+        this.renderPoseSkeleton(ctx, lm, w, h, currentAngle);
 
-          ctx.restore();
-        },
+        ctx.restore();
+      },
+
+      checkAutoTriggerGateIn(lm, isCheating) {
+        if (!App.State.autoStartEnabled) {
+          this.resetGateInState();
+          return;
+        }
+
+        const promptPill = document.getElementById('poseCheckPromptPill');
+        const promptText = document.getElementById('poseCheckPromptText');
+        const chargeBox = document.getElementById('lockonChargeBox');
+        const progressBar = document.getElementById('lockonProgressBar');
+
+        if (isCheating) {
+          this.resetGateInState();
+          if (promptPill) promptPill.classList.add('hidden');
+          return;
+        }
+
+        const inBounds = this.isPoseInBounds(lm, App.State.testType);
+        if (!inBounds) {
+          this.resetGateInState();
+          if (promptPill && promptText) {
+            promptText.textContent = 'カメラの枠の中に立とう！';
+            promptPill.classList.remove('hidden');
+          }
+          return;
+        }
+
+        // 構え（スタートポーズ）チェック
+        const poseStatus = this.checkStartPoseReady(lm, App.State.testType, App.State.activeSide);
+        if (!poseStatus.ready) {
+          this.resetGateInState();
+          if (promptPill && promptText) {
+            promptText.textContent = poseStatus.prompt;
+            promptPill.classList.remove('hidden');
+          }
+          return;
+        }
+
+        // 構えOKなのでプロンプトを「キープして！」に更新
+        if (promptPill && promptText) {
+          promptText.textContent = poseStatus.prompt;
+          promptPill.classList.remove('hidden');
+        }
+
+        // 両肩と両腰の中央位置の静止判定
+        const lSh = lm[11];
+        const rSh = lm[12];
+        const currentPos = { x: (lSh.x + rSh.x) / 2, y: (lSh.y + rSh.y) / 2 };
+
+        const box = document.getElementById('guideOverlay');
+        const pill = document.getElementById('lockonStatusPill');
+
+        if (this.prevKeypointPos) {
+          const dist = Math.hypot(currentPos.x - this.prevKeypointPos.x, currentPos.y - this.prevKeypointPos.y);
+          const now = Date.now();
+
+          if (dist < 0.035) { // 安定静止（小学生用に適度な許容度を確保）
+            if (this.stableSince === 0) {
+              this.stableSince = now;
+              if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2 charging';
+              if (pill) pill.classList.remove('hidden');
+              if (chargeBox) chargeBox.classList.remove('hidden');
+              App.Audio.playChargeSE();
+            } else {
+              const elapsed = now - this.stableSince;
+              const progressPct = Math.min(100, Math.round((elapsed / 1200) * 100));
+              if (progressBar) progressBar.style.width = `${progressPct}%`;
+
+              // 0.35秒静止で予告音声
+              if (elapsed >= 350 && !this.hasPlayedChargeVoice) {
+                this.hasPlayedChargeVoice = true;
+                App.Audio.speak('構えOK！そのままストップ！');
+              }
+
+              // 1.2秒静止でオートロックオン完了！
+              if (elapsed >= 1200) {
+                this.triggerAutoStart();
+              }
+            }
+          } else {
+            this.resetGateInState();
+          }
+        }
+        this.prevKeypointPos = currentPos;
+      },
+
+      isPoseInBounds(lm, testType) {
+        const lSh = lm[11];
+        const rSh = lm[12];
+        const lHip = lm[23];
+        const rHip = lm[24];
+        if (!lSh || !rSh || !lHip || !rHip) return false;
+        if (lSh.visibility < 0.35 || rSh.visibility < 0.35 || lHip.visibility < 0.25) return false;
+
+        const midX = (lSh.x + rSh.x) / 2;
+        return midX >= 0.10 && midX <= 0.90;
+      },
+
+      resetGateInState() {
+        this.stableSince = 0;
+        this.prevKeypointPos = null;
+        this.hasPlayedChargeVoice = false;
+
+        const box = document.getElementById('guideOverlay');
+        if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2';
+
+        const pill = document.getElementById('lockonStatusPill');
+        if (pill) pill.classList.add('hidden');
+
+        const chargeBox = document.getElementById('lockonChargeBox');
+        if (chargeBox) chargeBox.classList.add('hidden');
+
+        const progressBar = document.getElementById('lockonProgressBar');
+        if (progressBar) progressBar.style.width = '0%';
+      },
+
+      triggerAutoStart() {
+        const box = document.getElementById('guideOverlay');
+        if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2 locked';
+
+        const pill = document.getElementById('lockonStatusPill');
+        if (pill) pill.classList.add('hidden');
+
+        const chargeBox = document.getElementById('lockonChargeBox');
+        if (chargeBox) chargeBox.classList.add('hidden');
+
+        const promptPill = document.getElementById('poseCheckPromptPill');
+        if (promptPill) promptPill.classList.add('hidden');
+
+        App.Audio.playLockOnSE();
+        App.Audio.speak('ロックオン完了！いくぞ！');
+        App.UI.showToast('🎯 ロックオン完了！スタート！', '🔥');
+
+        this.resetGateInState();
+        App.startCountdownSequence();
+      },
 
         // テストごとの「構え（スタートポーズ）」を取っているかを厳密判定
         checkStartPoseReady(lm, testType, activeSide) {
@@ -1795,6 +1950,33 @@
       init() {
         const videoEl = document.getElementById('cameraVideo');
         App.Sensor.initCamera(videoEl, App.State.cameraFacing);
+
+        // 自動スタート ON/OFF 切替ボタン
+        const toggleBtn = document.getElementById('startModeToggleBtn');
+        const modeText = document.getElementById('startModeText');
+        const modeIcon = document.getElementById('startModeIcon');
+        const mainBtnLabel = document.getElementById('mainBtnLabel');
+
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', () => {
+            App.State.autoStartEnabled = !App.State.autoStartEnabled;
+            if (App.State.autoStartEnabled) {
+              modeIcon.textContent = '🤖';
+              modeText.textContent = '自動: ON';
+              toggleBtn.className = 'badge-brawl text-[10px] py-1 px-2 text-emerald-300 border-emerald-500/80 cursor-pointer active:scale-95 transition-all';
+              if (mainBtnLabel) mainBtnLabel.textContent = 'スタート！ (自動/タップ)';
+              App.UI.showToast('🤖 自動スタートをONにしました');
+            } else {
+              modeIcon.textContent = '👆';
+              modeText.textContent = '手動タップ';
+              toggleBtn.className = 'badge-brawl text-[10px] py-1 px-2 text-slate-400 border-slate-600 cursor-pointer active:scale-95 transition-all';
+              if (mainBtnLabel) mainBtnLabel.textContent = 'ボタンを押してスタート！';
+              App.Sensor.resetGateInState();
+              App.UI.showToast('👆 手動スタートモードにしました');
+            }
+            App.Audio.playSE(500, 0.06, 'triangle');
+          });
+        }
 
         // 1. タブ切り替え
         document.querySelectorAll('nav button').forEach(btn => {
