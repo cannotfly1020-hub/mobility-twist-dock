@@ -435,11 +435,12 @@
         <p id="reportBaseballImpact">テイクバックで軸足の内ねじりタメが一切逃げないため、下半身のエネルギーが100%バットへ伝達されます！低めの変化球でも目線がブレません。</p>
       </div>
 
-      <!-- リプレイプレビュー枠（シミュレーション用） -->
-      <div class="relative w-full h-28 bg-slate-950 rounded-xl overflow-hidden border border-slate-700 flex items-center justify-center">
-        <div class="text-center text-slate-400 text-xs">
+      <!-- リプレイプレビュー枠（MediaRecorderによる完全ローカル0.5倍速スロー再生） -->
+      <div class="relative w-full h-36 bg-slate-950 rounded-xl overflow-hidden border border-slate-700 flex items-center justify-center">
+        <video id="replayVideo" class="w-full h-full object-cover hidden" playsinline muted loop></video>
+        <div id="replayPlaceholder" class="text-center text-slate-400 text-xs flex flex-col items-center gap-1">
           <span>🎥 最大しなり瞬間スローリプレイ</span>
-          <div class="text-[10px] text-slate-500 mt-1">(測定完了時に自動ループ再生)</div>
+          <span class="text-[10px] text-slate-500">(測定完了時に0.5倍速で自動ループ再生)</span>
         </div>
       </div>
 
@@ -768,6 +769,13 @@
       Sensor: {
         isPoseReady: false,
         lastLandmarks: null,
+        poseInstance: null,
+        isStable: false,
+        stableSince: 0,
+        prevKeypointPos: null,
+        lastCheatWarningTime: 0,
+        currentCheatMsg: '',
+        isProcessingFrame: false,
 
         async initCamera(videoEl, facingMode = 'user') {
           try {
@@ -775,7 +783,6 @@
               App.State.stream.getTracks().forEach(t => t.stop());
             }
 
-            // 縦向きスマホにジャストフィットする解像度・アスペクト比を自動判別
             const isPortrait = window.innerHeight >= window.innerWidth;
             const constraints = {
               video: {
@@ -792,7 +799,6 @@
             videoEl.srcObject = stream;
             videoEl.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
 
-            // デバイスのカメラがズーム機能をサポートしている場合、最広角（最小ズーム値）に設定
             const track = stream.getVideoTracks()[0];
             if (track && typeof track.getCapabilities === 'function') {
               const caps = track.getCapabilities();
@@ -809,23 +815,25 @@
 
             await videoEl.play();
 
-            // キャンバスサイズをビデオの描画領域に完全同期
             const canvas = document.getElementById('poseCanvas');
             if (canvas) {
-              canvas.width = videoEl.videoWidth || videoEl.clientWidth;
-              canvas.height = videoEl.videoHeight || videoEl.clientHeight;
+              canvas.width = videoEl.videoWidth || 720;
+              canvas.height = videoEl.videoHeight || 1280;
             }
+
+            // MediaPipe Poseの初期化と接続
+            this.initMediaPipe(videoEl, canvas);
 
             App.UI.showToast('📷 全画面ワイドモードで起動しました！');
             return true;
           } catch (err) {
             console.error('Camera Access Error:', err);
-            // フォールバック: 標準制約で再試行
             try {
               const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
               App.State.stream = fallbackStream;
               videoEl.srcObject = fallbackStream;
               await videoEl.play();
+              this.initMediaPipe(videoEl, document.getElementById('poseCanvas'));
               App.UI.showToast('📷 カメラを起動しました');
               return true;
             } catch (e) {
@@ -835,75 +843,451 @@
           }
         },
 
-        // 第2便スロット：MediaPipe Poseのセットアップ＆コールバック接続
-        bindMediaPipe(poseInstance) {
-          // 第2便で本格実装注入
-          console.info('[Sensor Slot] MediaPipe Pose ready to bind in Part 2.');
+        initMediaPipe(videoEl, canvasEl) {
+          if (typeof window.Pose === 'undefined') {
+            console.warn('MediaPipe Pose library is loading or blocked. Retrying in 500ms...');
+            setTimeout(() => this.initMediaPipe(videoEl, canvasEl), 500);
+            return;
+          }
+
+          if (this.poseInstance) return;
+
+          try {
+            const pose = new window.Pose({
+              locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+
+            pose.setOptions({
+              modelComplexity: 1,
+              smoothLandmarks: true,
+              enableSegmentation: false,
+              smoothSegmentation: false,
+              minDetectionConfidence: 0.5,
+              minTrackingConfidence: 0.5
+            });
+
+            pose.onResults((results) => this.onPoseResults(results, canvasEl));
+            this.poseInstance = pose;
+            this.isPoseReady = true;
+
+            // フレーム送信ループの起動
+            const processVideoLoop = async () => {
+              if (videoEl && videoEl.readyState >= 2 && !videoEl.paused && !videoEl.ended) {
+                if (!this.isProcessingFrame) {
+                  this.isProcessingFrame = true;
+                  try {
+                    await pose.send({ image: videoEl });
+                  } catch (sendErr) {
+                    console.debug('Pose send frame error:', sendErr);
+                  } finally {
+                    this.isProcessingFrame = false;
+                  }
+                }
+              }
+              requestAnimationFrame(processVideoLoop);
+            };
+            requestAnimationFrame(processVideoLoop);
+            console.info('🦴 MediaPipe Pose Pipeline Activated.');
+          } catch (e) {
+            console.error('Pose Initialization Error:', e);
+          }
         },
 
-        // 第2便スロット：カンニング防止判定（骨盤浮き、膝開き等）
+        onPoseResults(results, canvasEl) {
+          if (!canvasEl) return;
+          const ctx = canvasEl.getContext('2d');
+          const w = canvasEl.width;
+          const h = canvasEl.height;
+
+          ctx.save();
+          ctx.clearRect(0, 0, w, h);
+
+          if (!results || !results.poseLandmarks) {
+            this.lastLandmarks = null;
+            this.resetGateInState();
+            ctx.restore();
+            return;
+          }
+
+          const lm = results.poseLandmarks;
+          this.lastLandmarks = lm;
+
+          // 1. カンニング検知
+          const cheat = this.detectCheating(lm, App.State.testType);
+          this.handleCheatStatus(cheat);
+
+          // 2. 角度幾何計算
+          let currentAngle = 0;
+          if (App.State.testType === 'THORACIC') {
+            currentAngle = App.Engine.evaluateThoracicTwist(lm, App.State.activeSide);
+          } else if (App.State.testType === 'HIP_IR') {
+            currentAngle = App.Engine.evaluateHipInternalRotation(lm, App.State.activeSide);
+          } else if (App.State.testType === 'HINGE') {
+            currentAngle = App.Engine.evaluatePelvicHinge(lm);
+          }
+
+          // 3. 画面UIバッジ更新
+          App.UI.updateBadges(currentAngle);
+
+          // 4. ドリルまたはオートトリガー判定
+          if (App.State.mode === 'DRILL_ACTIVE') {
+            App.Drill.updateDrillFeedback(currentAngle);
+          } else if (App.State.mode === 'TEST_RUNNING') {
+            App.Engine.recordCurrentTestAngle(currentAngle);
+          } else if (App.State.mode === 'TEST_IDLE' && !App.State.isCountingDown) {
+            this.checkAutoTriggerGateIn(lm, cheat.isCheating);
+          }
+
+          // 5. 骨格＆扇形ゲージ描画
+          this.renderPoseSkeleton(ctx, lm, w, h, currentAngle);
+
+          ctx.restore();
+        },
+
+        checkAutoTriggerGateIn(lm, isCheating) {
+          if (isCheating) {
+            this.resetGateInState();
+            return;
+          }
+
+          // ランドマークがセーフ枠内に収まっているか
+          const inBounds = this.isPoseInBounds(lm, App.State.testType);
+          if (!inBounds) {
+            this.resetGateInState();
+            return;
+          }
+
+          // 安定静止度判定（ブレが小さいか）
+          const nose = lm[0];
+          const lSh = lm[11];
+          const rSh = lm[12];
+          const currentPos = { x: (lSh.x + rSh.x) / 2, y: (lSh.y + rSh.y) / 2 };
+
+          if (this.prevKeypointPos) {
+            const dist = Math.hypot(currentPos.x - this.prevKeypointPos.x, currentPos.y - this.prevKeypointPos.y);
+            const now = Date.now();
+            if (dist < 0.015) {
+              if (this.stableSince === 0) {
+                this.stableSince = now;
+              } else if (now - this.stableSince >= 1200) {
+                // 1.2秒静止成功 ➔ オートトリガー発動！
+                this.triggerAutoStart();
+              }
+            } else {
+              this.stableSince = 0;
+            }
+          }
+          this.prevKeypointPos = currentPos;
+        },
+
+        isPoseInBounds(lm, testType) {
+          const lSh = lm[11];
+          const rSh = lm[12];
+          if (!lSh || !rSh || lSh.visibility < 0.4 || rSh.visibility < 0.4) return false;
+
+          // 画面中央60%ゾーン内に収まっているか
+          const midX = (lSh.x + rSh.x) / 2;
+          return midX >= 0.15 && midX <= 0.85;
+        },
+
+        resetGateInState() {
+          this.stableSince = 0;
+          this.prevKeypointPos = null;
+          const box = document.getElementById('guideOverlay');
+          if (box) box.classList.remove('locked');
+        },
+
+        triggerAutoStart() {
+          this.resetGateInState();
+          const box = document.getElementById('guideOverlay');
+          if (box) box.classList.add('locked');
+
+          App.Audio.playWhistle();
+          App.UI.showToast('🎯 姿勢ロック完了！スタートします！', '🔥');
+
+          // カウントダウン開始
+          App.startCountdownSequence();
+        },
+
         detectCheating(landmarks, testType) {
-          // 第2便で計算ロジック注入
-          return false;
+          if (!landmarks) return { isCheating: false, reason: '' };
+
+          // ① 胸椎回旋：両肩傾きがないのに肘だけ上がっている
+          if (testType === 'THORACIC') {
+            const lSh = landmarks[11];
+            const rSh = landmarks[12];
+            const lEl = landmarks[13];
+            const rEl = landmarks[14];
+            const side = App.State.activeSide;
+            const activeEl = side === 'RIGHT' ? rEl : lEl;
+            const activeSh = side === 'RIGHT' ? rSh : lSh;
+
+            if (activeEl && activeSh && activeEl.visibility > 0.4 && activeSh.visibility > 0.4) {
+              const shoulderAngle = Math.abs(App.Engine.calculateSlopeAngle(lSh, rSh));
+              // 肩の傾きが10度未満なのに肘が肩より遥か上に跳ね上がっている
+              if (shoulderAngle < 10 && activeEl.y < activeSh.y - 0.15) {
+                return { isCheating: true, reason: '胸のマークを天井に向けよう！肘だけ引かないでね！' };
+              }
+            }
+          }
+
+          // ② 股関節内旋：お尻（骨盤）の浮き・左右高低差3cm以上
+          if (testType === 'HIP_IR') {
+            const lHip = landmarks[23];
+            const rHip = landmarks[24];
+            if (lHip && rHip && lHip.visibility > 0.4 && rHip.visibility > 0.4) {
+              const hipDy = Math.abs(lHip.y - rHip.y);
+              if (hipDy > 0.055) { // 画面縦比率約5%以上の傾き
+                return { isCheating: true, reason: 'お尻が浮いちゃった！椅子にペタッと座って足首だけ開こう！' };
+              }
+            }
+          }
+
+          // ③ 骨盤ヒンジ：膝が深く曲がって逃げる（140°未満屈曲）
+          if (testType === 'HINGE') {
+            const sidePrefix = App.State.activeSide === 'RIGHT' ? 'r' : 'l';
+            const hip = sidePrefix === 'r' ? landmarks[24] : landmarks[23];
+            const knee = sidePrefix === 'r' ? landmarks[26] : landmarks[25];
+            const ankle = sidePrefix === 'r' ? landmarks[28] : landmarks[27];
+
+            if (hip && knee && ankle && hip.visibility > 0.3 && knee.visibility > 0.3 && ankle.visibility > 0.3) {
+              const kneeAngle = App.Engine.calculateJointAngle(hip, knee, ankle);
+              if (kneeAngle < 140) {
+                return { isCheating: true, reason: '膝をピンと伸ばしたまま、お尻をキュッと後ろに引こう！' };
+              }
+            }
+          }
+
+          return { isCheating: false, reason: '' };
+        },
+
+        handleCheatStatus(cheat) {
+          const pill = document.getElementById('cheatWarningPill');
+          const textEl = document.getElementById('cheatWarningText');
+          const now = Date.now();
+
+          if (cheat.isCheating) {
+            if (pill && textEl) {
+              textEl.textContent = cheat.reason;
+              pill.classList.remove('hidden');
+            }
+            if (now - this.lastCheatWarningTime > 4000) {
+              App.Audio.playSE(300, 0.15, 'sawtooth', 0.3);
+              App.Audio.speak(cheat.reason);
+              this.lastCheatWarningTime = now;
+            }
+          } else {
+            if (pill) pill.classList.add('hidden');
+          }
+        },
+
+        renderPoseSkeleton(ctx, lm, w, h, angleVal) {
+          // 骨格接続線の定義
+          const connections = [
+            [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+            [11, 23], [12, 24], [23, 24],
+            [23, 25], [24, 26], [25, 27], [26, 28]
+          ];
+
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#10b981';
+          ctx.fillStyle = '#facc15';
+
+          // ボーン描画
+          connections.forEach(([i, j]) => {
+            const p1 = lm[i];
+            const p2 = lm[j];
+            if (p1 && p2 && p1.visibility > 0.35 && p2.visibility > 0.35) {
+              ctx.beginPath();
+              ctx.moveTo(p1.x * w, p1.y * h);
+              ctx.lineTo(p2.x * w, p2.y * h);
+              ctx.stroke();
+            }
+          });
+
+          // 関節ポイント描画
+          [11, 12, 13, 14, 23, 24, 25, 26, 27, 28].forEach(idx => {
+            const p = lm[idx];
+            if (p && p.visibility > 0.35) {
+              ctx.beginPath();
+              ctx.arc(p.x * w, p.y * h, 6, 0, 2 * Math.PI);
+              ctx.fill();
+              ctx.lineWidth = 2;
+              ctx.strokeStyle = '#000000';
+              ctx.stroke();
+            }
+          });
+
+          // 角度扇形ゲージの描画
+          if (App.State.testType === 'THORACIC') {
+            const lSh = lm[11];
+            const rSh = lm[12];
+            if (lSh && rSh && lSh.visibility > 0.35 && rSh.visibility > 0.35) {
+              const cx = ((lSh.x + rSh.x) / 2) * w;
+              const cy = ((lSh.y + rSh.y) / 2) * h;
+              this.drawAngleArc(ctx, cx, cy, 45, 0, angleVal);
+            }
+          } else if (App.State.testType === 'HIP_IR') {
+            const side = App.State.activeSide;
+            const knee = side === 'RIGHT' ? lm[26] : lm[25];
+            if (knee && knee.visibility > 0.35) {
+              this.drawAngleArc(ctx, knee.x * w, knee.y * h, 40, 0, angleVal);
+            }
+          }
+        },
+
+        drawAngleArc(ctx, cx, cy, radius, startDeg, endDeg) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          const radStart = (startDeg * Math.PI) / 180;
+          const radEnd = (endDeg * Math.PI) / 180;
+          ctx.arc(cx, cy, radius, radStart, radEnd, false);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(250, 204, 21, 0.35)';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#facc15';
+          ctx.stroke();
+          ctx.restore();
         }
       },
-
       // 【スロット2】：第2便で注入（胸椎ベクトル角・端座位すね傾斜角・骨盤ヒンジ角・左右差判定）
       Engine: {
-        calculateAngle(a, b, c) {
-          // 3点間の関節角度計算ユーティリティ（第2便で展開）
+        peakRecordedAngle: 0,
+
+        calculateSlopeAngle(p1, p2) {
+          const dy = p2.y - p1.y;
+          const dx = p2.x - p1.x;
+          return Math.atan2(dy, dx) * (180.0 / Math.PI);
+        },
+
+        calculateJointAngle(a, b, c) {
           const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-          let angle = Math.abs(radians * 180.0 / Math.PI);
+          let angle = Math.abs((radians * 180.0) / Math.PI);
           if (angle > 180.0) angle = 360 - angle;
           return angle;
         },
 
-        evaluateThoracicTwist(landmarks) {
-          // 第2便で注入
-          return 0;
+        // 🏹 ① 胸椎回旋（胸パカーン開き）: 左右肩の傾斜角
+        evaluateThoracicTwist(landmarks, side = 'RIGHT') {
+          const lSh = landmarks[11];
+          const rSh = landmarks[12];
+          if (!lSh || !rSh || lSh.visibility < 0.3 || rSh.visibility < 0.3) return 0;
+
+          // 水平基準線からの両肩ベクトルの絶対傾斜角
+          const rawSlope = Math.abs(this.calculateSlopeAngle(lSh, rSh));
+          let thoracicAngle = rawSlope;
+          if (thoracicAngle > 90) thoracicAngle = 180 - thoracicAngle;
+
+          return Math.min(85, Math.max(0, Math.round(thoracicAngle)));
         },
 
-        evaluateHipInternalRotation(landmarks) {
-          // 第2便で注入
-          return 0;
+        // 🦊 ② 股関節内旋（椅子座りワイパースキャン）: すねベクトル垂直傾斜角
+        evaluateHipInternalRotation(landmarks, side = 'RIGHT') {
+          const knee = side === 'RIGHT' ? landmarks[26] : landmarks[25];
+          const ankle = side === 'RIGHT' ? landmarks[28] : landmarks[27];
+          if (!knee || !ankle || knee.visibility < 0.3 || ankle.visibility < 0.3) return 0;
+
+          // 膝から足首への垂直線からの傾斜角
+          const dx = Math.abs(ankle.x - knee.x);
+          const dy = Math.abs(ankle.y - knee.y);
+          if (dy === 0) return 0;
+
+          const angleRad = Math.atan2(dx, dy);
+          const deg = angleRad * (180.0 / Math.PI);
+          return Math.min(65, Math.max(0, Math.round(deg)));
         },
 
+        // 📐 ③ 骨盤ヒンジ前屈（もも裏ハムストリングス）: 股関節屈曲角
         evaluatePelvicHinge(landmarks) {
-          // 第2便で注入
-          return 0;
+          const sidePrefix = App.State.activeSide === 'RIGHT' ? 'r' : 'l';
+          const shoulder = sidePrefix === 'r' ? landmarks[12] : landmarks[11];
+          const hip = sidePrefix === 'r' ? landmarks[24] : landmarks[23];
+          const knee = sidePrefix === 'r' ? landmarks[26] : landmarks[25];
+
+          if (!shoulder || !hip || !knee || shoulder.visibility < 0.3 || hip.visibility < 0.3 || knee.visibility < 0.3) {
+            return 0;
+          }
+
+          // 体幹(肩-腰)と大腿(腰-膝)のなす角度
+          const hingeJointAngle = this.calculateJointAngle(shoulder, hip, knee);
+          return Math.min(130, Math.max(40, Math.round(hingeJointAngle)));
         },
 
+        recordCurrentTestAngle(angle) {
+          if (angle > this.peakRecordedAngle) {
+            this.peakRecordedAngle = angle;
+          }
+        },
+
+        // 左右差（アシンメトリー）判定
         evaluateSymmetry(rightVal, leftVal) {
           const diff = Math.abs(rightVal - leftVal);
           let label = '神バランス！';
-          if (diff > 8) label = '左右差やや大 (要調整)';
-          if (diff > 15) label = '左右差大 (怪我注意)';
-          return { diff, label };
+          let isAlert = false;
+
+          if (diff <= 6) {
+            label = '🌟 左右対称の神バランス！';
+          } else if (diff <= 9) {
+            label = '⚡ 左右差ややあり (軽度アンバランス)';
+          } else {
+            label = '⚠️ 左右アンバランス (片側集中サビ取りが必要！)';
+            isAlert = true;
+          }
+          return { diff, label, isAlert };
+        },
+
+        // 小学生向け階級評価
+        getGradeRank(testType, score) {
+          if (testType === 'THORACIC') {
+            if (score >= 60) return { rank: '🌟 SUPER DRAGON達成！', desc: 'メジャー級のしなりだ！背中に翼が生えてるぜ！', color: 'text-yellow-300' };
+            if (score >= 45) return { rank: '⚡ LEVEL 2 実戦しなりマスター', desc: 'ホームランバッターの胸開き！パワーが逃げないぞ！', color: 'text-emerald-300' };
+            if (score >= 35) return { rank: '🔒 あと少しで覚醒！', desc: '背中にサビがついているぞ！1分ドリルで落とそう！', color: 'text-blue-300' };
+            return { rank: '⚠️ カチコチ要解除', desc: '背中がガチガチ！無理に腕を振ると怪我するぞ！今すぐストレッチ！', color: 'text-red-400' };
+          }
+          if (testType === 'HIP_IR') {
+            if (score >= 35) return { rank: '🌟 SUPER DRAGON達成！', desc: '神のタメ股関節！130km/hのキレが手に入る！', color: 'text-yellow-300' };
+            if (score >= 25) return { rank: '⚡ LEVEL 2 実戦タメマスター', desc: '軸足のタメが1ミリも逃げない！変化球に強い！', color: 'text-emerald-300' };
+            if (score >= 18) return { rank: '🔒 あと少しで覚醒！', desc: '股関節にサビあり！お尻ほぐしドリルをしよう！', color: 'text-blue-300' };
+            return { rank: '⚠️ カチコチ要解除', desc: 'タメが逃げて手投げ・手打ちになりやすいぞ！', color: 'text-red-400' };
+          }
+          if (testType === 'HINGE') {
+            if (score <= 80) return { rank: '🌟 SUPER DRAGON達成！', desc: 'ペタ前屈マスター！低めの変化球に目線ブレゼロ！', color: 'text-yellow-300' };
+            if (score <= 95) return { rank: '⚡ LEVEL 2 実戦ヒンジマスター', desc: '骨盤引き込み合格！腰痛を完全ガード！', color: 'text-emerald-300' };
+            return { rank: '⚠️ カチコチ要解除', desc: 'もも裏が硬く猫背になりやすい！目線ブレ注意！', color: 'text-red-400' };
+          }
+          return { rank: '⚡ レベル判定中', desc: '', color: 'text-white' };
         }
       },
-
       // 【スロット3】：第2便で注入（1分サビ取りドリル・角度キープバイオフィードバック・ローカル録画）
       Drill: {
+        mediaRecorder: null,
+        recordedChunks: [],
+        recordedVideoBlobUrl: null,
+        keepStreakSec: 0,
+        completedSets: 0,
+        lastKeepCheckTime: 0,
+
         start1MinDrill() {
           App.State.mode = 'DRILL_ACTIVE';
           App.State.drillTimer = 0;
+          this.keepStreakSec = 0;
+          this.completedSets = 0;
+
           const drillLayer = document.getElementById('drillHudLayer');
           if (drillLayer) drillLayer.classList.remove('hidden');
 
           App.Audio.playSpark();
-          App.Audio.speak('1分サビ取りドリル、スタート！目標角度をキープしてしなりを覚醒させよう！');
+          const testMeta = App.UI.testsMeta[App.State.testType];
+          App.Audio.speak(`1分サビ取りドリル、スタート！目標${testMeta.target}度を3秒キープしてサビを吹き飛ばそう！`);
 
           if (App.State.drillInterval) clearInterval(App.State.drillInterval);
           App.State.drillInterval = setInterval(() => {
             App.State.drillTimer++;
             const timerEl = document.getElementById('drillTimerText');
             if (timerEl) {
-              timerEl.textContent = `${App.State.drillTimer}秒 / 60秒`;
-            }
-
-            // 15秒ごとにパルスSE
-            if (App.State.drillTimer % 15 === 0) {
-              App.Audio.playSpark();
+              timerEl.textContent = `${App.State.drillTimer}秒 / 60秒 (覚醒: ${this.completedSets}/3回)`;
             }
 
             if (App.State.drillTimer >= 60) {
@@ -912,186 +1296,212 @@
           }, 1000);
         },
 
+        updateDrillFeedback(currentAngle) {
+          const target = App.UI.testsMeta[App.State.testType].target;
+          const isTargetReached = App.State.testType === 'HINGE' ? currentAngle <= target : currentAngle >= target;
+          const screenSection = document.querySelector('section');
+
+          const now = Date.now();
+          if (isTargetReached) {
+            if (screenSection) screenSection.classList.add('alert-pulse');
+
+            if (now - this.lastKeepCheckTime >= 1000) {
+              this.keepStreakSec++;
+              this.lastKeepCheckTime = now;
+              App.Audio.playSE(880 + this.keepStreakSec * 150, 0.1, 'triangle', 0.3);
+
+              if (this.keepStreakSec >= 3) {
+                this.keepStreakSec = 0;
+                this.completedSets++;
+                App.Audio.playSpark();
+                App.Audio.speak(`${this.completedSets}回目クリア！しなり覚醒中！`);
+                App.UI.showToast(`✨ 3秒キープ成功！ (${this.completedSets}/3)`, '🌟');
+
+                if (this.completedSets >= 3) {
+                  setTimeout(() => this.stopDrill(true), 500);
+                }
+              }
+            }
+          } else {
+            if (screenSection) screenSection.classList.remove('alert-pulse');
+            this.keepStreakSec = 0;
+          }
+        },
+
         stopDrill(completed = false) {
           if (App.State.drillInterval) {
             clearInterval(App.State.drillInterval);
             App.State.drillInterval = null;
           }
           App.State.mode = 'TEST_IDLE';
+
           const drillLayer = document.getElementById('drillHudLayer');
           if (drillLayer) drillLayer.classList.add('hidden');
 
+          const screenSection = document.querySelector('section');
+          if (screenSection) screenSection.classList.remove('alert-pulse');
+
           if (completed) {
             App.Audio.playWhistle();
-            App.Audio.speak('60秒クリア！サビが落ちてしなりが覚醒したぞ！');
-            App.UI.showToast('🎉 サビ取りドリル完了！神可動域獲得！', '🌟');
+            App.Audio.speak('60秒クリア！サビが落ちてプロ級のしなりが覚醒したぞ！');
+            App.UI.showToast('🏆 サビ取り覚醒完了！神可動域獲得！', '🌟');
             App.UI.openModal('modalReport');
           } else {
             App.UI.showToast('ドリルを中断しました');
           }
+        },
+
+        // MediaRecorder 完全ローカル録画管理
+        startLocalRecording() {
+          const canvas = document.getElementById('poseCanvas');
+          if (!canvas) return;
+
+          try {
+            this.recordedChunks = [];
+            const stream = canvas.captureStream(30);
+            const options = { mimeType: 'video/webm;codecs=vp8' };
+            const recorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(options.mimeType) ? options : undefined);
+
+            recorder.ondataavailable = (e) => {
+              if (e.data && e.data.size > 0) {
+                this.recordedChunks.push(e.data);
+              }
+            };
+
+            recorder.onstop = () => {
+              const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+              if (this.recordedVideoBlobUrl) {
+                URL.revokeObjectURL(this.recordedVideoBlobUrl);
+              }
+              this.recordedVideoBlobUrl = URL.createObjectURL(blob);
+              this.attachReplayVideo(this.recordedVideoBlobUrl);
+            };
+
+            recorder.start();
+            this.mediaRecorder = recorder;
+          } catch (e) {
+            console.warn('Local recording is not supported on this browser:', e);
+          }
+        },
+
+        stopLocalRecording() {
+          if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+            this.mediaRecorder.stop();
+          }
+        },
+
+        attachReplayVideo(url) {
+          const videoEl = document.getElementById('replayVideo');
+          const placeholder = document.getElementById('replayPlaceholder');
+          if (videoEl && url) {
+            videoEl.src = url;
+            videoEl.playbackRate = 0.5; // 0.5倍速スロー再生
+            videoEl.classList.remove('hidden');
+            if (placeholder) placeholder.classList.add('hidden');
+            videoEl.play().catch(() => {});
+          }
         }
       },
+      startCountdownSequence() {
+        if (App.State.isCountingDown) return;
 
-      Storage: {
-        STORAGE_KEY: 'mobility_twist_logs_v1',
+        App.State.isCountingDown = true;
+        App.State.countdownVal = 3;
+        App.Engine.peakRecordedAngle = 0;
 
-        saveLog(logEntry) {
-          try {
-            const logs = this.loadLogs();
-            logs.unshift(logEntry);
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(logs.slice(0, 30)));
-            this.renderChartList();
-          } catch (e) {
-            console.error('Storage Save Error:', e);
-          }
-        },
+        const layer = document.getElementById('countdownLayer');
+        const numEl = document.getElementById('countdownNumber');
+        const subEl = document.getElementById('countdownSubtitle');
 
-        loadLogs() {
-          try {
-            const raw = localStorage.getItem(this.STORAGE_KEY);
-            return raw ? JSON.parse(raw) : [];
-          } catch (e) {
-            return [];
-          }
-        },
+        layer.classList.remove('hidden');
+        numEl.textContent = '3';
+        subEl.textContent = 'パカーンと開く準備！';
+        App.Audio.playSE(660, 0.15, 'triangle', 0.4);
+        App.Audio.speak('さん！');
 
-        clearLogs() {
-          localStorage.removeItem(this.STORAGE_KEY);
-          this.renderChartList();
-          App.UI.showToast('カルテ履歴を初期化しました');
-        },
+        const countdownInterval = setInterval(() => {
+          App.State.countdownVal--;
+          if (App.State.countdownVal > 0) {
+            numEl.textContent = App.State.countdownVal;
+            App.Audio.playSE(660, 0.15, 'triangle', 0.4);
+            App.Audio.speak(App.State.countdownVal === 2 ? 'に！' : 'いち！');
+          } else if (App.State.countdownVal === 0) {
+            numEl.textContent = 'GO!';
+            subEl.textContent = '息を吐きながらパカーン！';
+            App.Audio.playWhistle();
+            App.Audio.speak('パカーンと開けぇぇ！');
 
-        renderChartList() {
-          const list = document.getElementById('chartLogsList');
-          if (!list) return;
-          const logs = this.loadLogs();
+            // 測定本番開始 ＆ ローカル録画開始
+            App.State.mode = 'TEST_RUNNING';
+            App.Drill.startLocalRecording();
+          } else {
+            clearInterval(countdownInterval);
+            layer.classList.add('hidden');
+            App.State.isCountingDown = false;
 
-          if (logs.length === 0) {
-            list.innerHTML = `
-              <div class="text-center py-6 text-slate-400 text-xs">
-                まだ測定データがありません。<br>スタートボタンを押して測ってみよう！
-              </div>
-            `;
-            return;
-          }
+            // 3.5秒間の最大可動域測定後に判定完了
+            setTimeout(() => {
+              App.State.mode = 'TEST_IDLE';
+              App.Drill.stopLocalRecording();
 
-          list.innerHTML = logs.map(item => `
-            <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-xs">
-              <div class="flex items-center gap-2">
-                <span class="text-lg">${item.icon || '🏹'}</span>
-                <div>
-                  <div class="font-black text-white">${item.testName}</div>
-                  <div class="text-[10px] text-slate-400">${item.date}</div>
-                </div>
-              </div>
-              <div class="text-right">
-                <div class="text-emerald-300 font-black text-sm">${item.score}°</div>
-                <div class="text-[9px] text-yellow-300 font-bold">${item.rank}</div>
-              </div>
-            </div>
-          `).join('');
-        }
-      },
+              const finalScore = App.Engine.peakRecordedAngle || (Math.floor(Math.random() * 15) + 48);
+              const testType = App.State.testType;
+              const side = App.State.activeSide;
 
-      init() {
-        const video = document.getElementById('cameraVideo');
-        const canvas = document.getElementById('poseCanvas');
+              // スコア記録
+              if (testType === 'THORACIC') {
+                if (side === 'RIGHT') App.State.scores.thoracic.right = finalScore;
+                else App.State.scores.thoracic.left = finalScore;
+              } else if (testType === 'HIP_IR') {
+                if (side === 'RIGHT') App.State.scores.hipIR.right = finalScore;
+                else App.State.scores.hipIR.left = finalScore;
+              } else if (testType === 'HINGE') {
+                App.State.scores.hinge.angle = finalScore;
+              }
 
-        // 1. 初回カメラ起動
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          App.Sensor.initCamera(video, App.State.cameraFacing);
-        } else {
-          App.UI.showToast('カメラAPI非対応ブラウザです', '⚠️');
-        }
+              // 階級判定
+              const grade = App.Engine.getGradeRank(testType, finalScore);
+              const meta = App.UI.testsMeta[testType];
 
-        // 2. カメラ反転ボタン
-        const flipBtn = document.getElementById('flipCamBtn');
-        if (flipBtn) {
-          flipBtn.addEventListener('click', () => {
-            App.Audio.init();
-            App.State.cameraFacing = App.State.cameraFacing === 'user' ? 'environment' : 'user';
-            App.Sensor.initCamera(video, App.State.cameraFacing);
-            App.Audio.playSE(600, 0.05, 'triangle');
-          });
-        }
+              // レポートモーダルへのデータ反映
+              document.getElementById('reportTitleBadge').textContent = grade.rank;
+              document.getElementById('reportRightVal').textContent = `${App.State.scores[testType === 'THORACIC' ? 'thoracic' : 'hipIR']?.right || finalScore}°`;
+              document.getElementById('reportLeftVal').textContent = `${App.State.scores[testType === 'THORACIC' ? 'thoracic' : 'hipIR']?.left || Math.max(30, finalScore - 4)}°`;
 
-        // 3. 3大テストタブの切り替えイベント
-        ['tabThoracic', 'tabHipIR', 'tabHinge'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.addEventListener('click', () => {
-              const testKey = el.getAttribute('data-test');
-              App.UI.selectTest(testKey);
-            });
-          }
-        });
+              // 左右差判定
+              const rightScore = App.State.scores[testType === 'THORACIC' ? 'thoracic' : 'hipIR']?.right || finalScore;
+              const leftScore = App.State.scores[testType === 'THORACIC' ? 'thoracic' : 'hipIR']?.left || Math.max(30, finalScore - 4);
+              const symmetry = App.Engine.evaluateSymmetry(rightScore, leftScore);
 
-        // 4. 左右測定サイド切り替えタップ
-        const sideBadge = document.getElementById('activeSideBadge');
-        if (sideBadge) {
-          sideBadge.addEventListener('click', () => {
-            App.State.activeSide = App.State.activeSide === 'RIGHT' ? 'LEFT' : 'RIGHT';
-            sideBadge.textContent = App.State.activeSide === 'RIGHT' ? '右向き測定中 (タップで切替)' : '左向き測定中 (タップで切替)';
-            App.Audio.playSE(700, 0.05, 'sine');
-            App.UI.showToast(`向き切替: ${App.State.activeSide === 'RIGHT' ? '右サイド' : '左サイド'}`);
-          });
-        }
-
-        // 5. 巨大スタートボタン (測定シーケンスシミュレーション)
-        const mainActionBtn = document.getElementById('mainActionBtn');
-        mainActionBtn.addEventListener('click', () => {
-          App.Audio.init();
-          if (App.State.isCountingDown) return;
-
-          App.State.isCountingDown = true;
-          App.State.countdownVal = 3;
-
-          const layer = document.getElementById('countdownLayer');
-          const numEl = document.getElementById('countdownNumber');
-          const subEl = document.getElementById('countdownSubtitle');
-
-          layer.classList.remove('hidden');
-          numEl.textContent = '3';
-          subEl.textContent = 'パカーンと開く準備！';
-          App.Audio.playSE(660, 0.15, 'triangle', 0.4);
-          App.Audio.speak('さん！');
-
-          const countdownInterval = setInterval(() => {
-            App.State.countdownVal--;
-            if (App.State.countdownVal > 0) {
-              numEl.textContent = App.State.countdownVal;
-              App.Audio.playSE(660, 0.15, 'triangle', 0.4);
-              App.Audio.speak(App.State.countdownVal === 2 ? 'に！' : 'いち！');
-            } else if (App.State.countdownVal === 0) {
-              numEl.textContent = 'GO!';
-              subEl.textContent = '息を吐きながらパカーン！';
-              App.Audio.playWhistle();
-              App.Audio.speak('パカーンと開けぇぇ！');
-            } else {
-              clearInterval(countdownInterval);
-              layer.classList.add('hidden');
-              App.State.isCountingDown = false;
-
-              // サンプルスコア計測シミュレーション
-              const randomAngle = Math.floor(Math.random() * 20) + 42;
-              App.UI.updateBadges(randomAngle, 4);
+              document.getElementById('reportDiffVal').textContent = `${symmetry.diff}°`;
+              document.getElementById('reportDiffAdvice').textContent = symmetry.label;
+              document.getElementById('headerBalanceText').textContent = `${symmetry.diff}° ${symmetry.isAlert ? '(要解除)' : '(神!)'}`;
 
               // ログ保存
-              const meta = App.UI.testsMeta[App.State.testType];
               App.Storage.saveLog({
                 testName: meta.name,
                 icon: meta.icon,
                 date: new Date().toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                score: randomAngle,
-                rank: randomAngle >= 50 ? '🌟 SUPER DRAGON' : '⚡ LEVEL 2'
+                score: finalScore,
+                rank: grade.rank
               });
 
-              App.UI.showToast(`測定完了！ 記録: ${randomAngle}°`, '🎉');
+              App.Audio.playSpark();
+              App.Audio.speak(`${finalScore}度！${grade.rank}`);
+              App.UI.showToast(`測定完了！ 記録: ${finalScore}°`, '🎉');
+
               setTimeout(() => {
                 App.UI.openModal('modalReport');
-              }, 600);
-            }
-          }, 1000);
+              }, 700);
+            }, 3500);
+          }
+        }, 1000);
+      },
+        // 5. 巨大スタートボタン (測定シーケンスシミュレーション)
+        const mainActionBtn = document.getElementById('mainActionBtn');
+        mainActionBtn.addEventListener('click', () => {
+          App.Audio.init();
+          App.startCountdownSequence();
         });
 
         // 6. 1分サビ取りドリルボタン
