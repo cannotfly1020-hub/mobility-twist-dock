@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v2.6 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v2.7 | Mobility & Twist Dock</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
@@ -241,7 +241,7 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.6</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.7</span>
         </div>
       </div>
 
@@ -336,10 +336,11 @@
         </button>
       </div>
 
-      <!-- 姿勢ガイド枠 -->
-      <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2">
-        <div class="flex items-center gap-2">
-          <div class="bg-black/85 border border-slate-700 px-2 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
+      <!-- 姿勢ガイド枠＆中央動的オーバーレイ（重なり防止スタック構造） -->
+      <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5">
+        <!-- 上部：HUDより一段下に配置して横幅の衝突を完全防止 -->
+        <div class="w-full flex items-center justify-center gap-1.5 pt-9 sm:pt-10">
+          <div class="bg-black/85 border border-slate-700 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg backdrop-blur-sm">
             <div class="flex items-center gap-1">
               <span id="stepDotBounds" class="step-dot"></span>
               <span id="stepDotBoundsLabel" class="text-[8px] text-slate-300">上半身</span>
@@ -356,36 +357,42 @@
             </div>
           </div>
 
-          <div id="modelPoseCard" class="bg-slate-900/90 border-2 border-yellow-400/80 px-2 py-0.5 rounded-xl shadow-lg flex items-center gap-1 pointer-events-auto cursor-pointer active:scale-95 transition-transform" title="タップでお手本を大きく確認">
-            <span id="modelPoseIcon" class="text-sm">🙋‍♂️</span>
-            <span id="modelPoseText" class="text-[10px] text-yellow-300 font-black brawl-text">手をあたまへ！</span>
+          <div id="modelPoseCard" class="bg-slate-900/90 border-2 border-yellow-400/80 px-2 py-0.5 rounded-xl shadow-lg flex items-center gap-1 pointer-events-auto cursor-pointer active:scale-95 transition-transform backdrop-blur-sm" title="タップでお手本を大きく確認">
+            <span id="modelPoseIcon" class="text-xs">🙋‍♂️</span>
+            <span id="modelPoseText" class="text-[9px] text-yellow-300 font-black brawl-text">手をあたまへ！</span>
           </div>
         </div>
 
-        <div id="poseCheckPromptPill" class="bg-slate-900/90 border border-yellow-400 px-3 py-1 rounded-full text-[11px] text-yellow-300 brawl-text shadow-lg flex items-center gap-1.5">
-          <span class="animate-bounce">👉</span> <span id="poseCheckPromptText">半透明の影に合わせて片手を頭へ！</span>
-        </div>
-
-        <div id="lockonChargeBox" class="hidden flex flex-col items-center gap-1 bg-black/80 px-4 py-2 rounded-2xl border-2 border-sky-400 shadow-2xl backdrop-blur-sm">
-          <div class="flex items-center gap-2">
-            <span class="text-lg animate-spin">⚡</span>
-            <span class="text-xs font-black text-sky-300 brawl-text">ポーズOK！ロックオン中...</span>
+        <!-- 中央：ロックオン進行度（中央にゆったり配置） -->
+        <div class="flex flex-col items-center gap-2">
+          <div id="lockonChargeBox" class="hidden flex flex-col items-center gap-1 bg-black/85 px-4 py-2 rounded-2xl border-2 border-sky-400 shadow-2xl backdrop-blur-md">
+            <div class="flex items-center gap-2">
+              <span class="text-lg animate-spin">⚡</span>
+              <span class="text-xs font-black text-sky-300 brawl-text">ポーズOK！ロックオン中...</span>
+            </div>
+            <div class="w-36 bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-600">
+              <div id="lockonProgressBar" class="bg-gradient-to-r from-sky-400 to-yellow-400 h-full w-0 transition-all duration-75"></div>
+            </div>
           </div>
-          <div class="w-36 bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-600">
-            <div id="lockonProgressBar" class="bg-gradient-to-r from-sky-400 to-yellow-400 h-full w-0 transition-all duration-75"></div>
+
+          <div id="lockonStatusPill" class="hidden bg-sky-500/90 border border-white px-3 py-0.5 rounded-full text-[10px] text-white brawl-text shadow-lg flex items-center gap-1.5 animate-pulse">
+            <span>⚡</span> <span id="lockonStatusText">構えOK！そのままストップ！</span>
+          </div>
+
+          <div id="cheatWarningPill" class="hidden bg-red-600/90 border-2 border-white px-2.5 py-0.5 rounded-full text-[10px] text-white brawl-text alert-pulse flex items-center gap-1.5 shadow-lg">
+            <span>⚠️</span> <span id="cheatWarningText">腰ごと回ってるぞ！腰は正面ロック！</span>
           </div>
         </div>
 
-        <div id="lockonStatusPill" class="hidden bg-sky-500/90 border border-white px-3 py-1 rounded-full text-[11px] text-white brawl-text shadow-lg flex items-center gap-1.5 animate-pulse">
-          <span>⚡</span> <span id="lockonStatusText">構えOK！そのままストップ！</span>
-        </div>
-
-        <div id="cheatWarningPill" class="hidden bg-red-600/90 border-2 border-white px-2.5 py-0.5 rounded-full text-[11px] text-white brawl-text alert-pulse flex items-center gap-1.5 shadow-lg">
-          <span>⚠️</span> <span id="cheatWarningText">腰ごと回ってるぞ！腰は正面ロック！</span>
+        <!-- 下部：下部バーの上側に整列配置して重なりを完全排除 -->
+        <div class="w-full flex flex-col items-center pb-8 sm:pb-9">
+          <div id="poseCheckPromptPill" class="bg-slate-900/95 border-2 border-yellow-400 px-3 py-1 rounded-full text-[10px] sm:text-[11px] text-yellow-300 brawl-text shadow-xl flex items-center gap-1.5 backdrop-blur-sm">
+            <span class="animate-bounce text-xs">👉</span> <span id="poseCheckPromptText">半透明の影に合わせて片手を頭へ！</span>
+          </div>
         </div>
       </div>
 
-      <!-- HUD数値表示 -->
+      <!-- HUD数値表示（上部左右固定） -->
       <div class="absolute top-1.5 left-1.5 z-30 flex flex-col gap-1">
         <div class="panel-brawl px-2 py-1 flex items-center gap-1.5 border-emerald-500/60">
           <span id="hudMainIcon" class="text-base">🏹</span>
@@ -418,8 +425,8 @@
         <p id="countdownSubtitle" class="text-lg sm:text-xl font-black text-white brawl-text mt-3">パカーンと開く準備！</p>
       </div>
 
-      <!-- 測定中インジケーター -->
-      <div id="statusInstruction" class="absolute bottom-2 inset-x-2 z-30 bg-slate-950/85 border border-emerald-400/80 rounded-lg py-1 px-2 text-center text-[10px] sm:text-xs text-white brawl-text shadow-xl flex items-center justify-center gap-1.5">
+      <!-- 測定中インジケーター（最下部バー） -->
+      <div id="statusInstruction" class="absolute bottom-1.5 inset-x-2 z-30 bg-slate-950/90 border border-emerald-400/80 rounded-xl py-1 px-2 text-center text-[10px] sm:text-xs text-white brawl-text shadow-2xl flex items-center justify-center gap-1.5 backdrop-blur-md">
         <span class="animate-bounce text-xs">💡</span>
         <span id="instructionText">腰を動かさず、胸だけを天井に向けてパカーン！</span>
       </div>
