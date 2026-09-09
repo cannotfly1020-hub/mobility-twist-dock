@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v2.2 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v2.3 | Mobility & Twist Dock</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
@@ -241,11 +241,16 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.2</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.3</span>
         </div>
       </div>
 
       <div class="flex items-center gap-1">
+        <button id="tiltIndicatorBtn" class="badge-brawl text-[10px] py-1 px-1.5 text-sky-300 border-sky-500/80 cursor-pointer" title="スマホ傾き補正中">
+          <span>📐</span>
+          <span id="tiltValText">傾き 0°</span>
+        </button>
+
         <button id="startModeToggleBtn" class="badge-brawl text-[10px] py-1 px-2 text-emerald-300 border-emerald-500/80 cursor-pointer active:scale-95 transition-all" title="タップで自動/手動スタート切替">
           <span id="startModeIcon">🤖</span>
           <span id="startModeText">自動: ON</span>
@@ -618,8 +623,92 @@
 
   <script>
     /**
-     * Mobility & Twist Dock v2.2
-     * エンジニアリングレビュー完全適合版
+     * One Euro Filter (1€ Filter)
+     * 高速動作での低遅延と、静止・微動時のジッター（微細な震え）完全除去を両立する適応型ローパスフィルター
+     */
+    class OneEuroFilter {
+      constructor(minCutoff = 1.0, beta = 0.007, dCutoff = 1.0) {
+        this.minCutoff = minCutoff; // 最低遮断周波数 (低いほど静止時のブレが消える)
+        this.beta = beta;           // 速度適応係数 (高いほど素早い動きに追従する)
+        this.dCutoff = dCutoff;     // 速度微分用遮断周波数
+        this.xPrev = null;
+        this.dxPrev = 0;
+        this.tPrev = null;
+      }
+
+      alpha(cutoff, dt) {
+        const tau = 1.0 / (2 * Math.PI * cutoff);
+        return 1.0 / (1.0 + tau / dt);
+      }
+
+      filter(x, t) {
+        if (this.tPrev === null) {
+          this.xPrev = x;
+          this.dxPrev = 0;
+          this.tPrev = t;
+          return x;
+        }
+
+        const dt = Math.max((t - this.tPrev) / 1000.0, 1e-4);
+        this.tPrev = t;
+
+        // 速度ベクトルの平滑化
+        const dx = (x - this.xPrev) / dt;
+        const edx = this.dxPrev + this.alpha(this.dCutoff, dt) * (dx - this.dxPrev);
+        this.dxPrev = edx;
+
+        // 速度に応じた動的カットオフ周波数の算出
+        const cutoff = this.minCutoff + this.beta * Math.abs(edx);
+        const ex = this.xPrev + this.alpha(cutoff, dt) * (x - this.xPrev);
+        this.xPrev = ex;
+        return ex;
+      }
+
+      reset() {
+        this.xPrev = null;
+        this.dxPrev = 0;
+        this.tPrev = null;
+      }
+    }
+
+    /**
+     * 全33ランドマーク（X, Y, Z）専用フィルターマネージャー
+     */
+    class PoseLandmarksFilter {
+      constructor() {
+        this.filters = Array.from({ length: 33 }, () => ({
+          x: new OneEuroFilter(1.2, 0.015, 1.0),
+          y: new OneEuroFilter(1.2, 0.015, 1.0),
+          z: new OneEuroFilter(1.0, 0.010, 1.0)
+        }));
+      }
+
+      apply(landmarks, timestamp) {
+        if (!landmarks || landmarks.length === 0) return null;
+        return landmarks.map((lm, idx) => {
+          const f = this.filters[idx];
+          if (!f) return { ...lm };
+          return {
+            x: f.x.filter(lm.x, timestamp),
+            y: f.y.filter(lm.y, timestamp),
+            z: f.z.filter(lm.z || 0, timestamp),
+            visibility: lm.visibility
+          };
+        });
+      }
+
+      reset() {
+        this.filters.forEach(f => {
+          f.x.reset();
+          f.y.reset();
+          f.z.reset();
+        });
+      }
+    }
+
+    /**
+     * Mobility & Twist Dock v2.3
+     * 1€フィルター ＆ 3D傾斜補正エンジン統合版
      */
     const App = {
       Config: {
@@ -639,6 +728,8 @@
         isCountingDown: false,
         countdownVal: 3,
         drillTimer: 0,
+        tiltPitchDeg: 0,         // スマホの鉛直仰角（度）
+        poseFilter: new PoseLandmarksFilter(),
         activeTimeouts: [],      // 単発タイマープール
         activeIntervals: [],     // 反復インターバルプール
         scores: {
@@ -883,7 +974,7 @@
             'drillHudLayer', 'drillTimerText', 'mainActionBtn', 'mainBtnLabel', 'toastNotification', 'toastIcon',
             'toastMsg', 'reportTitleBadge', 'reportRankDesc', 'reportRightVal', 'reportLeftVal', 'reportBarRight',
             'reportBarLeft', 'reportDiffVal', 'reportDiffAdvice', 'reportBaseballImpact', 'replayVideo',
-            'replayImageFallback', 'replayPlaceholder', 'chartLogsList', 'headerBalanceText'
+            'replayImageFallback', 'replayPlaceholder', 'chartLogsList', 'headerBalanceText', 'tiltValText'
           ];
           ids.forEach(id => {
             this.elements[id] = document.getElementById(id);
@@ -1134,7 +1225,7 @@
 
             pose.setOptions({
               modelComplexity: 1,
-              smoothLandmarks: true,
+              smoothLandmarks: false, // 独自のOne Euro Filterで高精度制御するためMediaPipe標準をOFF
               enableSegmentation: false,
               smoothSegmentation: false,
               minDetectionConfidence: 0.5,
@@ -1185,19 +1276,24 @@
             return;
           }
 
-          const lm = results.poseLandmarks;
-          this.lastLandmarks = lm;
+          // ① One Euro Filterによるジッター（関節の震え）除去
+          const nowMs = performance.now();
+          const smoothLm = App.State.poseFilter.apply(results.poseLandmarks, nowMs);
 
-          const cheat = this.detectCheating(lm, App.State.testType);
+          // ② スマホの立てかけ仰角（Tilt Pitch）を打ち消す3D射影幾何補正
+          const correctedLm = App.Engine.correctPerspectiveTilt(smoothLm, App.State.tiltPitchDeg);
+          this.lastLandmarks = correctedLm;
+
+          const cheat = this.detectCheating(correctedLm, App.State.testType);
           this.handleCheatStatus(cheat);
 
           let currentAngle = 0;
           if (App.State.testType === 'THORACIC') {
-            currentAngle = App.Engine.evaluateThoracicTwist(lm, App.State.activeSide);
+            currentAngle = App.Engine.evaluateThoracicTwist(correctedLm, App.State.activeSide);
           } else if (App.State.testType === 'HIP_IR') {
-            currentAngle = App.Engine.evaluateHipInternalRotation(lm, App.State.activeSide, App.State.cameraFacing);
+            currentAngle = App.Engine.evaluateHipInternalRotation(correctedLm, App.State.activeSide, App.State.cameraFacing);
           } else if (App.State.testType === 'HINGE') {
-            currentAngle = App.Engine.evaluatePelvicHinge(lm);
+            currentAngle = App.Engine.evaluatePelvicHinge(correctedLm);
           }
 
           App.UI.updateBadges(currentAngle);
@@ -1207,10 +1303,10 @@
           } else if (App.State.mode === 'TEST_RUNNING') {
             App.Engine.recordCurrentTestAngle(currentAngle);
           } else if (App.State.mode === 'TEST_IDLE' && !App.State.isCountingDown) {
-            this.checkAutoTriggerGateIn(lm, cheat.isCheating);
+            this.checkAutoTriggerGateIn(correctedLm, cheat.isCheating);
           }
 
-          this.renderPoseSkeleton(ctx, lm, w, h, currentAngle);
+          this.renderPoseSkeleton(ctx, correctedLm, w, h, currentAngle);
           ctx.restore();
         },
 
@@ -1536,6 +1632,34 @@
 
       Engine: {
         peakRecordedAngle: 0,
+
+        /**
+         * スマホ傾斜（ピッチ角）による垂直方向の幾何圧縮・歪みを3D回転行列で補正
+         * 端末が上を向いて立っている場合（例: 床や台に立てかけ時）のY-Z射影幾何変換
+         */
+        correctPerspectiveTilt(landmarks, pitchDeg) {
+          if (!landmarks || Math.abs(pitchDeg) < 1.0) return landmarks;
+
+          const pitchRad = (pitchDeg * Math.PI) / 180.0;
+          const cosP = Math.cos(pitchRad);
+          const sinP = Math.sin(pitchRad);
+
+          // 画面中心 (0.5, 0.5) を原点として三次元逆回転補正
+          return landmarks.map(p => {
+            const yRel = p.y - 0.5;
+            const zRel = (p.z || 0.0);
+
+            // 仰角による垂直軸へのパースペクティブ射影補正
+            const yWorld = yRel * cosP - zRel * sinP;
+            const zWorld = yRel * sinP + zRel * cosP;
+
+            return {
+              ...p,
+              y: yWorld + 0.5,
+              z: zWorld
+            };
+          });
+        },
 
         calculateSlopeAngle(p1, p2) {
           const dy = p2.y - p1.y;
@@ -2016,6 +2140,22 @@
 
         const videoEl = App.UI.elements.cameraVideo;
         App.Sensor.initCamera(videoEl, App.State.cameraFacing);
+
+        // 📐 DeviceOrientation API による端末前後傾斜角（ピッチ角）の自動追従
+        if (window.DeviceOrientationEvent) {
+          window.addEventListener('deviceorientation', (e) => {
+            if (e.beta !== null) {
+              // 縦持ち時: 90°が完全直立、床平置きが0°。立てかけ時の仰角 = 90° - beta
+              const rawTilt = 90 - e.beta;
+              // 実用的な立てかけ角（-10°〜45°）にクランプ
+              const clampedTilt = Math.min(45, Math.max(-10, Math.round(rawTilt)));
+              App.State.tiltPitchDeg = clampedTilt;
+              if (App.UI.elements.tiltValText) {
+                App.UI.elements.tiltValText.textContent = `傾き ${clampedTilt}°`;
+              }
+            }
+          }, true);
+        }
 
         const toggleBtn = document.getElementById('startModeToggleBtn');
         const modeText = document.getElementById('startModeText');
