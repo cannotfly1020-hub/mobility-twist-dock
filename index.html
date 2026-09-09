@@ -233,11 +233,6 @@
           <span id="headerBalanceText">4° <span class="text-emerald-300">(神!)</span></span>
         </button>
 
-        <!-- 画角切り替えボタン -->
-        <button id="viewFitBtn" class="btn-brawl btn-dark p-1.5 text-xs" title="画角切替（見切れ防止・広角）">
-          <span id="viewFitIcon" class="text-xs">🔲</span>
-        </button>
-
         <button id="flipCamBtn" class="btn-brawl btn-dark p-1.5 text-xs" title="カメラ反転">
           <span class="text-xs">🔄</span>
         </button>
@@ -539,7 +534,6 @@
         mode: 'TEST_IDLE',       // TEST_IDLE | TEST_RUNNING | DRILL_ACTIVE
         testType: 'THORACIC',    // THORACIC (胸椎) | HIP_IR (股関節内旋) | HINGE (ハム前屈)
         cameraFacing: 'user',    // user | environment
-        cameraFit: 'contain',    // contain (広角・全体見切れなし) | cover (全画面フル)
         activeSide: 'RIGHT',     // RIGHT | LEFT (左右両方測定)
         stream: null,
         isCountingDown: false,
@@ -1009,29 +1003,6 @@
             App.State.cameraFacing = App.State.cameraFacing === 'user' ? 'environment' : 'user';
             App.Sensor.initCamera(video, App.State.cameraFacing);
             App.Audio.playSE(600, 0.05, 'triangle');
-          });
-        }
-
-        // 2.1 画角切り替えボタン（広角全体 ⇄ 画面いっぱい）
-        const viewFitBtn = document.getElementById('viewFitBtn');
-        const viewFitIcon = document.getElementById('viewFitIcon');
-        if (viewFitBtn) {
-          viewFitBtn.addEventListener('click', () => {
-            App.Audio.init();
-            if (App.State.cameraFit === 'contain') {
-              App.State.cameraFit = 'cover';
-              video.className = 'absolute inset-0 w-full h-full object-cover transform transition-all duration-200 ' + (App.State.cameraFacing === 'user' ? '-scale-x-100' : 'scale-x-100');
-              canvas.className = 'absolute inset-0 w-full h-full object-cover pointer-events-none z-10 transition-all duration-200';
-              if (viewFitIcon) viewFitIcon.textContent = '🔍';
-              App.UI.showToast('画角: 画面いっぱい (ズーム)');
-            } else {
-              App.State.cameraFit = 'contain';
-              video.className = 'absolute inset-0 w-full h-full object-contain transform transition-all duration-200 ' + (App.State.cameraFacing === 'user' ? '-scale-x-100' : 'scale-x-100');
-              canvas.className = 'absolute inset-0 w-full h-full object-contain pointer-events-none z-10 transition-all duration-200';
-              if (viewFitIcon) viewFitIcon.textContent = '🔲';
-              App.UI.showToast('画角: 広角全体 (見切れなし)');
-            }
-            App.Audio.playSE(500, 0.05, 'triangle');
           });
         }
 
