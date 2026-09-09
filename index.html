@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v1.1 | Mobility & Twist Dock</title>
   <!-- Google Fonts: M PLUS Rounded 1c (800 / 900) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -221,16 +221,24 @@
       <div class="flex items-center gap-1.5">
         <span class="text-xl filter drop-shadow">🦴</span>
         <div>
-          <h1 class="text-base sm:text-lg leading-tight brawl-text font-black text-emerald-300">柔軟性・しなりドック</h1>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-base sm:text-lg leading-tight brawl-text font-black text-emerald-300">柔軟性・しなりドック</h1>
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1.5 py-0.2 rounded-md font-black">v1.1</span>
+          </div>
           <p class="text-[9px] text-slate-300 tracking-wider font-extrabold uppercase">Mobility & Twist Core</p>
         </div>
       </div>
 
-      <!-- 右側クイックアクション（左右差バッジ・カメラ反転・カルテ） -->
+      <!-- 右側クイックアクション（左右差バッジ・広角切替・カメラ反転・カルテ） -->
       <div class="flex items-center gap-1.5">
         <button id="balanceBadgeBtn" class="badge-brawl text-amber-300 border-amber-500/80 cursor-pointer active:scale-95 transition-transform" title="タップで左右差を解説！">
           <span id="headerBalanceIcon">⚖️</span>
           <span id="headerBalanceText">左右差 4° <span class="text-emerald-300">(神!)</span></span>
+        </button>
+
+        <!-- 画角切り替えボタン（広角全体表示 ⇄ 画面いっぱい） -->
+        <button id="viewFitBtn" class="btn-brawl btn-dark p-2 text-xs" title="画角切替（見切れ防止・広角）">
+          <span id="viewFitIcon" class="text-sm">🔲</span>
         </button>
 
         <button id="flipCamBtn" class="btn-brawl btn-dark p-2 text-xs" title="カメラ反転">
@@ -265,12 +273,12 @@
     </nav>
 
     <!-- 中央メインスクリーン (カメラ ＋ Canvas ＋ リアルタイムHUD) -->
-    <section class="relative w-full flex-1 my-1 panel-brawl overflow-hidden rounded-2xl flex items-center justify-center">
-      <!-- カメラ映像要素 (scaleX(-1)でミラー反転管理) -->
-      <video id="cameraVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" playsinline muted autoplay></video>
+    <section class="relative w-full flex-1 my-1 panel-brawl overflow-hidden rounded-2xl flex items-center justify-center bg-black/90">
+      <!-- カメラ映像要素 (デフォルトで全身が入るobject-containを適用、切替可能) -->
+      <video id="cameraVideo" class="absolute inset-0 w-full h-full object-contain transform -scale-x-100 transition-all duration-200" playsinline muted autoplay></video>
 
       <!-- 骨格描画・角度扇形ゲージ用キャンバス -->
-      <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"></canvas>
+      <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-10 transition-all duration-200"></canvas>
 
       <!-- 姿勢ナビゲーション枠 (テストごとの姿勢ガイド枠) -->
       <div id="guideOverlay" class="absolute inset-4 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-3">
@@ -539,6 +547,7 @@
         mode: 'TEST_IDLE',       // TEST_IDLE | TEST_RUNNING | DRILL_ACTIVE
         testType: 'THORACIC',    // THORACIC (胸椎) | HIP_IR (股関節内旋) | HINGE (ハム前屈)
         cameraFacing: 'user',    // user | environment
+        cameraFit: 'contain',    // contain (広角・全体見切れなし) | cover (全画面フル)
         activeSide: 'RIGHT',     // RIGHT | LEFT (左右両方測定)
         stream: null,
         isCountingDown: false,
@@ -779,25 +788,55 @@
             if (App.State.stream) {
               App.State.stream.getTracks().forEach(t => t.stop());
             }
+
+            // 広視野角・高精細（全身が収まりやすい解像度）を要求
             const constraints = {
               video: {
-                facingMode: facingMode,
-                width: { ideal: 640 },
-                height: { ideal: 480 }
+                facingMode: { ideal: facingMode },
+                width: { ideal: 1280, min: 640 },
+                height: { ideal: 720, min: 480 },
+                aspectRatio: { ideal: 16 / 9 }
               },
               audio: false
             };
+
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             App.State.stream = stream;
             videoEl.srcObject = stream;
             videoEl.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+
+            // デバイスのカメラがズーム機能をサポートしている場合、最広角（最小ズーム値）に設定
+            const track = stream.getVideoTracks()[0];
+            if (track && typeof track.getCapabilities === 'function') {
+              const caps = track.getCapabilities();
+              if (caps.zoom) {
+                try {
+                  await track.applyConstraints({
+                    advanced: [{ zoom: caps.zoom.min || 1 }]
+                  });
+                } catch (zErr) {
+                  console.debug('Zoom constraint not applied:', zErr);
+                }
+              }
+            }
+
             await videoEl.play();
-            App.UI.showToast('📷 カメラを起動しました！');
+            App.UI.showToast('📷 広角カメラモードで起動しました！');
             return true;
           } catch (err) {
             console.error('Camera Access Error:', err);
-            App.UI.showToast('⚠️ カメラの起動に失敗しました', '❌');
-            return false;
+            // フォールバック: 標準制約で再試行
+            try {
+              const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+              App.State.stream = fallbackStream;
+              videoEl.srcObject = fallbackStream;
+              await videoEl.play();
+              App.UI.showToast('📷 カメラを起動しました');
+              return true;
+            } catch (e) {
+              App.UI.showToast('⚠️ カメラの起動に失敗しました', '❌');
+              return false;
+            }
           }
         },
 
@@ -961,6 +1000,7 @@
 
       init() {
         const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('poseCanvas');
 
         // 1. 初回カメラ起動
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -977,6 +1017,29 @@
             App.State.cameraFacing = App.State.cameraFacing === 'user' ? 'environment' : 'user';
             App.Sensor.initCamera(video, App.State.cameraFacing);
             App.Audio.playSE(600, 0.05, 'triangle');
+          });
+        }
+
+        // 2.1 画角切り替えボタン（広角全体 ⇄ 画面いっぱい）
+        const viewFitBtn = document.getElementById('viewFitBtn');
+        const viewFitIcon = document.getElementById('viewFitIcon');
+        if (viewFitBtn) {
+          viewFitBtn.addEventListener('click', () => {
+            App.Audio.init();
+            if (App.State.cameraFit === 'contain') {
+              App.State.cameraFit = 'cover';
+              video.className = 'absolute inset-0 w-full h-full object-cover transform transition-all duration-200 ' + (App.State.cameraFacing === 'user' ? '-scale-x-100' : 'scale-x-100');
+              canvas.className = 'absolute inset-0 w-full h-full object-cover pointer-events-none z-10 transition-all duration-200';
+              if (viewFitIcon) viewFitIcon.textContent = '🔍';
+              App.UI.showToast('画角: 画面いっぱい (ズーム)');
+            } else {
+              App.State.cameraFit = 'contain';
+              video.className = 'absolute inset-0 w-full h-full object-contain transform transition-all duration-200 ' + (App.State.cameraFacing === 'user' ? '-scale-x-100' : 'scale-x-100');
+              canvas.className = 'absolute inset-0 w-full h-full object-contain pointer-events-none z-10 transition-all duration-200';
+              if (viewFitIcon) viewFitIcon.textContent = '🔲';
+              App.UI.showToast('画角: 広角全体 (見切れなし)');
+            }
+            App.Audio.playSE(500, 0.05, 'triangle');
           });
         }
 
