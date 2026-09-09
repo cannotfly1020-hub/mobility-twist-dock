@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v2.3 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v2.4 | Mobility & Twist Dock</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
@@ -241,12 +241,12 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.3</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.4</span>
         </div>
       </div>
 
       <div class="flex items-center gap-1">
-        <button id="tiltIndicatorBtn" class="badge-brawl text-[10px] py-1 px-1.5 text-sky-300 border-sky-500/80 cursor-pointer" title="スマホ傾き補正中">
+        <button id="tiltIndicatorBtn" class="badge-brawl text-[10px] py-1 px-1.5 text-sky-300 border-sky-500/80 cursor-pointer" title="スマホ傾き自動補正">
           <span>📐</span>
           <span id="tiltValText">傾き 0°</span>
         </button>
@@ -258,7 +258,7 @@
 
         <button id="balanceBadgeBtn" class="badge-brawl text-[10px] py-1 px-1.5 text-amber-300 border-amber-500/80 cursor-pointer active:scale-95 transition-transform" title="タップで左右差を解説！">
           <span id="headerBalanceIcon">⚖️</span>
-          <span id="headerBalanceText">0° <span class="text-emerald-300">(神!)</span></span>
+          <span id="headerBalanceText">未測定</span>
         </button>
 
         <button id="flipCamBtn" class="btn-brawl btn-dark p-1.5 text-xs" title="カメラ反転">
@@ -454,7 +454,7 @@
     </footer>
   </main>
 
-  <!-- モーダル① ガイダンス -->
+  <!-- モーダル群 -->
   <div id="modalGuidance" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="panel-brawl w-full max-w-sm p-4 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b border-slate-700 pb-2">
@@ -492,7 +492,6 @@
     </div>
   </div>
 
-  <!-- モーダル② レポート -->
   <div id="modalReport" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="panel-brawl w-full max-w-sm p-4 flex flex-col gap-3 max-h-[92vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b border-slate-700 pb-2">
@@ -520,8 +519,8 @@
           <div id="reportBarLeft" class="bg-amber-400 h-full transition-all duration-300" style="width: 50%;"></div>
         </div>
         <div class="flex justify-between items-center text-[10px] text-slate-400">
-          <span>左右差: <b id="reportDiffVal" class="text-yellow-300 font-bold">0° (神バランス)</b></span>
-          <span id="reportDiffAdvice" class="text-emerald-300">左右差なし！神バランス！</span>
+          <span>左右差: <b id="reportDiffVal" class="text-yellow-300 font-bold">片側未測定</b></span>
+          <span id="reportDiffAdvice" class="text-emerald-300">反対側も測ってバランスを見よう！</span>
         </div>
       </div>
 
@@ -552,7 +551,6 @@
     </div>
   </div>
 
-  <!-- モーダル③ ケア処方 -->
   <div id="modalPrescription" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="panel-brawl w-full max-w-sm p-4 flex flex-col gap-3 max-h-[92vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b border-slate-700 pb-2">
@@ -589,7 +587,6 @@
     </div>
   </div>
 
-  <!-- モーダル④ カルテ -->
   <div id="modalChart" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="panel-brawl w-full max-w-sm p-4 flex flex-col gap-3 max-h-[92vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b border-slate-700 pb-2">
@@ -613,7 +610,6 @@
     </div>
   </div>
 
-  <!-- トースト通知 -->
   <div id="toastNotification" class="fixed bottom-20 inset-x-6 z-50 pointer-events-none hidden flex justify-center">
     <div class="bg-black/90 border-2 border-emerald-400 text-emerald-300 px-4 py-2 rounded-full text-xs brawl-text shadow-2xl animate-bounce flex items-center gap-2">
       <span id="toastIcon">✨</span>
@@ -624,13 +620,14 @@
   <script>
     /**
      * One Euro Filter (1€ Filter)
-     * 高速動作での低遅延と、静止・微動時のジッター（微細な震え）完全除去を両立する適応型ローパスフィルター
+     * 高速動作低遅延 ＆ 微動時ジッター完全除去
+     * バックグラウンド復帰時のタイムラグ（dtスパイク）発散防止ガード付き
      */
     class OneEuroFilter {
       constructor(minCutoff = 1.0, beta = 0.007, dCutoff = 1.0) {
-        this.minCutoff = minCutoff; // 最低遮断周波数 (低いほど静止時のブレが消える)
-        this.beta = beta;           // 速度適応係数 (高いほど素早い動きに追従する)
-        this.dCutoff = dCutoff;     // 速度微分用遮断周波数
+        this.minCutoff = minCutoff;
+        this.beta = beta;
+        this.dCutoff = dCutoff;
         this.xPrev = null;
         this.dxPrev = 0;
         this.tPrev = null;
@@ -649,15 +646,22 @@
           return x;
         }
 
-        const dt = Math.max((t - this.tPrev) / 1000.0, 1e-4);
+        const rawDt = (t - this.tPrev) / 1000.0;
+        // バックグラウンド復帰時等の巨大dtスパイクによる発散を防止
+        if (rawDt > 0.4 || rawDt <= 0) {
+          this.reset();
+          this.xPrev = x;
+          this.tPrev = t;
+          return x;
+        }
+
+        const dt = Math.max(rawDt, 1e-4);
         this.tPrev = t;
 
-        // 速度ベクトルの平滑化
         const dx = (x - this.xPrev) / dt;
         const edx = this.dxPrev + this.alpha(this.dCutoff, dt) * (dx - this.dxPrev);
         this.dxPrev = edx;
 
-        // 速度に応じた動的カットオフ周波数の算出
         const cutoff = this.minCutoff + this.beta * Math.abs(edx);
         const ex = this.xPrev + this.alpha(cutoff, dt) * (x - this.xPrev);
         this.xPrev = ex;
@@ -707,35 +711,35 @@
     }
 
     /**
-     * Mobility & Twist Dock v2.3
-     * 1€フィルター ＆ 3D傾斜補正エンジン統合版
+     * Mobility & Twist Dock v2.4
      */
     const App = {
       Config: {
-        STABLE_DISTANCE_THRESHOLD: 0.045, // 静止判定距離
-        AUTO_TRIGGER_HOLD_MS: 1100,       // ロックオン所要時間
-        TEST_DURATION_MS: 3500,           // 実測時間
+        STABLE_DISTANCE_THRESHOLD: 0.045,
+        AUTO_TRIGGER_HOLD_MS: 1100,
+        TEST_DURATION_MS: 3500,
         MAX_STORED_LOGS: 20
       },
 
       State: {
-        mode: 'TEST_IDLE',       // TEST_IDLE | TEST_RUNNING | DRILL_ACTIVE
+        // FSM（有限状態機械）による厳密な状態管理
+        // IDLE | LOCKON | COUNTDOWN | TESTING | DRILL
+        fsmState: 'IDLE',
         testType: 'THORACIC',    // THORACIC | HIP_IR | HINGE
         cameraFacing: 'user',    // user | environment
         activeSide: 'RIGHT',     // RIGHT | LEFT
         autoStartEnabled: true,
         stream: null,
-        isCountingDown: false,
         countdownVal: 3,
         drillTimer: 0,
-        tiltPitchDeg: 0,         // スマホの鉛直仰角（度）
+        tiltPitchDeg: 0,
         poseFilter: new PoseLandmarksFilter(),
-        activeTimeouts: [],      // 単発タイマープール
-        activeIntervals: [],     // 反復インターバルプール
+        activeTimeouts: [],
+        activeIntervals: [],
         scores: {
-          thoracic: { right: 0, left: 0 },
-          hipIR:    { right: 0, left: 0 },
-          hinge:    { angle: 0, reachCm: 0 }
+          thoracic: { right: null, left: null },
+          hipIR:    { right: null, left: null },
+          hinge:    { angle: null, reachCm: null }
         },
 
         registerTimeout(fn, delay) {
@@ -763,24 +767,32 @@
 
       Audio: {
         ctx: null,
+        isUnlocked: false,
 
-        init() {
+        // iOS Safari等のオートプレイブロックを最初のタッチで先回り解除
+        unlockAudio() {
+          if (this.isUnlocked) return;
           try {
-            if (!this.ctx) {
-              const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-              if (AudioContextClass) {
-                this.ctx = new AudioContextClass();
-              }
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!this.ctx && AudioContextClass) {
+              this.ctx = new AudioContextClass();
             }
             if (this.ctx && this.ctx.state === 'suspended') {
-              this.ctx.resume();
+              this.ctx.resume().then(() => {
+                this.isUnlocked = true;
+              });
+            } else if (this.ctx) {
+              this.isUnlocked = true;
             }
           } catch (e) {
-            console.warn('AudioContext init error:', e);
+            console.warn('Audio unlock error:', e);
           }
         },
 
-        // 発音終了時に確実にdisconnectする安全オシレーター
+        init() {
+          this.unlockAudio();
+        },
+
         playSE(freq, dur = 0.08, type = 'sine', vol = 0.25) {
           try {
             this.init();
@@ -901,7 +913,7 @@
         speak(text) {
           try {
             if ('speechSynthesis' in window) {
-              window.speechSynthesis.cancel(); // 前回の発話を即時フラッシュ
+              window.speechSynthesis.cancel();
               const uttr = new SpeechSynthesisUtterance(text);
               uttr.lang = 'ja-JP';
               uttr.rate = 1.15;
@@ -916,7 +928,7 @@
 
       UI: {
         _toastTimer: null,
-        elements: {}, // 高速化用DOMキャッシュ
+        elements: {},
 
         testsMeta: {
           THORACIC: {
@@ -982,10 +994,9 @@
         },
 
         selectTest(type) {
-          // 進行中のタイマーおよびモードを安全にリセット
           App.State.clearAllActiveTimers();
-          App.State.isCountingDown = false;
-          App.State.mode = 'TEST_IDLE';
+          App.State.fsmState = 'IDLE';
+          App.State.poseFilter.reset();
 
           if (this.elements.countdownLayer) this.elements.countdownLayer.classList.add('hidden');
 
@@ -1186,7 +1197,6 @@
             videoEl.style.transform = transformStyle;
             if (canvas) canvas.style.transform = transformStyle;
 
-            // ビデオメタデータの確定を確実に待機
             await new Promise((resolve) => {
               if (videoEl.readyState >= 1 && videoEl.videoWidth > 0) {
                 resolve();
@@ -1225,7 +1235,7 @@
 
             pose.setOptions({
               modelComplexity: 1,
-              smoothLandmarks: false, // 独自のOne Euro Filterで高精度制御するためMediaPipe標準をOFF
+              smoothLandmarks: false,
               enableSegmentation: false,
               smoothSegmentation: false,
               minDetectionConfidence: 0.5,
@@ -1249,7 +1259,6 @@
                 try {
                   await this.poseInstance.send({ image: videoEl });
                 } catch (sendErr) {
-                  // 無視可能なフレーム落ち
                 } finally {
                   this.isProcessingFrame = false;
                 }
@@ -1276,11 +1285,10 @@
             return;
           }
 
-          // ① One Euro Filterによるジッター（関節の震え）除去
           const nowMs = performance.now();
           const smoothLm = App.State.poseFilter.apply(results.poseLandmarks, nowMs);
 
-          // ② スマホの立てかけ仰角（Tilt Pitch）を打ち消す3D射影幾何補正
+          // 正しい透視投影・幾何補正（Z相対座標混入を排除）
           const correctedLm = App.Engine.correctPerspectiveTilt(smoothLm, App.State.tiltPitchDeg);
           this.lastLandmarks = correctedLm;
 
@@ -1291,18 +1299,19 @@
           if (App.State.testType === 'THORACIC') {
             currentAngle = App.Engine.evaluateThoracicTwist(correctedLm, App.State.activeSide);
           } else if (App.State.testType === 'HIP_IR') {
-            currentAngle = App.Engine.evaluateHipInternalRotation(correctedLm, App.State.activeSide, App.State.cameraFacing);
+            currentAngle = App.Engine.evaluateHipInternalRotation(correctedLm, App.State.activeSide);
           } else if (App.State.testType === 'HINGE') {
             currentAngle = App.Engine.evaluatePelvicHinge(correctedLm);
           }
 
           App.UI.updateBadges(currentAngle);
 
-          if (App.State.mode === 'DRILL_ACTIVE') {
+          // FSM状態に応じたディスパッチ
+          if (App.State.fsmState === 'DRILL') {
             App.Drill.updateDrillFeedback(currentAngle);
-          } else if (App.State.mode === 'TEST_RUNNING') {
+          } else if (App.State.fsmState === 'TESTING') {
             App.Engine.recordCurrentTestAngle(currentAngle);
-          } else if (App.State.mode === 'TEST_IDLE' && !App.State.isCountingDown) {
+          } else if (App.State.fsmState === 'IDLE' || App.State.fsmState === 'LOCKON') {
             this.checkAutoTriggerGateIn(correctedLm, cheat.isCheating);
           }
 
@@ -1339,6 +1348,7 @@
             if (!lSh || !rSh || (lSh.visibility ?? 1) < 0.35 || (rSh.visibility ?? 1) < 0.35) {
               return { ready: false, prompt: '肩をカメラに映してね！' };
             }
+            // 正面撮影時：右側ターゲットならカメラ向かって左手（lm[12]周辺）
             const isRight = activeSide === 'RIGHT';
             const targetWrist = isRight ? rWrist : lWrist;
             const targetShoulder = isRight ? rSh : lSh;
@@ -1444,6 +1454,7 @@
               App.UI.updateStepLamps(true, true, true);
               if (this.stableSince === 0) {
                 this.stableSince = now;
+                App.State.fsmState = 'LOCKON';
                 if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2 charging';
                 if (pill) pill.classList.remove('hidden');
                 if (chargeBox) chargeBox.classList.remove('hidden');
@@ -1474,6 +1485,9 @@
           this.stableSince = 0;
           this.prevKeypointPos = null;
           this.hasPlayedChargeVoice = false;
+          if (App.State.fsmState === 'LOCKON') {
+            App.State.fsmState = 'IDLE';
+          }
 
           const box = App.UI.elements.guideOverlay;
           if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2';
@@ -1597,7 +1611,6 @@
             if (lSh && rSh && (lSh.visibility ?? 1) > 0.35 && (rSh.visibility ?? 1) > 0.35) {
               const cx = ((lSh.x + rSh.x) / 2) * w;
               const cy = ((lSh.y + rSh.y) / 2) * h;
-              // 鉛直上向き（270度）を基準に扇形を描画
               const startDeg = 270;
               const sweep = App.State.activeSide === 'RIGHT' ? angleVal : -angleVal;
               this.drawAngleArc(ctx, cx, cy, 45, startDeg, sweep);
@@ -1606,7 +1619,7 @@
             const side = App.State.activeSide;
             const knee = side === 'RIGHT' ? lm[26] : lm[25];
             if (knee && (knee.visibility ?? 1) > 0.35) {
-              const baseDeg = 90; // 鉛直下向き
+              const baseDeg = 90;
               const sweep = side === 'RIGHT' ? angleVal : -angleVal;
               this.drawAngleArc(ctx, knee.x * w, knee.y * h, 40, baseDeg, sweep);
             }
@@ -1634,29 +1647,25 @@
         peakRecordedAngle: 0,
 
         /**
-         * スマホ傾斜（ピッチ角）による垂直方向の幾何圧縮・歪みを3D回転行列で補正
-         * 端末が上を向いて立っている場合（例: 床や台に立てかけ時）のY-Z射影幾何変換
+         * 透視投影・キーストーン傾斜補正
+         * スマホ端末の仰角（ピッチ角）による縦方向の遠近縮小を幾何学的に逆補正
+         * （※MediaPipeの不安定な相対Zを混入させず、純粋な画像座標空間で補正）
          */
         correctPerspectiveTilt(landmarks, pitchDeg) {
           if (!landmarks || Math.abs(pitchDeg) < 1.0) return landmarks;
 
           const pitchRad = (pitchDeg * Math.PI) / 180.0;
           const cosP = Math.cos(pitchRad);
-          const sinP = Math.sin(pitchRad);
 
-          // 画面中心 (0.5, 0.5) を原点として三次元逆回転補正
           return landmarks.map(p => {
             const yRel = p.y - 0.5;
-            const zRel = (p.z || 0.0);
-
-            // 仰角による垂直軸へのパースペクティブ射影補正
-            const yWorld = yRel * cosP - zRel * sinP;
-            const zWorld = yRel * sinP + zRel * cosP;
+            // 仰角による垂直軸の圧縮を伸長補正
+            const yCorrected = (yRel / Math.max(cosP, 0.5)) + 0.5;
 
             return {
               ...p,
-              y: yWorld + 0.5,
-              z: zWorld
+              y: Math.min(1.0, Math.max(0.0, yCorrected)),
+              z: p.z || 0.0
             };
           });
         },
@@ -1691,24 +1700,25 @@
           return Math.min(80, Math.round(pureThoracic * 1.15));
         },
 
-        // カメラ向き（user/environment）に応じた幾何正規化を施した股関節内旋算出
-        evaluateHipInternalRotation(landmarks, side = 'RIGHT', cameraFacing = 'user') {
+        /**
+         * 股関節内旋算出（正面撮影時の解剖学的左右に整合）
+         * 被写体の右足はカメラにとって常にX小側（画面左）、足首を外に振るとXはさらに減少
+         * 被写体の左足はカメラにとって常にX大側（画面右）、足首を外に振るとXはさらに増加
+         */
+        evaluateHipInternalRotation(landmarks, side = 'RIGHT') {
           const knee = side === 'RIGHT' ? landmarks[26] : landmarks[25];
           const ankle = side === 'RIGHT' ? landmarks[28] : landmarks[27];
           if (!knee || !ankle || (knee.visibility ?? 1) < 0.3 || (ankle.visibility ?? 1) < 0.3) return 0;
 
-          // インカメラ（user）は鏡像のため、左右変位の正負が反転する
-          const isMirrored = cameraFacing === 'user';
-          let rawDx = ankle.x - knee.x;
-          if (isMirrored) rawDx = -rawDx;
+          // 被写体右足の内旋（外側振り）: ankle.x < knee.x
+          // 被写体左足の内旋（外側振り）: ankle.x > knee.x
+          const outwardDx = side === 'RIGHT' ? (knee.x - ankle.x) : (ankle.x - knee.x);
+          const dy = ankle.y - knee.y; // 鉛直下向き（正）
 
-          const dx = side === 'RIGHT' ? rawDx : -rawDx;
-          const dy = ankle.y - knee.y; // 鉛直下向き
+          // 内側への巻き込み（代償動作）は0度ガード
+          if (outwardDx <= 0.005 || dy <= 0.05) return 0;
 
-          // 内側への巻き込み（代償動作）は無効
-          if (dx <= 0.01 || dy <= 0.05) return 0;
-
-          const angleRad = Math.atan2(dx, dy);
+          const angleRad = Math.atan2(outwardDx, dy);
           const deg = angleRad * (180.0 / Math.PI);
           return Math.min(55, Math.max(0, Math.round(deg)));
         },
@@ -1738,7 +1748,20 @@
           }
         },
 
+        /**
+         * 左右対称性（左右差）判定
+         * 片側未測定（null）時の虚偽警告を完全に排除
+         */
         evaluateSymmetry(rightVal, leftVal) {
+          if (rightVal === null || leftVal === null) {
+            return {
+              diffText: '片側未測定',
+              label: '反対側も測定して左右バランスをチェックしよう！',
+              isAlert: false,
+              isComplete: false
+            };
+          }
+
           const diff = Math.abs(rightVal - leftVal);
           let label = '神バランス！';
           let isAlert = false;
@@ -1751,7 +1774,7 @@
             label = '⚠️ 左右アンバランス (片側集中サビ取りが必要！)';
             isAlert = true;
           }
-          return { diff, label, isAlert };
+          return { diffText: `${diff}°`, label, isAlert, isComplete: true };
         },
 
         getGradeRank(testType, score) {
@@ -1787,7 +1810,7 @@
 
         start1MinDrill() {
           App.State.clearAllActiveTimers();
-          App.State.mode = 'DRILL_ACTIVE';
+          App.State.fsmState = 'DRILL';
           App.State.drillTimer = 0;
           this.keepStreakSec = 0;
           this.completedSets = 0;
@@ -1844,7 +1867,7 @@
 
         stopDrill(completed = false) {
           App.State.clearAllActiveTimers();
-          App.State.mode = 'TEST_IDLE';
+          App.State.fsmState = 'IDLE';
 
           if (App.UI.elements.drillHudLayer) App.UI.elements.drillHudLayer.classList.add('hidden');
 
@@ -1865,7 +1888,6 @@
           const canvas = App.UI.elements.poseCanvas;
           if (!canvas) return;
 
-          // Safari等でcaptureStreamが非対応の場合のフォールバック
           if (typeof canvas.captureStream !== 'function' || typeof MediaRecorder === 'undefined') {
             try {
               this.capturedSnapshotUrl = canvas.toDataURL('image/png');
@@ -1948,10 +1970,10 @@
       },
 
       startCountdownSequence() {
-        if (App.State.isCountingDown) return;
+        if (App.State.fsmState === 'COUNTDOWN' || App.State.fsmState === 'TESTING') return;
 
         App.State.clearAllActiveTimers();
-        App.State.isCountingDown = true;
+        App.State.fsmState = 'COUNTDOWN';
         App.State.countdownVal = 3;
         App.Engine.peakRecordedAngle = 0;
 
@@ -1965,7 +1987,6 @@
         App.Audio.playSE(660, 0.15, 'triangle', 0.4);
         App.Audio.speak('さん！');
 
-        // 安全タイマープールでインターバルを登録
         App.State.registerInterval(() => {
           App.State.countdownVal--;
           if (App.State.countdownVal > 0) {
@@ -1978,21 +1999,18 @@
             App.Audio.playWhistle();
             App.Audio.speak('パカーンと開けぇぇ！');
 
-            App.State.mode = 'TEST_RUNNING';
+            App.State.fsmState = 'TESTING';
             App.Drill.startLocalRecording();
           } else {
-            // カウントダウン終了：インターバルを解除
             App.State.activeIntervals.forEach(id => clearInterval(id));
             App.State.activeIntervals = [];
 
             if (layer) layer.classList.add('hidden');
-            App.State.isCountingDown = false;
 
-            // 実測フェーズタイマー（プール管理）
             App.State.registerTimeout(() => {
-              if (App.State.mode !== 'TEST_RUNNING') return;
+              if (App.State.fsmState !== 'TESTING') return;
 
-              App.State.mode = 'TEST_IDLE';
+              App.State.fsmState = 'IDLE';
               App.Drill.stopLocalRecording();
 
               const finalScore = App.Engine.peakRecordedAngle;
@@ -2015,8 +2033,8 @@
               if (App.UI.elements.reportTitleBadge) App.UI.elements.reportTitleBadge.textContent = grade.rank;
               if (App.UI.elements.reportRankDesc) App.UI.elements.reportRankDesc.textContent = grade.desc;
 
-              let rightScore = 0;
-              let leftScore = 0;
+              let rightScore = null;
+              let leftScore = null;
 
               if (testType === 'THORACIC') {
                 rightScore = App.State.scores.thoracic.right;
@@ -2029,21 +2047,34 @@
                 leftScore = finalScore;
               }
 
-              if (App.UI.elements.reportRightVal) App.UI.elements.reportRightVal.textContent = `${rightScore}°`;
-              if (App.UI.elements.reportLeftVal) App.UI.elements.reportLeftVal.textContent = `${leftScore}°`;
+              if (App.UI.elements.reportRightVal) {
+                App.UI.elements.reportRightVal.textContent = rightScore !== null ? `${rightScore}°` : '未測定';
+              }
+              if (App.UI.elements.reportLeftVal) {
+                App.UI.elements.reportLeftVal.textContent = leftScore !== null ? `${leftScore}°` : '未測定';
+              }
 
-              const total = rightScore + leftScore;
-              const rightPct = total > 0 ? Math.round((rightScore / total) * 100) : 50;
-              const leftPct = 100 - rightPct;
+              if (rightScore !== null && leftScore !== null) {
+                const total = rightScore + leftScore;
+                const rightPct = total > 0 ? Math.round((rightScore / total) * 100) : 50;
+                const leftPct = 100 - rightPct;
+                if (App.UI.elements.reportBarRight) App.UI.elements.reportBarRight.style.width = `${rightPct}%`;
+                if (App.UI.elements.reportBarLeft) App.UI.elements.reportBarLeft.style.width = `${leftPct}%`;
+              } else {
+                if (App.UI.elements.reportBarRight) App.UI.elements.reportBarRight.style.width = '50%';
+                if (App.UI.elements.reportBarLeft) App.UI.elements.reportBarLeft.style.width = '50%';
+              }
 
-              if (App.UI.elements.reportBarRight) App.UI.elements.reportBarRight.style.width = `${rightPct}%`;
-              if (App.UI.elements.reportBarLeft) App.UI.elements.reportBarLeft.style.width = `${leftPct}%`;
-
+              // 安全な左右差判定
               const symmetry = App.Engine.evaluateSymmetry(rightScore, leftScore);
-              if (App.UI.elements.reportDiffVal) App.UI.elements.reportDiffVal.textContent = `${symmetry.diff}°`;
+              if (App.UI.elements.reportDiffVal) App.UI.elements.reportDiffVal.textContent = symmetry.diffText;
               if (App.UI.elements.reportDiffAdvice) App.UI.elements.reportDiffAdvice.textContent = symmetry.label;
               if (App.UI.elements.headerBalanceText) {
-                App.UI.elements.headerBalanceText.innerHTML = `${symmetry.diff}° <span class="${symmetry.isAlert ? 'text-red-400' : 'text-emerald-300'}">${symmetry.isAlert ? '(要解除)' : '(神!)'}</span>`;
+                if (symmetry.isComplete) {
+                  App.UI.elements.headerBalanceText.innerHTML = `${symmetry.diffText} <span class="${symmetry.isAlert ? 'text-red-400' : 'text-emerald-300'}">${symmetry.isAlert ? '(要解除)' : '(神!)'}</span>`;
+                } else {
+                  App.UI.elements.headerBalanceText.textContent = `${side === 'RIGHT' ? '右' : '左'}済(残片側)`;
+                }
               }
 
               App.Storage.saveLog({
@@ -2138,16 +2169,22 @@
       init() {
         App.UI.cacheElements();
 
+        // 画面のどこを触っても即座にAudioContextをアンロック（iOS対策）
+        const unlockHandler = () => {
+          App.Audio.unlockAudio();
+          window.removeEventListener('pointerdown', unlockHandler);
+          window.removeEventListener('touchstart', unlockHandler);
+        };
+        window.addEventListener('pointerdown', unlockHandler, { passive: true });
+        window.addEventListener('touchstart', unlockHandler, { passive: true });
+
         const videoEl = App.UI.elements.cameraVideo;
         App.Sensor.initCamera(videoEl, App.State.cameraFacing);
 
-        // 📐 DeviceOrientation API による端末前後傾斜角（ピッチ角）の自動追従
         if (window.DeviceOrientationEvent) {
           window.addEventListener('deviceorientation', (e) => {
             if (e.beta !== null) {
-              // 縦持ち時: 90°が完全直立、床平置きが0°。立てかけ時の仰角 = 90° - beta
               const rawTilt = 90 - e.beta;
-              // 実用的な立てかけ角（-10°〜45°）にクランプ
               const clampedTilt = Math.min(45, Math.max(-10, Math.round(rawTilt)));
               App.State.tiltPitchDeg = clampedTilt;
               if (App.UI.elements.tiltValText) {
@@ -2263,7 +2300,7 @@
         });
 
         App.Storage.renderChartList();
-        console.info('🦴 Mobility Dock v2.2 Initialized successfully.');
+        console.info('🦴 Mobility Dock v2.4 Initialized successfully.');
       }
     };
 
