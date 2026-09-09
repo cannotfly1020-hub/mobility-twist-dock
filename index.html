@@ -90,7 +90,7 @@
 
     /* iOSホームバー・ツールバーのセーフエリア対応 */
     .safe-bottom-padding {
-      padding-bottom: max(0.6rem, env(safe-area-inset-bottom, 0px));
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
     }
   </style>
 </head>
@@ -126,7 +126,7 @@
           <div>
             <div class="text-[9px] font-bold text-amber-300 leading-none">ジュニア柔軟性チェッカー</div>
             <h1 class="text-xs sm:text-sm font-black text-white tracking-wider flex items-center gap-1">
-              しなりドラゴン <span class="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black shadow">PRO v2.5.0</span>
+              しなりドラゴン <span class="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black shadow">PRO v2.5.1</span>
             </h1>
           </div>
         </div>
@@ -193,7 +193,7 @@
     </div>
 
     <!-- 3. 右下固定: お手本ミニワイプ（PIPアニメーション） -->
-    <div class="absolute right-4 bottom-20 bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28 sm:w-32">
+    <div class="absolute right-4 bottom-28 bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28 sm:w-32">
       <div class="text-[9px] font-black text-cyan-300 mb-1 flex items-center space-x-1">
         <span>💡 お手本動作</span>
       </div>
@@ -205,7 +205,7 @@
   </div>
 
   <!-- 4. 音声コーチ字幕ピルタグ -->
-  <div class="relative z-10 flex justify-center mb-20 pointer-events-none px-4">
+  <div class="relative z-10 flex justify-center mb-24 pointer-events-none px-4">
     <div id="voiceCoachIndicator" class="bg-slate-950/85 backdrop-blur-md border border-amber-400/60 px-4 py-1.5 rounded-full shadow-lg flex items-center space-x-2 text-xs font-bold text-amber-200 max-w-sm transition-opacity duration-300">
       <span class="animate-pulse">🔊</span>
       <span id="voiceCoachText" class="truncate">椅子に座って、両膝を閉じてね！</span>
@@ -259,7 +259,7 @@
 
     <div class="inline-flex items-center space-x-1.5 bg-amber-500/20 border border-amber-400/40 px-3 py-1 rounded-full mb-2">
       <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-      <span class="text-[11px] font-black text-amber-300">しなりドラゴン プロ v2.5.0</span>
+      <span class="text-[11px] font-black text-amber-300">しなりドラゴン プロ v2.5.1</span>
     </div>
 
     <h2 class="text-xl sm:text-2xl font-black text-white mb-2 tracking-wide">
@@ -301,7 +301,7 @@
         <div class="w-96 h-96 bg-gradient-to-r from-yellow-400 to-amber-600 rounded-full animate-sunburst blur-xl"></div>
       </div>
 
-      <div class="text-[10px] font-black text-amber-300 tracking-widest uppercase mb-1">MEASUREMENT RESULT (v2.5.0)</div>
+      <div class="text-[10px] font-black text-amber-300 tracking-widest uppercase mb-1">MEASUREMENT RESULT (v2.5.1)</div>
       <h3 id="reportTestTitle" class="text-sm font-black text-white mb-2">胸パカーン（胸椎回旋）</h3>
 
       <div class="my-2 flex flex-col items-center">
@@ -355,7 +355,7 @@
       <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
         <h2 class="text-sm font-black text-violet-300 flex items-center space-x-1.5">
           <span>📊</span>
-          <span>測定データ履歴 (v2.5.0)</span>
+          <span>測定データ履歴 (v2.5.1)</span>
         </h2>
         <button id="closeHistoryBtn" class="text-slate-400 hover:text-white text-xl font-black">✕</button>
       </div>
@@ -475,7 +475,7 @@
           side: record.side,
           angle: Number(record.angle),
           rank: record.rank,
-          version: 'v2.5.0',
+          version: 'v2.5.1',
           createdAt: new Date().toISOString(),
           timestamp: Date.now()
         });
@@ -554,9 +554,9 @@
   <!-- ==================== メインスクリプト ==================== -->
   <script>
     /**
-     * アプリケーション定数定義 (v2.5.0)
+     * アプリケーション定数定義 (v2.5.1)
      */
-    const APP_VERSION = 'v2.5.0';
+    const APP_VERSION = 'v2.5.1';
 
     const BIOMECHANICS_CONFIG = {
       THORACIC: {
