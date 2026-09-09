@@ -262,12 +262,12 @@
     </nav>
 
     <!-- 中央メインスクリーン (画面の80%以上を占有する最大化カメラエリア) -->
-    <section class="relative w-full flex-1 my-0.5 panel-brawl overflow-hidden rounded-2xl flex items-center justify-center bg-black/95">
-      <!-- カメラ映像要素 (デフォルトで全身が入るobject-containを適用、切替可能) -->
-      <video id="cameraVideo" class="absolute inset-0 w-full h-full object-contain transform -scale-x-100 transition-all duration-200" playsinline muted autoplay></video>
+    <section class="relative w-full flex-1 my-0.5 panel-brawl overflow-hidden rounded-2xl flex items-center justify-center bg-slate-950">
+      <!-- カメラ映像要素 (横の黒スペースを完全解消するobject-coverに最適化) -->
+      <video id="cameraVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 transition-all duration-200" playsinline muted autoplay></video>
 
-      <!-- 骨格描画・角度扇形ゲージ用キャンバス -->
-      <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-10 transition-all duration-200"></canvas>
+      <!-- 骨格描画・角度扇形ゲージ用キャンバス (映像と完全一致) -->
+      <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-cover pointer-events-none z-10 transition-all duration-200"></canvas>
 
       <!-- 姿勢ナビゲーション枠 (テストごとの姿勢ガイド枠) -->
       <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2">
@@ -775,13 +775,14 @@
               App.State.stream.getTracks().forEach(t => t.stop());
             }
 
-            // 広視野角・高精細（全身が収まりやすい解像度）を要求
+            // 縦向きスマホにジャストフィットする解像度・アスペクト比を自動判別
+            const isPortrait = window.innerHeight >= window.innerWidth;
             const constraints = {
               video: {
                 facingMode: { ideal: facingMode },
-                width: { ideal: 1280, min: 640 },
-                height: { ideal: 720, min: 480 },
-                aspectRatio: { ideal: 16 / 9 }
+                width: { ideal: isPortrait ? 720 : 1280 },
+                height: { ideal: isPortrait ? 1280 : 720 },
+                aspectRatio: { ideal: isPortrait ? 9 / 16 : 16 / 9 }
               },
               audio: false
             };
@@ -807,7 +808,15 @@
             }
 
             await videoEl.play();
-            App.UI.showToast('📷 広角カメラモードで起動しました！');
+
+            // キャンバスサイズをビデオの描画領域に完全同期
+            const canvas = document.getElementById('poseCanvas');
+            if (canvas) {
+              canvas.width = videoEl.videoWidth || videoEl.clientWidth;
+              canvas.height = videoEl.videoHeight || videoEl.clientHeight;
+            }
+
+            App.UI.showToast('📷 全画面ワイドモードで起動しました！');
             return true;
           } catch (err) {
             console.error('Camera Access Error:', err);
