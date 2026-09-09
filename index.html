@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v1.4 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v1.5 | Mobility & Twist Dock</title>
   <!-- Google Fonts: M PLUS Rounded 1c (800 / 900) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -263,7 +263,7 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v1.4</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v1.5</span>
         </div>
       </div>
 
@@ -319,20 +319,22 @@
       <!-- 半透明お手本ゴーストシルエット（人型影絵） -->
       <div id="ghostContainer" class="ghost-silhouette">
         <!-- SVGで描かれたお手本人型シルエット（テストごとにJSでパス切替） -->
-        <svg id="ghostSvg" viewBox="0 0 200 320" class="h-4/5 max-h-[85%] w-auto stroke-sky-400 fill-sky-400/20 stroke-2 stroke-dasharray-4" style="stroke-dasharray: 6 4;">
-          <!-- 初期: ①胸パカーン（片手を頭の後ろへ） -->
+        <svg id="ghostSvg" viewBox="0 0 200 320" class="h-4/5 max-h-[85%] w-auto stroke-sky-400 fill-sky-400/20 stroke-2 stroke-dasharray-4 transition-all duration-300" style="stroke-dasharray: 6 4;">
+          <!-- 初期: ①胸パカーン（近距離1m対応：上半身〜骨盤を大きくガイド） -->
           <g id="ghostPathThoracic">
-            <!-- 頭 -->
-            <circle cx="100" cy="45" r="20" />
+            <!-- 頭（近距離で大きく認識） -->
+            <circle cx="100" cy="55" r="28" />
             <!-- 体幹（背骨・胴体） -->
-            <line x1="100" y1="65" x2="100" y2="160" stroke-width="6" stroke-linecap="round"/>
+            <line x1="100" y1="83" x2="100" y2="200" stroke-width="8" stroke-linecap="round"/>
             <!-- 右腕（手を頭の後ろへ曲げたポーズ） -->
-            <polyline points="100,75 140,75 125,48" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <polyline points="100,100 155,100 135,60" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
             <!-- 左腕（腰に当てて構える） -->
-            <polyline points="100,75 68,105 75,140" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            <!-- 骨盤・足 -->
-            <line x1="100" y1="160" x2="80" y2="280" stroke-width="5" stroke-linecap="round"/>
-            <line x1="100" y1="160" x2="120" y2="280" stroke-width="5" stroke-linecap="round"/>
+            <polyline points="100,100 55,140 65,190" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <!-- 骨盤（腰）ライン -->
+            <line x1="70" y1="200" x2="130" y2="200" stroke-width="8" stroke-linecap="round"/>
+            <!-- 太もも上部（下半身は足首まで見えなくてもOKなフェードガイド） -->
+            <line x1="82" y1="200" x2="75" y2="260" stroke-width="6" stroke-linecap="round" stroke-dasharray="3 3"/>
+            <line x1="118" y1="200" x2="125" y2="260" stroke-width="6" stroke-linecap="round" stroke-dasharray="3 3"/>
           </g>
           <!-- ②片足タメ絞り（片膝を前に持ち上げ） -->
           <g id="ghostPathHipIR" class="hidden">
@@ -379,7 +381,7 @@
           <div class="bg-black/85 border border-slate-700 px-2 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
             <div class="flex items-center gap-1">
               <span id="stepDotBounds" class="step-dot"></span>
-              <span class="text-[8px] text-slate-300">全身</span>
+              <span id="stepDotBoundsLabel" class="text-[8px] text-slate-300">上半身</span>
             </div>
             <span class="text-slate-600 text-[8px]">▶</span>
             <div class="flex items-center gap-1">
@@ -869,6 +871,12 @@
         selectTest(type) {
           App.State.testType = type;
           const meta = this.testsMeta[type];
+
+          // 信号ランプのラベルをテストに応じて更新（胸パカーンは上半身だけでOK）
+          const boundsLabel = document.getElementById('stepDotBoundsLabel');
+          if (boundsLabel) {
+            boundsLabel.textContent = type === 'THORACIC' ? '上半身' : '全身';
+          }
 
           ['tabThoracic', 'tabHipIR', 'tabHinge'].forEach(id => {
             const btn = document.getElementById(id);
@@ -1363,66 +1371,183 @@
 
         // テストごとの「構え（スタートポーズ）」を取っているかを厳密判定
         checkStartPoseReady(lm, testType, activeSide) {
-          if (!lm) return { ready: false, prompt: 'カメラに全身を映してね！' };
+          if (!lm) return { ready: false, prompt: 'カメラに映ってね！' };
 
           const lSh = lm[11], rSh = lm[12];
           const lHip = lm[23], rHip = lm[24];
           const lKnee = lm[25], rKnee = lm[26];
           const lAnkle = lm[27], rAnkle = lm[28];
           const lWrist = lm[15], rWrist = lm[16];
-          const nose = lm[0];
 
-          if (!lSh || !rSh || !lHip || !rHip) {
-            return { ready: false, prompt: 'カメラから少し離れて全身を映そう！' };
-          }
-
-          // ① 立ち胸パカーン：片手を頭の後ろ（耳や頭の高さ）にセットしているか？
+          // ① 立ち胸パカーン：上半身（頭〜腰）だけでOK！足首やつま先は不要（約1mの近距離でOK）
           if (testType === 'THORACIC') {
-            // 右手または左手が肩より高く、頭（鼻〜耳）の近くにあるか判定
+            if (!lSh || !rSh || lSh.visibility < 0.35 || rSh.visibility < 0.35) {
+              return { ready: false, prompt: '肩をカメラに映してね！' };
+            }
+
+            // 片手が肩の高さ付近、または頭の近くに上がっているか判定
             const targetWrist = activeSide === 'RIGHT' ? rWrist : lWrist;
             const targetShoulder = activeSide === 'RIGHT' ? rSh : lSh;
             const altWrist = activeSide === 'RIGHT' ? lWrist : rWrist;
             const altShoulder = activeSide === 'RIGHT' ? lSh : rSh;
 
-            const isTargetHandOnHead = targetWrist && targetShoulder && (targetWrist.y < targetShoulder.y + 0.05);
-            const isAltHandOnHead = altWrist && altShoulder && (altWrist.y < altShoulder.y + 0.05);
+            const isTargetHandUp = targetWrist && targetShoulder && (targetWrist.y < targetShoulder.y + 0.12);
+            const isAltHandUp = altWrist && altShoulder && (altWrist.y < altShoulder.y + 0.12);
 
-            if (isTargetHandOnHead || isAltHandOnHead) {
+            if (isTargetHandUp || isAltHandUp) {
               return { ready: true, prompt: '構えOK！そのままストップ！' };
             }
             return { ready: false, prompt: '片手を頭の後ろにセットしてね！' };
           }
 
-          // ② 片足タメ絞り：測定側の片膝が前（上方）に上がっているか？（片足浮かせ構え）
+          // ② 片足タメ絞り：腰〜膝・足首が必要（約1.5m）
           if (testType === 'HIP_IR') {
             const targetKnee = activeSide === 'RIGHT' ? rKnee : lKnee;
             const supportKnee = activeSide === 'RIGHT' ? lKnee : rKnee;
 
-            if (!targetKnee || !supportKnee || targetKnee.visibility < 0.4 || supportKnee.visibility < 0.4) {
-              return { ready: false, prompt: '膝と足首をしっかり映してね！' };
+            if (!targetKnee || !supportKnee || targetKnee.visibility < 0.35 || supportKnee.visibility < 0.35) {
+              return { ready: false, prompt: '膝が映る位置（約1.5m）に立とう！' };
             }
 
-            // 上げた膝が支持脚の膝よりも明らかに高い（0.08以上上にある）
+            // 上げた膝が支持脚の膝よりも明らかに高い（0.05以上上にある）
             const kneeLiftDiff = supportKnee.y - targetKnee.y;
-            if (kneeLiftDiff > 0.06) {
+            if (kneeLiftDiff > 0.05) {
               return { ready: true, prompt: '片足タメ構えOK！動かないで！' };
             }
             return { ready: false, prompt: '片膝を前に持ち上げてね！（壁タッチOK）' };
           }
 
-          // ③ 立ちペタ前屈：ピンと立って構えているか？（膝が曲がっておらず直立状態）
+          // ③ 立ちペタ前屈：直立姿勢で前屈準備（足元まで必要：約1.8m〜2m）
           if (testType === 'HINGE') {
-            if (!rKnee || !rAnkle || rKnee.visibility < 0.4 || rAnkle.visibility < 0.4) {
-              return { ready: false, prompt: '足元までしっかり映してね！' };
+            if (!rKnee || !rAnkle || rKnee.visibility < 0.35 || rAnkle.visibility < 0.35) {
+              return { ready: false, prompt: '足元まで映るように少し離れよう！' };
             }
             const kneeAngle = App.Engine.calculateJointAngle(rHip, rKnee, rAnkle);
-            if (kneeAngle > 155) {
+            if (kneeAngle > 150) {
               return { ready: true, prompt: '直立OK！そのままストップ！' };
             }
             return { ready: false, prompt: '膝を伸ばしてまっすぐ立とう！' };
           }
 
           return { ready: true, prompt: '姿勢OK！' };
+        },
+
+        checkAutoTriggerGateIn(lm, isCheating) {
+          if (!App.State.autoStartEnabled) {
+            this.resetGateInState();
+            App.UI.updateStepLamps(false, false, false);
+            return;
+          }
+
+          const promptPill = document.getElementById('poseCheckPromptPill');
+          const promptText = document.getElementById('poseCheckPromptText');
+          const chargeBox = document.getElementById('lockonChargeBox');
+          const progressBar = document.getElementById('lockonProgressBar');
+
+          if (isCheating) {
+            this.resetGateInState();
+            App.UI.updateStepLamps(false, false, false);
+            if (promptPill) promptPill.classList.add('hidden');
+            return;
+          }
+
+          // ① テストに応じた必要部位が枠に入っているか？
+          const inBounds = this.isPoseInBounds(lm, App.State.testType);
+          if (!inBounds) {
+            this.resetGateInState();
+            App.UI.updateStepLamps(false, false, false);
+            if (promptPill && promptText) {
+              promptText.textContent = App.State.testType === 'THORACIC' 
+                ? '胸と肩をカメラの正面に向けよう！' 
+                : 'カメラから少し離れて全身を映そう！';
+              promptPill.classList.remove('hidden');
+            }
+            return;
+          }
+
+          // ② 構え（スタートポーズ）チェック
+          const poseStatus = this.checkStartPoseReady(lm, App.State.testType, App.State.activeSide);
+          if (!poseStatus.ready) {
+            this.resetGateInState();
+            App.UI.updateStepLamps(true, false, false);
+            if (promptPill && promptText) {
+              promptText.textContent = poseStatus.prompt;
+              promptPill.classList.remove('hidden');
+            }
+            return;
+          }
+
+          // 構えOK
+          App.UI.updateStepLamps(true, true, false);
+
+          if (promptPill && promptText) {
+            promptText.textContent = poseStatus.prompt;
+            promptPill.classList.remove('hidden');
+          }
+
+          // ③ 両肩の中央位置の静止判定
+          const lSh = lm[11];
+          const rSh = lm[12];
+          const currentPos = { x: (lSh.x + rSh.x) / 2, y: (lSh.y + rSh.y) / 2 };
+
+          const box = document.getElementById('guideOverlay');
+          const pill = document.getElementById('lockonStatusPill');
+
+          if (this.prevKeypointPos) {
+            const dist = Math.hypot(currentPos.x - this.prevKeypointPos.x, currentPos.y - this.prevKeypointPos.y);
+            const now = Date.now();
+
+            if (dist < 0.045) { // 安定静止（小学生用に許容度をやや広げ、認識しやすく調整）
+              App.UI.updateStepLamps(true, true, true);
+              if (this.stableSince === 0) {
+                this.stableSince = now;
+                if (box) box.className = 'absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-2 charging';
+                if (pill) pill.classList.remove('hidden');
+                if (chargeBox) chargeBox.classList.remove('hidden');
+                App.Audio.playChargeSE();
+              } else {
+                const elapsed = now - this.stableSince;
+                const progressPct = Math.min(100, Math.round((elapsed / 1100) * 100));
+                if (progressBar) progressBar.style.width = `${progressPct}%`;
+
+                // 0.3秒静止で予告音声
+                if (elapsed >= 300 && !this.hasPlayedChargeVoice) {
+                  this.hasPlayedChargeVoice = true;
+                  App.Audio.speak('構えOK！そのままストップ！');
+                }
+
+                // 1.1秒静止でオートロックオン完了！
+                if (elapsed >= 1100) {
+                  this.triggerAutoStart();
+                }
+              }
+            } else {
+              this.resetGateInState();
+              App.UI.updateStepLamps(true, true, false);
+            }
+          }
+          this.prevKeypointPos = currentPos;
+        },
+
+        isPoseInBounds(lm, testType) {
+          const lSh = lm[11];
+          const rSh = lm[12];
+          if (!lSh || !rSh) return false;
+          if (lSh.visibility < 0.35 || rSh.visibility < 0.35) return false;
+
+          // ① 胸パカーン：肩と胸が映っていれば十分（足先不要、近距離1mでOK）
+          if (testType === 'THORACIC') {
+            const midX = (lSh.x + rSh.x) / 2;
+            return midX >= 0.08 && midX <= 0.92;
+          }
+
+          // ② 股関節タメ / ③ ヒンジ：腰と足が必要
+          const lHip = lm[23];
+          const rHip = lm[24];
+          if (!lHip || !rHip || lHip.visibility < 0.25 || rHip.visibility < 0.25) return false;
+
+          const midX = (lSh.x + rSh.x) / 2;
+          return midX >= 0.08 && midX <= 0.92;
         },
 
         checkAutoTriggerGateIn(lm, isCheating) {
