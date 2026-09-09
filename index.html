@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v2.7 | Mobility & Twist Dock</title>
+  <title>🦴 柔軟性・しなりドック v2.8 | Mobility & Twist Dock</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
@@ -241,7 +241,7 @@
         <span class="text-base filter drop-shadow">🦴</span>
         <div class="flex items-center gap-1">
           <h1 class="text-xs sm:text-sm leading-tight brawl-text font-black text-emerald-300">しなりドック</h1>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.7</span>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 px-1 py-0 rounded font-black">v2.8</span>
         </div>
       </div>
 
@@ -336,9 +336,9 @@
         </button>
       </div>
 
-      <!-- 姿勢ガイド枠＆中央動的オーバーレイ（重なり防止スタック構造） -->
+      <!-- 姿勢ガイド枠＆中央動的オーバーレイ（重なり完全排除レイアウト） -->
       <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5">
-        <!-- 上部：HUDより一段下に配置して横幅の衝突を完全防止 -->
+        <!-- 上部：左右HUDとの衝突を避ける一段下げレイアウト -->
         <div class="w-full flex items-center justify-center gap-1.5 pt-9 sm:pt-10">
           <div class="bg-black/85 border border-slate-700 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg backdrop-blur-sm">
             <div class="flex items-center gap-1">
@@ -363,7 +363,7 @@
           </div>
         </div>
 
-        <!-- 中央：ロックオン進行度（中央にゆったり配置） -->
+        <!-- 中央：ロックオン進行度 -->
         <div class="flex flex-col items-center gap-2">
           <div id="lockonChargeBox" class="hidden flex flex-col items-center gap-1 bg-black/85 px-4 py-2 rounded-2xl border-2 border-sky-400 shadow-2xl backdrop-blur-md">
             <div class="flex items-center gap-2">
@@ -384,7 +384,7 @@
           </div>
         </div>
 
-        <!-- 下部：下部バーの上側に整列配置して重なりを完全排除 -->
+        <!-- 下部：最下部バーとの重なりを完全排除した底上げレイアウト -->
         <div class="w-full flex flex-col items-center pb-8 sm:pb-9">
           <div id="poseCheckPromptPill" class="bg-slate-900/95 border-2 border-yellow-400 px-3 py-1 rounded-full text-[10px] sm:text-[11px] text-yellow-300 brawl-text shadow-xl flex items-center gap-1.5 backdrop-blur-sm">
             <span class="animate-bounce text-xs">👉</span> <span id="poseCheckPromptText">半透明の影に合わせて片手を頭へ！</span>
@@ -628,7 +628,6 @@
     /**
      * One Euro Filter (1€ Filter)
      * 高速動作低遅延 ＆ 微動時ジッター完全除去
-     * バックグラウンド復帰時のタイムラグ（dtスパイク）発散防止ガード付き
      */
     class OneEuroFilter {
       constructor(minCutoff = 1.0, beta = 0.007, dCutoff = 1.0) {
@@ -716,12 +715,9 @@
       }
     }
 
-    /**
-     * Mobility & Twist Dock v2.6
-     */
     const App = {
       Config: {
-        STABLE_DISTANCE_THRESHOLD: 0.060, // 構え時の静止許容幅
+        STABLE_DISTANCE_THRESHOLD: 0.060,
         AUTO_TRIGGER_HOLD_MS: 1100,
         TEST_DURATION_MS: 3500,
         MAX_STORED_LOGS: 20
@@ -737,6 +733,7 @@
         countdownVal: 3,
         drillTimer: 0,
         tiltPitchDeg: 0,
+        baselineHipYawDeg: 0,    // 構え完了時の骨盤水平角度（キャリブレーション原点）
         poseFilter: new PoseLandmarksFilter(),
         activeTimeouts: [],
         activeIntervals: [],
@@ -1304,7 +1301,7 @@
           const correctedLm = App.Engine.correctPerspectiveTilt(smoothLm, App.State.tiltPitchDeg);
           this.lastLandmarks = correctedLm;
 
-          // モーダル表示中または結果確認中（RESULT）は角度計算と自動開始を安全に停止
+          // モーダル表示中または結果確認中（RESULT）は安全に停止
           if (App.UI.isModalOpen() || App.State.fsmState === 'RESULT') {
             this.resetGateInState();
             this.renderPoseSkeleton(ctx, correctedLm, w, h, 0);
@@ -1488,6 +1485,11 @@
                 }
 
                 if (elapsed >= App.Config.AUTO_TRIGGER_HOLD_MS) {
+                  // 構え完了時の骨盤水平角度を原点キャリブレーション
+                  const lHip = lm[23], rHip = lm[24];
+                  if (lHip && rHip) {
+                    App.State.baselineHipYawDeg = App.Engine.calculateHorizontalYaw(lHip, rHip);
+                  }
                   this.triggerAutoStart();
                 }
               }
@@ -1545,9 +1547,13 @@
 
           if (testType === 'THORACIC') {
             const lHip = landmarks[23], rHip = landmarks[24];
-            if (lHip && rHip && (lHip.visibility ?? 1) > 0.4 && (rHip.visibility ?? 1) > 0.4) {
-              const hipSlope = Math.abs(App.Engine.calculateSlopeAngle(lHip, rHip));
-              if (hipSlope > 24) {
+            if (lHip && rHip && (lHip.visibility ?? 1) > 0.35 && (rHip.visibility ?? 1) > 0.35) {
+              // 2Dの縦ズレではなく、水平回旋（Yaw）の基準時からのズレをチェック
+              const currentHipYaw = App.Engine.calculateHorizontalYaw(lHip, rHip);
+              const hipYawDelta = Math.abs(currentHipYaw - App.State.baselineHipYawDeg);
+
+              // 骨盤が本当に水平に20°以上回ってしまった場合のみ代償動作と判定
+              if (hipYawDelta > 20) {
                 return { isCheating: true, reason: '腰ごと回ってるぞ！おへそを正面に向けて胸だけひねろう！' };
               }
             }
@@ -1691,6 +1697,16 @@
           });
         },
 
+        /**
+         * 水平面（X-Z）における2点間の水平Yaw（回旋）角度を計算
+         */
+        calculateHorizontalYaw(p1, p2) {
+          const dx = p2.x - p1.x;
+          const dz = (p2.z || 0) - (p1.z || 0);
+          // 正面（dz=0）を0°とした回転角度
+          return Math.atan2(dz, Math.abs(dx) > 1e-4 ? dx : 1e-4) * (180.0 / Math.PI);
+        },
+
         calculateSlopeAngle(p1, p2) {
           const dy = p2.y - p1.y;
           const dx = p2.x - p1.x;
@@ -1705,20 +1721,40 @@
           return angle;
         },
 
+        /**
+         * 【完全是正】バイオメカニクス Xファクター方式の胸椎回旋計算
+         * 2Dの上下傾き（側屈）ではなく、水平面（X-Z）の真の回旋角（Yaw）から骨盤の逃げを引き算
+         */
         evaluateThoracicTwist(landmarks, side = 'RIGHT') {
           const lSh = landmarks[11], rSh = landmarks[12];
           const lHip = landmarks[23], rHip = landmarks[24];
           if (!lSh || !rSh || !lHip || !rHip) return 0;
           if ((lSh.visibility ?? 1) < 0.25 || (rSh.visibility ?? 1) < 0.25) return 0;
 
-          let shoulderAngle = Math.abs(this.calculateSlopeAngle(lSh, rSh));
-          if (shoulderAngle > 90) shoulderAngle = 180 - shoulderAngle;
+          // 左右肩の水平Yaw（回旋）角
+          const dxSh = rSh.x - lSh.x;
+          const dzSh = (rSh.z || 0) - (lSh.z || 0);
+          const shoulderYaw = Math.atan2(dzSh, Math.abs(dxSh) > 1e-4 ? dxSh : 1e-4) * (180.0 / Math.PI);
 
-          let hipAngle = Math.abs(this.calculateSlopeAngle(lHip, rHip));
-          if (hipAngle > 90) hipAngle = 180 - hipAngle;
+          // 左右腰の水平Yaw（回旋）角
+          const dxHip = rHip.x - lHip.x;
+          const dzHip = (rHip.z || 0) - (lHip.z || 0);
+          const hipYaw = Math.atan2(dzHip, Math.abs(dxHip) > 1e-4 ? dxHip : 1e-4) * (180.0 / Math.PI);
 
-          const pureThoracic = Math.max(0, shoulderAngle - (hipAngle * 0.70));
-          return Math.min(80, Math.round(pureThoracic * 1.18));
+          // 正面からの胸郭の純粋な水平ひねり量
+          let rawTwist = Math.abs(shoulderYaw);
+          if (rawTwist > 90) rawTwist = 180 - rawTwist;
+
+          // 骨盤の基準位置からのズレ（腰の逃げ代償）
+          let hipCompensation = Math.abs(hipYaw - App.State.baselineHipYawDeg);
+          if (hipCompensation > 90) hipCompensation = 180 - hipCompensation;
+
+          // 純粋な胸椎回旋（Xファクター）: 腰の逃げを適正比率で減算
+          const pureTwist = Math.max(0, rawTwist - (hipCompensation * 0.50));
+
+          // 人体可動域スケール（0〜75°）に自然正規化
+          const scaledAngle = pureTwist * 1.35;
+          return Math.min(75, Math.max(0, Math.round(scaledAngle)));
         },
 
         evaluateHipInternalRotation(landmarks, side = 'RIGHT') {
@@ -1753,7 +1789,6 @@
           const hipToKneeSpan = hip ? (kneeY - hip.y) : 0.25;
           const kneeToAnkleSpan = Math.max(0.1, ankleY - kneeY);
 
-          // 直立時（0°スタート）〜 膝（約42°）〜 足首（85°）〜 床（98°）
           if (currentY <= kneeY) {
             const startRatio = hip ? Math.max(0, (currentY - hip.y) / Math.max(0.08, hipToKneeSpan)) : 0.3;
             return Math.round(startRatio * 42);
@@ -2028,7 +2063,6 @@
             App.State.registerTimeout(() => {
               if (App.State.fsmState !== 'TESTING') return;
 
-              // 測定完了後はRESULT状態へ移行（背景での誤測定・誤トリガーを完全遮断）
               App.State.fsmState = 'RESULT';
               App.Drill.stopLocalRecording();
 
@@ -2317,7 +2351,7 @@
         });
 
         App.Storage.renderChartList();
-        console.info('🦴 Mobility Dock v2.6 Initialized successfully.');
+        console.info('🦴 Mobility Dock v2.8 Initialized successfully.');
       }
     };
 
