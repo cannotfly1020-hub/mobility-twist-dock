@@ -1,1879 +1,1706 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>しなりドラゴン プロ v2.5.2 | ジュニアアスリート柔軟性チェッカー</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts: M PLUS Rounded 1c & Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
-  <!-- MediaPipe Pose (安定バージョン固定) -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4.1675466862/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
-
-  <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-    body {
-      font-family: 'M PLUS Rounded 1c', 'Inter', sans-serif;
-      background-color: #030712;
-      color: #f8fafc;
-      overflow: hidden;
-      touch-action: manipulation;
-    }
-    /* ブロスタ風3D立体ボタン */
-    .btn-3d {
-      transition: all 0.08s ease;
-      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 6px 10px rgba(0, 0, 0, 0.4);
-      cursor: pointer;
-    }
-    .btn-3d:active {
-      transform: translateY(3px);
-      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
-    }
-    .btn-3d:disabled {
-      opacity: 0.6;
-      transform: none;
-      box-shadow: none;
-      cursor: not-allowed;
-    }
-    .btn-3d-yellow {
-      background: linear-gradient(180deg, #fde047 0%, #eab308 100%);
-      color: #451a03;
-      border: 2px solid #fef08a;
-    }
-    .btn-3d-blue {
-      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
-      color: #ffffff;
-      border: 2px solid #7dd3fc;
-    }
-    .btn-3d-green {
-      background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
-      color: #ffffff;
-      border: 2px solid #86efac;
-    }
-    .btn-3d-purple {
-      background: linear-gradient(180deg, #c084fc 0%, #9333ea 100%);
-      color: #ffffff;
-      border: 2px solid #e9d5ff;
-    }
-
-    /* パルス警告・ネオン演出 */
-    @keyframes cheatPulse {
-      0%, 100% { box-shadow: inset 0 0 0 4px #ef4444, 0 0 25px #ef4444; }
-      50% { box-shadow: inset 0 0 0 8px #dc2626, 0 0 45px #dc2626; }
-    }
-    .cheat-active {
-      animation: cheatPulse 0.4s infinite alternate;
-    }
-    @keyframes sunburst {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .animate-sunburst {
-      animation: sunburst 30s linear infinite;
-    }
-
-    ::-webkit-scrollbar {
-      width: 5px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #475569;
-      border-radius: 9999px;
-    }
-
-    /* iOS Safariのアドレスバー・ホームバー被り完全防止パディング */
-    .safe-bottom-padding {
-      padding-bottom: max(4.75rem, calc(env(safe-area-inset-bottom, 0px) + 3.75rem));
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>しなりドラゴン プロ v2.5.3 | ジュニアアスリート柔軟性チェッカー</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Google Fonts: M PLUS Rounded 1c & Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
+<!-- MediaPipe Pose (安定バージョン固定) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+<style>
+* {
+box-sizing: border-box;
+-webkit-tap-highlight-color: transparent;
+user-select: none;
+}
+body {
+font-family: 'M PLUS Rounded 1c', 'Inter', sans-serif;
+background-color: #030712;
+color: #f8fafc;
+overflow: hidden;
+touch-action: manipulation;
+}
+/* ブロスタ風3D立体ボタン */
+.btn-3d {
+transition: all 0.08s ease;
+box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 6px 10px rgba(0, 0, 0, 0.4);
+cursor: pointer;
+}
+.btn-3d:active {
+transform: translateY(3px);
+box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.btn-3d:disabled {
+opacity: 0.6;
+transform: none;
+box-shadow: none;
+cursor: not-allowed;
+}
+.btn-3d-yellow {
+background: linear-gradient(180deg, #fde047 0%, #eab308 100%);
+color: #451a03;
+border: 2px solid #fef08a;
+}
+.btn-3d-blue {
+background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+color: #ffffff;
+border: 2px solid #7dd3fc;
+}
+.btn-3d-green {
+background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+color: #ffffff;
+border: 2px solid #86efac;
+}
+.btn-3d-purple {
+background: linear-gradient(180deg, #c084fc 0%, #9333ea 100%);
+color: #ffffff;
+border: 2px solid #e9d5ff;
+}
+/* パルス警告・ネオン演出 */
+@keyframes cheatPulse {
+0%, 100% { box-shadow: inset 0 0 0 4px #ef4444, 0 0 25px #ef4444; }
+50% { box-shadow: inset 0 0 0 8px #dc2626, 0 0 45px #dc2626; }
+}
+.cheat-active {
+animation: cheatPulse 0.4s infinite alternate;
+}
+@keyframes sunburst {
+0% { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
+}
+.animate-sunburst {
+animation: sunburst 30s linear infinite;
+}
+::-webkit-scrollbar {
+width: 5px;
+}
+::-webkit-scrollbar-thumb {
+background: #475569;
+border-radius: 9999px;
+}
+/* iOS Safariのアドレスバー・ホームバー被り完全防止パディング */
+.safe-bottom-padding {
+padding-bottom: max(5.2rem, calc(env(safe-area-inset-bottom, 0px) + 4.2rem));
+}
+</style>
 </head>
 <body class="relative w-screen h-screen h-[100dvh] flex flex-col justify-between overflow-hidden bg-slate-950">
-
-  <!-- 
-    カメラ映像（フレーム供給用ソース）
-    画面内最背面に1x1pxで安全に常駐
-  -->
-  <video id="webcam" class="fixed bottom-0 right-0 w-1 h-1 opacity-[0.01] pointer-events-none -z-50" playsinline muted autoplay></video>
-
-  <!-- メイン高DPI描画キャンバス -->
-  <canvas id="outputCanvas" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0"></canvas>
-
-  <!-- 全画面状態連動ネオンボーダー -->
-  <div id="screenBorder" class="absolute inset-0 border-4 border-slate-700/50 pointer-events-none z-10 transition-colors duration-300"></div>
-
-  <!-- カンニング警告HUD -->
-  <div id="cheatWarningHud" class="absolute top-24 left-1/2 -translate-x-1/2 z-30 hidden bg-red-600/95 text-white border-2 border-yellow-300 px-4 py-2 rounded-2xl text-xs md:text-sm font-black shadow-2xl tracking-wide flex items-center space-x-2 animate-bounce max-w-[90vw]">
-    <span class="text-base shrink-0">⚠️</span>
-    <span id="cheatWarningText" class="truncate">膝をピンと伸ばして！</span>
-  </div>
-
-  <!-- 1. スマート・フローティングHUD（ヘッダー） -->
-  <header class="relative z-20 mx-3 mt-2.5">
-    <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-xl px-3 py-2 flex flex-col gap-1.5 max-w-2xl mx-auto">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-2">
-          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-base font-black shadow">
-            🐉
-          </div>
-          <div>
-            <div class="text-[9px] font-bold text-amber-300 leading-none">ジュニア柔軟性チェッカー</div>
-            <h1 class="text-xs sm:text-sm font-black text-white tracking-wider flex items-center gap-1">
-              しなりドラゴン <span class="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black shadow">PRO v2.5.2</span>
-            </h1>
-          </div>
-        </div>
-
-        <!-- アクションボタン群 -->
-        <div class="flex items-center space-x-1 shrink-0">
-          <button id="replayVoiceBtn" class="bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-yellow-300 px-2 py-1 rounded-xl text-[11px] font-black flex items-center space-x-1 shadow transition">
-            <span>🔊</span>
-            <span class="hidden sm:inline">説明</span>
-          </button>
-          <button id="howToBtn" class="bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-cyan-300 px-2 py-1 rounded-xl text-[11px] font-black flex items-center space-x-1 shadow transition">
-            <span>📖</span>
-            <span class="hidden sm:inline">やり方</span>
-          </button>
-          <button id="historyOpenBtn" class="bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-violet-300 px-2 py-1 rounded-xl text-[11px] font-black flex items-center space-x-1 shadow transition">
-            <span>📊</span>
-            <span class="hidden sm:inline">履歴</span>
-          </button>
-          <button id="cameraSwitchBtn" class="bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-amber-300 px-2 py-1 rounded-xl text-[11px] font-black flex items-center space-x-1 shadow transition">
-            <span>🔄</span>
-            <span id="cameraSwitchLabel" class="hidden sm:inline">内カメ</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 下段: ステップ案内バナー ＆ 姿勢ガイド -->
-      <div class="flex items-center justify-between bg-slate-950/70 border border-slate-800/90 rounded-xl px-2.5 py-1.5">
-        <div class="flex items-center space-x-2 truncate">
-          <span id="setupBadge" class="bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0">🪑 椅子に座る</span>
-          <span id="guideTitle" class="text-xs font-black text-amber-200 truncate">① 胸パカーン（胸椎回旋）</span>
-        </div>
-        <div class="text-[11px] font-black text-slate-300 shrink-0 flex items-center space-x-1">
-          <span id="remoteStepIcon">🎯</span>
-          <span id="remoteStepText" class="text-yellow-300 truncate">カメラに全身を映して！</span>
-        </div>
-      </div>
-
-      <!-- 構え判定オートチャージゲージ / 測定中プログレスバー -->
-      <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-        <div id="holdProgressBar" class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-0 transition-all duration-75"></div>
-      </div>
-    </div>
-  </header>
-
-  <!-- 2. 左上: スリム角度メーターHUD -->
-  <div class="relative z-10 flex items-start justify-between px-4 pointer-events-none">
-    <div class="bg-slate-900/85 backdrop-blur-md border-2 border-cyan-400/70 rounded-2xl p-2.5 shadow-2xl flex flex-col items-center min-w-[105px]">
-      <div class="text-[9px] font-black text-cyan-300 flex items-center space-x-1">
-        <span id="meterModeLabel">0°基準からの増加</span>
-      </div>
-      <div class="flex items-baseline my-0.5">
-        <span id="liveAngleText" class="text-3xl font-black text-yellow-300 leading-none drop-shadow">0</span>
-        <span class="text-sm font-bold text-yellow-400 ml-0.5">°</span>
-      </div>
-      <div id="liveRankBadge" class="bg-slate-800 text-slate-300 border border-slate-600 text-[10px] font-black px-2 py-0.5 rounded-full">
-        準備中
-      </div>
-      <div class="text-[9px] font-bold text-slate-400 mt-1 flex items-center gap-1">
-        <span>目標:</span><span id="targetGoalText" class="text-white font-black">45°</span>
-      </div>
-      <div id="remainingTimeBox" class="mt-1 hidden text-[10px] font-black text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/50">
-        残り <span id="remainingSecondsText">7.0</span>s
-      </div>
-    </div>
-
-    <!-- 3. 右下固定: お手本ミニワイプ（フッター持ち上げに合わせて bottom 拡張） -->
-    <div class="absolute right-4 bottom-36 sm:bottom-40 bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28 sm:w-32">
-      <div class="text-[9px] font-black text-cyan-300 mb-1 flex items-center space-x-1">
-        <span>💡 お手本動作</span>
-      </div>
-      <div id="pipVisualContainer" class="w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center bg-slate-950/80 rounded-xl overflow-hidden border border-slate-800"></div>
-      <div id="pipActionCaption" class="text-[9px] font-black text-amber-300 mt-1 text-center leading-tight">
-        膝を閉じて胸を回す！
-      </div>
-    </div>
-  </div>
-
-  <!-- 4. 音声コーチ字幕ピルタグ（フッターとの重なり防止） -->
-  <div class="relative z-10 flex justify-center mb-36 sm:mb-40 pointer-events-none px-4">
-    <div id="voiceCoachIndicator" class="bg-slate-950/85 backdrop-blur-md border border-amber-400/60 px-4 py-1.5 rounded-full shadow-lg flex items-center space-x-2 text-xs font-bold text-amber-200 max-w-sm transition-opacity duration-300">
-      <span class="animate-pulse">🔊</span>
-      <span id="voiceCoachText" class="truncate">椅子に座って、両膝を閉じてね！</span>
-    </div>
-  </div>
-
-  <!-- 5. カウントダウン巨大オーバーレイ -->
-  <div id="countdownOverlay" class="absolute inset-0 z-40 flex items-center justify-center pointer-events-none hidden">
-    <div class="relative flex items-center justify-center">
-      <div id="countdownCircle" class="w-40 h-40 rounded-full border-8 border-yellow-300 flex items-center justify-center bg-slate-950/80 shadow-[0_0_50px_rgba(253,224,71,0.8)] animate-ping"></div>
-      <span id="countdownNumber" class="absolute text-7xl font-black text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)]">3</span>
-    </div>
-  </div>
-
-  <!-- 6. 下部操作バー（iOS Safariツールバー被り完全防止のセーフエリア適用） -->
-  <footer class="relative z-20 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-3 pt-2.5 safe-bottom-padding shrink-0 shadow-[0_-8px_20px_rgba(0,0,0,0.5)]">
-    <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
-      <!-- 左右切替ボタン -->
-      <div class="flex items-center bg-slate-950 border border-slate-700 rounded-xl p-0.5 shrink-0">
-        <button id="sideLeftBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400">
-          左側
-        </button>
-        <button id="sideRightBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow">
-          右側
-        </button>
-      </div>
-
-      <!-- 種目選択タブ -->
-      <div class="grid grid-cols-3 gap-1.5 flex-1">
-        <button id="tabThoracic" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300">
-          ① 胸パカーン
-        </button>
-        <button id="tabHip" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700">
-          ② タメ絞り
-        </button>
-        <button id="tabAslr" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700">
-          ③ 床レッグ
-        </button>
-      </div>
-    </div>
-  </footer>
-
-  <!-- 7. 初回起動スクリーン -->
-  <div id="startCameraScreen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center">
-    <div class="relative mb-5">
-      <div class="absolute -inset-4 bg-gradient-to-r from-amber-500 to-yellow-300 rounded-full blur-xl opacity-40 animate-pulse"></div>
-      <div class="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-slate-900 border-2 border-amber-400 flex items-center justify-center text-4xl sm:text-5xl shadow-2xl">
-        🐉
-      </div>
-    </div>
-
-    <div class="inline-flex items-center space-x-1.5 bg-amber-500/20 border border-amber-400/40 px-3 py-1 rounded-full mb-2">
-      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-      <span class="text-[11px] font-black text-amber-300">しなりドラゴン プロ v2.5.2</span>
-    </div>
-
-    <h2 class="text-xl sm:text-2xl font-black text-white mb-2 tracking-wide">
-      ジュニア柔軟性チェッカー
-    </h2>
-    <p class="text-xs sm:text-sm text-slate-300 mb-6 max-w-xs leading-relaxed font-bold">
-      ケガゼロで剛速球・ホームラン！<br>
-      スマホを置いて椅子に座るだけで、身体のしなりを全自動でAI計測します。
-    </p>
-
-    <button id="requestCameraBtn" class="btn-3d btn-3d-yellow px-8 py-4 rounded-2xl text-base font-black text-amber-950 tracking-wider flex items-center space-x-2">
-      <span id="requestCameraBtnIcon">🚀</span>
-      <span id="requestCameraBtnText">カメラを起動してスタート！</span>
-    </button>
-
-    <!-- 進行状況ステータステキスト -->
-    <p id="cameraStatusProgress" class="text-xs text-amber-300 mt-3 font-bold hidden flex items-center space-x-1">
-      <span class="animate-spin inline-block">⏳</span>
-      <span id="cameraStatusProgressText">準備中...</span>
-    </p>
-
-    <!-- エラー案内メッセージ -->
-    <div id="cameraErrorMessageBox" class="mt-4 p-3 bg-red-950/80 border border-red-500/60 rounded-xl text-left max-w-xs hidden">
-      <div class="text-[11px] font-black text-red-300 flex items-center space-x-1 mb-1">
-        <span>⚠️</span>
-        <span>起動エラー</span>
-      </div>
-      <p id="cameraErrorMessage" class="text-xs text-red-200 font-bold leading-relaxed"></p>
-      <div class="mt-2 pt-2 border-t border-red-800 text-[10px] text-red-300">
-        💡 ブラウザのアドレスバー横の鍵アイコンから「カメラ」アクセスを許可してください。
-      </div>
-    </div>
-  </div>
-
-  <!-- 8. 測定結果レポートモーダル -->
-  <div id="reportModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-4 hidden">
-    <div class="relative bg-slate-900 border-2 border-amber-400 rounded-3xl p-5 w-full max-w-sm shadow-2xl flex flex-col items-center text-center overflow-hidden">
-      <div class="absolute -inset-10 opacity-15 pointer-events-none flex items-center justify-center">
-        <div class="w-96 h-96 bg-gradient-to-r from-yellow-400 to-amber-600 rounded-full animate-sunburst blur-xl"></div>
-      </div>
-
-      <div class="text-[10px] font-black text-amber-300 tracking-widest uppercase mb-1">MEASUREMENT RESULT (v2.5.2)</div>
-      <h3 id="reportTestTitle" class="text-sm font-black text-white mb-2">胸パカーン（胸椎回旋）</h3>
-
-      <div class="my-2 flex flex-col items-center">
-        <div class="flex items-baseline">
-          <span id="reportAngleText" class="text-6xl font-black text-yellow-300 drop-shadow">0</span>
-          <span class="text-2xl font-bold text-yellow-400 ml-1">°</span>
-        </div>
-        <div id="reportRankTitle" class="mt-1 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 px-4 py-1 rounded-full text-xs font-black shadow-lg">
-          🐉 SUPER DRAGON
-        </div>
-      </div>
-
-      <div class="w-full bg-slate-950/80 border border-slate-800 rounded-2xl p-3 my-2 text-left">
-        <div class="text-[10px] font-black text-cyan-300 mb-1 flex items-center space-x-1">
-          <span>⚾ 野球の動きへの効果</span>
-        </div>
-        <p id="reportFeedbackText" class="text-xs text-slate-300 leading-relaxed font-bold">
-          すばらしい胸椎のしなり！トップでの捻転差がしっかり作れ、球速・飛距離アップに直結します！
-        </p>
-      </div>
-
-      <div class="w-full bg-gradient-to-r from-violet-950/50 to-indigo-950/50 border border-violet-500/40 rounded-2xl p-2.5 mb-3 flex items-center justify-between">
-        <div class="text-left">
-          <div class="text-[10px] font-black text-violet-300">即効！サビ取りドリル</div>
-          <div id="drillTitleText" class="text-xs font-black text-white">胸開きオープンストレッチ</div>
-        </div>
-        <button id="startDrillBtn" class="btn-3d btn-3d-purple px-3 py-1.5 rounded-xl text-[10px] font-black">
-          1分実践 ➔
-        </button>
-      </div>
-
-      <div class="w-full grid grid-cols-2 gap-2">
-        <button id="retryTestBtn" class="btn-3d btn-3d-yellow py-3 rounded-2xl text-xs font-black text-amber-950">
-          🔄 もう一度
-        </button>
-        <button id="shareOrNextBtn" class="btn-3d btn-3d-green py-3 rounded-2xl text-xs font-black text-white">
-          次のテスト ➔
-        </button>
-      </div>
-
-      <div class="mt-2.5 text-[10px] font-bold text-slate-400 flex items-center justify-center space-x-1">
-        <span>☁️</span>
-        <span id="saveStatusText">クラウドに自動保存完了！</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- 9. 測定データ履歴モーダル -->
-  <div id="historyModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-4 hidden">
-    <div class="bg-slate-900 border-2 border-violet-400 rounded-3xl p-5 w-full max-w-md shadow-2xl flex flex-col max-h-[88vh]">
-      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-        <h2 class="text-sm font-black text-violet-300 flex items-center space-x-1.5">
-          <span>📊</span>
-          <span>測定データ履歴 (v2.5.2)</span>
-        </h2>
-        <button id="closeHistoryBtn" class="text-slate-400 hover:text-white text-xl font-black">✕</button>
-      </div>
-
-      <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-1.5 mb-3 text-left">
-        <div class="text-[9px] font-bold text-slate-400">ユーザーID:</div>
-        <div id="currentUserIdText" class="text-[10px] font-mono text-cyan-300 break-all select-all">認証待機中...</div>
-      </div>
-
-      <div id="historyListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px]">
-        <div class="text-xs text-slate-400 text-center py-8">データ読み込み中...</div>
-      </div>
-
-      <div class="mt-3 pt-2 border-t border-slate-800">
-        <button id="closeHistoryBottomBtn" class="btn-3d btn-3d-blue w-full py-2.5 rounded-xl text-xs font-black">
-          閉じる
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 10. やり方ガイドモーダル -->
-  <div id="howToModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-4 hidden">
-    <div class="bg-slate-900 border-2 border-cyan-400 rounded-3xl p-5 w-full max-w-md shadow-2xl flex flex-col max-h-[88vh] overflow-y-auto">
-      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-        <h2 class="text-sm font-black text-cyan-300 flex items-center space-x-1.5">
-          <span>📖</span>
-          <span>測定のやり方とポイント</span>
-        </h2>
-        <button id="closeHowToBtn" class="text-slate-400 hover:text-white text-xl font-black">✕</button>
-      </div>
-
-      <div class="space-y-3 text-left text-xs text-slate-300">
-        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
-          <div class="text-amber-300 font-black mb-1">① 胸パカーン（椅子に座る）</div>
-          <p class="leading-relaxed">椅子に浅く腰掛け、両膝をピタッと閉じます。手は胸の前でクロス！GOの合図で膝を開かずに胸だけを大きく回します。</p>
-        </div>
-        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
-          <div class="text-amber-300 font-black mb-1">② タメ絞り（椅子に座る）</div>
-          <p class="leading-relaxed">椅子に座り、両膝をくっつけます。太ももを開かないように固定したまま、足首だけを車のワイパーのように外側へ振ります。</p>
-        </div>
-        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
-          <div class="text-amber-300 font-black mb-1">③ 床レッグレイズ（床に仰向け）</div>
-          <p class="leading-relaxed">床に仰向けに寝て、スマホを真横に置きます。膝をピンと伸ばしたまま、片足を天井に向かって真上へ持ち上げます。</p>
-        </div>
-      </div>
-
-      <div class="mt-4">
-        <button id="closeHowToBottomBtn" class="btn-3d btn-3d-yellow w-full py-2.5 rounded-xl text-xs font-black text-amber-950">
-          わかった！
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== Firebase 永続化ストレージモジュール ==================== -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'flexible-dragon-pro';
-    let db = null;
-    let auth = null;
-    let currentUserId = null;
-    let isDbReady = false;
-
-    const pendingSaveQueue = [];
-
-    async function initFirebaseStorage() {
-      try {
-        if (typeof __firebase_config === 'undefined') {
-          console.warn('Firebase config missing; running in local-session mode.');
-          const userElem = document.getElementById('currentUserIdText');
-          if (userElem) userElem.innerText = 'ローカルセッションモード';
-          return;
-        }
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-
-        currentUserId = auth.currentUser ? auth.currentUser.uid : null;
-        if (currentUserId) {
-          isDbReady = true;
-          const userElem = document.getElementById('currentUserIdText');
-          if (userElem) userElem.innerText = currentUserId;
-
-          while (pendingSaveQueue.length > 0) {
-            const task = pendingSaveQueue.shift();
-            await executeSave(task);
-          }
-
-          subscribeHistory();
-        }
-      } catch (err) {
-        console.error('Storage Init Error:', err);
-      }
-    }
-
-    async function executeSave(record) {
-      if (!isDbReady || !db || !currentUserId) return;
-      const statusElem = document.getElementById('saveStatusText');
-      if (statusElem) statusElem.innerText = 'クラウドに保存中...';
-
-      try {
-        const recordsCol = collection(db, 'artifacts', appId, 'users', currentUserId, 'measurements');
-        await addDoc(recordsCol, {
-          testId: record.testId,
-          testTitle: record.testTitle,
-          side: record.side,
-          angle: Number(record.angle),
-          rank: record.rank,
-          version: 'v2.5.2',
-          createdAt: new Date().toISOString(),
-          timestamp: Date.now()
-        });
-        if (statusElem) statusElem.innerText = '✅ クラウド保存完了！';
-      } catch (e) {
-        console.error('Save failed:', e);
-        if (statusElem) statusElem.innerText = '⚠️ クラウド保存をスキップしました';
-      }
-    }
-
-    window.saveMeasurementToCloud = async function(testId, testTitle, side, angle, rank) {
-      const record = { testId, testTitle, side, angle, rank };
-      if (!isDbReady) {
-        pendingSaveQueue.push(record);
-        const statusElem = document.getElementById('saveStatusText');
-        if (statusElem) statusElem.innerText = '☁️ 認証完了後に保存されます';
-        return;
-      }
-      await executeSave(record);
-    };
-
-    function subscribeHistory() {
-      if (!isDbReady || !db || !currentUserId) return;
-      const recordsCol = collection(db, 'artifacts', appId, 'users', currentUserId, 'measurements');
-
-      onSnapshot(recordsCol, (snapshot) => {
-        const listContainer = document.getElementById('historyListContainer');
-        if (!listContainer) return;
-
-        if (snapshot.empty) {
-          listContainer.innerHTML = '<div class="text-xs text-slate-400 text-center py-8">まだ測定データがありません。<br>測定すると自動でここに記録されます！</div>';
-          return;
-        }
-
-        const records = [];
-        snapshot.forEach((doc) => {
-          records.push({ id: doc.id, ...doc.data() });
-        });
-        records.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-        let html = '';
-        records.forEach((rec) => {
-          const dateStr = rec.createdAt ? new Date(rec.createdAt).toLocaleDateString('ja-JP', {
-            month: 'numeric',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          }) : '---';
-          const sideText = rec.side === 'right' ? '右' : '左';
-
-          html += `
-            <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-left">
-              <div class="min-w-0 flex-1 pr-2">
-                <div class="flex items-center space-x-1 text-[10px] text-slate-400 mb-0.5">
-                  <span>${dateStr}</span>
-                  <span class="bg-slate-700 text-cyan-300 px-1 rounded">${sideText}側</span>
-                </div>
-                <div class="text-xs font-black text-white truncate">${rec.testTitle || rec.testId}</div>
-              </div>
-              <div class="text-right shrink-0">
-                <div class="text-base font-black text-yellow-300 leading-none">${rec.angle}<span class="text-xs">°</span></div>
-                <div class="text-[9px] font-bold text-emerald-400 mt-0.5">${rec.rank || '記録'}</div>
-              </div>
-            </div>
-          `;
-        });
-        listContainer.innerHTML = html;
-      }, (err) => {
-        console.error('Snapshot error:', err);
-      });
-    }
-
-    initFirebaseStorage();
-  </script>
-
-  <!-- ==================== メインスクリプト ==================== -->
-  <script>
-    /**
-     * アプリケーション定数定義 (v2.5.2)
-     */
-    const APP_VERSION = 'v2.5.2';
-
-    const BIOMECHANICS_CONFIG = {
-      THORACIC: {
-        MAX_KNEE_HIP_RATIO: 1.35,
-        MAX_MEASURE_ANGLE: 90,
-        ROTATION_SCALE: 85.0
-      },
-      HIP: {
-        MAX_KNEE_HIP_RATIO: 1.25,
-        MAX_MEASURE_ANGLE: 60
-      },
-      ASLR: {
-        MIN_KNEE_EXTENSION_DEG: 145,
-        MAX_MEASURE_ANGLE: 110,
-        CHEAT_TRIGGER_ANGLE: 15,
-        BODY_MIN_Y: 0.35,
-        HORIZONTAL_TOLERANCE_DY: 0.22
-      },
-      LOCKON: {
-        HOLD_DURATION_MS: 950,
-        SEATED_HIP_KNEE_DY: 0.08
-      },
-      APP: {
-        MEASURE_DURATION_MS: 7000
-      }
-    };
-
-    /* --------------------------------------------------------------------------
-       1. Web Audio API シンセサイザー
-       -------------------------------------------------------------------------- */
-    class SoundFX {
-      constructor() {
-        this.ctx = null;
-      }
-      init() {
-        try {
-          if (!this.ctx) {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            if (AudioContextClass) {
-              this.ctx = new AudioContextClass();
-            }
-          }
-          if (this.ctx && this.ctx.state === 'suspended') {
-            this.ctx.resume();
-          }
-        } catch (e) {
-          console.warn('AudioContext init warning:', e);
-        }
-      }
-      playPip() {
-        if (!this.ctx) return;
-        try {
-          const now = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(880, now);
-          gain.gain.setValueAtTime(0.15, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.08);
-        } catch (e) {}
-      }
-      playCountdownTick() {
-        if (!this.ctx) return;
-        try {
-          const now = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(600, now);
-          gain.gain.setValueAtTime(0.25, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.12);
-        } catch (e) {}
-      }
-      playWhistle() {
-        if (!this.ctx) return;
-        try {
-          const now = this.ctx.currentTime;
-          const osc1 = this.ctx.createOscillator();
-          const osc2 = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc1.type = 'sine';
-          osc2.type = 'sine';
-          osc1.frequency.setValueAtTime(2400, now);
-          osc2.frequency.setValueAtTime(2450, now);
-          gain.gain.setValueAtTime(0.2, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-          osc1.connect(gain);
-          osc2.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc1.start(now);
-          osc2.start(now);
-          osc1.stop(now + 0.45);
-          osc2.stop(now + 0.45);
-        } catch (e) {}
-      }
-      playFanfare() {
-        if (!this.ctx) return;
-        try {
-          const notes = [523.25, 659.25, 783.99, 1046.50];
-          notes.forEach((freq, idx) => {
-            const now = this.ctx.currentTime + idx * 0.1;
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, now);
-            gain.gain.setValueAtTime(0.25, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start(now);
-            osc.stop(now + 0.25);
-          });
-        } catch (e) {}
-      }
-      playBuzzer() {
-        if (!this.ctx) return;
-        try {
-          const now = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(160, now);
-          gain.gain.setValueAtTime(0.2, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.2);
-        } catch (e) {}
-      }
-    }
-
-    const sound = new SoundFX();
-
-    /* --------------------------------------------------------------------------
-       2. Web Speech API 音声コーチ
-       -------------------------------------------------------------------------- */
-    class SpeechCoach {
-      constructor() {
-        this.synth = window.speechSynthesis || null;
-        this.lastSpeakTime = 0;
-        this.minInterval = 1800;
-        this.subIndicator = null;
-        this.subText = null;
-        this.currentUtterance = null;
-        this.timeoutId = null;
-      }
-      bindElements(indicator, textElem) {
-        this.subIndicator = indicator;
-        this.subText = textElem;
-      }
-      speak(text, force = false) {
-        if (!this.synth) return;
-        const now = Date.now();
-        if (!force && (now - this.lastSpeakTime < this.minInterval)) return;
-        this.lastSpeakTime = now;
-
-        try {
-          if (this.timeoutId) clearTimeout(this.timeoutId);
-          this.synth.cancel();
-
-          setTimeout(() => {
-            const uttr = new SpeechSynthesisUtterance(text);
-            this.currentUtterance = uttr;
-            uttr.lang = 'ja-JP';
-            uttr.rate = 1.05;
-            uttr.pitch = 1.05;
-
-            uttr.onstart = () => {
-              if (this.subText) this.subText.innerText = text;
-              if (this.subIndicator) this.subIndicator.style.opacity = '1';
-            };
-
-            const cleanup = () => {
-              this.currentUtterance = null;
-              if (this.subIndicator) {
-                this.subIndicator.style.opacity = '0.6';
-              }
-            };
-
-            uttr.onend = cleanup;
-            uttr.onerror = cleanup;
-
-            this.timeoutId = setTimeout(cleanup, 5000);
-            this.synth.speak(uttr);
-          }, 50);
-        } catch (e) {
-          console.warn('Speech error:', e);
-        }
-      }
-      stop() {
-        if (this.synth) {
-          try { this.synth.cancel(); } catch(e) {}
-        }
-        this.currentUtterance = null;
-        if (this.timeoutId) clearTimeout(this.timeoutId);
-      }
-    }
-
-    const voice = new SpeechCoach();
-
-    /* --------------------------------------------------------------------------
-       3. 1€フィルター（One Euro Filter）
-       -------------------------------------------------------------------------- */
-    class LowPassFilter {
-      constructor(alpha) {
-        this.setAlpha(alpha);
-        this.y = null;
-        this.s = null;
-      }
-      setAlpha(alpha) {
-        this.alpha = alpha;
-      }
-      filter(value) {
-        if (this.y === null) {
-          this.s = value;
-          this.y = value;
-        } else {
-          this.y = this.alpha * value + (1.0 - this.alpha) * this.s;
-          this.s = this.y;
-        }
-        return this.y;
-      }
-    }
-
-    class OneEuroFilter {
-      constructor(freq, minCutoff = 1.0, beta = 0.007, dCutoff = 1.0) {
-        this.freq = freq;
-        this.minCutoff = minCutoff;
-        this.beta = beta;
-        this.dCutoff = dCutoff;
-        this.x = new LowPassFilter(this.alpha(minCutoff));
-        this.dx = new LowPassFilter(this.alpha(dCutoff));
-        this.lastTime = null;
-      }
-      alpha(cutoff) {
-        const te = 1.0 / this.freq;
-        const tau = 1.0 / (2 * Math.PI * cutoff);
-        return 1.0 / (1.0 + tau / te);
-      }
-      filter(val, timestamp) {
-        if (this.lastTime && timestamp) {
-          const dt = (timestamp - this.lastTime) / 1000;
-          if (dt > 0 && dt < 1.0) {
-            this.freq = 1.0 / dt;
-          }
-        }
-        this.lastTime = timestamp;
-        const prevX = this.x.y;
-        const dx = prevX === null ? 0 : (val - prevX) * this.freq;
-        const edx = this.dx.filter(dx);
-        const cutoff = this.minCutoff + this.beta * Math.abs(edx);
-        this.x.setAlpha(this.alpha(cutoff));
-        return this.x.filter(val);
-      }
-      reset() {
-        this.x.y = null;
-        this.dx.y = null;
-        this.lastTime = null;
-      }
-    }
-
-    /* --------------------------------------------------------------------------
-       4. テスト定義＆メタデータ
-       -------------------------------------------------------------------------- */
-    const TEST_SPECS = {
-      thoracic_seated: {
-        id: 'thoracic_seated',
-        title: '① 胸パカーン（胸椎回旋）',
-        setupText: '🪑 椅子に座る',
-        targetGoal: 45,
-        ranks: [
-          { min: 48, title: '🐉 SUPER DRAGON', color: '#fbbf24' },
-          { min: 40, title: '🔥 S級 (プロ級)', color: '#38bdf8' },
-          { min: 30, title: '⚡ A級 (標準)', color: '#4ade80' },
-          { min: 0,  title: '🛡️ B級 (サビあり)', color: '#94a3b8' }
-        ],
-        voiceInstruction: '椅子に座って、両膝をピタッと閉じてね。両手は胸の前でクロス！',
-        readyInstruction: 'いい構え！膝を閉じたまま動かずジッとキープ！',
-        actionInstruction: '両膝を閉じたまま、胸を大きく回して！',
-        feedback: '胸郭のしなりは、投球・打撃での「捻転差（割れ）」の源泉です。骨盤をロックして胸だけ回せると、球速と飛距離が劇的に伸びます！',
-        drillTitle: '胸椎オープンソラシック・ドリル',
-        pipSvg: `
-          <svg viewBox="0 0 100 100" class="w-20 h-20">
-            <rect x="25" y="60" width="50" height="6" rx="3" fill="#64748b"/>
-            <circle cx="50" cy="25" r="10" fill="#facc15"/>
-            <path d="M50,35 L50,65 M40,45 L60,45" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
-            <path d="M35,65 L35,85 M65,65 L65,85" stroke="#94a3b8" stroke-width="6" stroke-linecap="round"/>
-            <path d="M30,40 Q50,28 70,40" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="3,3"/>
-            <polygon points="73,42 66,35 69,45" fill="#f59e0b"/>
-          </svg>
-        `
-      },
-      hip_seated: {
-        id: 'hip_seated',
-        title: '② タメ絞り（股関節内旋）',
-        setupText: '🪑 椅子に座る',
-        targetGoal: 35,
-        ranks: [
-          { min: 35, title: '🐉 SUPER DRAGON', color: '#fbbf24' },
-          { min: 28, title: '🔥 S級 (プロ級)', color: '#38bdf8' },
-          { min: 20, title: '⚡ A級 (標準)', color: '#4ade80' },
-          { min: 0,  title: '🛡️ B級 (サビあり)', color: '#94a3b8' }
-        ],
-        voiceInstruction: '椅子に座って、両膝をくっつけよう。太ももを開かないように固定！',
-        readyInstruction: 'そのままキープ！膝を閉じたまま足首だけワイパー準備！',
-        actionInstruction: '膝を閉じたまま、足首だけを外側へ振って！',
-        feedback: '軸足のタメとは、骨盤を大腿骨の上にグッと絞り込む能力です。内旋可動域が広いほど、並進運動のパワーを逃さず地面に溜め込めます！',
-        drillTitle: '座位ワイパー・モビリティドリル',
-        pipSvg: `
-          <svg viewBox="0 0 100 100" class="w-20 h-20">
-            <rect x="25" y="55" width="50" height="6" rx="3" fill="#64748b"/>
-            <circle cx="50" cy="22" r="8" fill="#facc15"/>
-            <path d="M50,30 L50,60" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
-            <path d="M42,60 L42,88" stroke="#64748b" stroke-width="5" stroke-linecap="round"/>
-            <path d="M58,60 L78,82" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
-            <circle cx="58" cy="60" r="4" fill="#fbbf24"/>
-            <path d="M58,85 Q72,86 78,82" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="3,3"/>
-          </svg>
-        `
-      },
-      aslr_floor: {
-        id: 'aslr_floor',
-        title: '③ 床レッグレイズ（ハム柔軟性）',
-        setupText: '🛏️ 床に仰向け',
-        targetGoal: 85,
-        ranks: [
-          { min: 88, title: '🐉 SUPER DRAGON', color: '#fbbf24' },
-          { min: 78, title: '🔥 S級 (プロ級)', color: '#38bdf8' },
-          { min: 65, title: '⚡ A級 (標準)', color: '#4ade80' },
-          { min: 0,  title: '🛡️ B級 (サビあり)', color: '#94a3b8' }
-        ],
-        voiceInstruction: '床に仰向けに寝てね。スマホは横に置こう。両足をまっすぐ伸ばして！',
-        readyInstruction: 'いい姿勢！膝を伸ばしたまま動かずジッとキープ！',
-        actionInstruction: '膝をピンと伸ばしたまま、片足を真上に持ち上げて！',
-        feedback: 'ハムストリングスの柔らかさは、投球時の踏み込み足の粘りとフォロースルーを支えます。骨盤を立てて強く振り抜くための必須条件です！',
-        drillTitle: 'アクティブASLR・ハムストリング覚醒',
-        pipSvg: `
-          <svg viewBox="0 0 100 100" class="w-20 h-20">
-            <line x1="10" y1="85" x2="90" y2="85" stroke="#64748b" stroke-width="4"/>
-            <circle cx="25" cy="78" r="8" fill="#facc15"/>
-            <path d="M32,80 L55,80" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
-            <path d="M55,80 L88,80" stroke="#64748b" stroke-width="5" stroke-linecap="round"/>
-            <path d="M55,80 L62,35" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
-            <path d="M75,80 A30,30 0 0,0 62,45" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="3,3"/>
-          </svg>
-        `
-      }
-    };
-
-    /* --------------------------------------------------------------------------
-       5. DOM要素キャッシュ ＆ タイマープール
-       -------------------------------------------------------------------------- */
-    const DOM = {
-      video: document.getElementById('webcam'),
-      canvas: document.getElementById('outputCanvas'),
-      screenBorder: document.getElementById('screenBorder'),
-      cheatWarningHud: document.getElementById('cheatWarningHud'),
-      cheatWarningText: document.getElementById('cheatWarningText'),
-      setupBadge: document.getElementById('setupBadge'),
-      guideTitle: document.getElementById('guideTitle'),
-      remoteStepIcon: document.getElementById('remoteStepIcon'),
-      remoteStepText: document.getElementById('remoteStepText'),
-      holdProgressBar: document.getElementById('holdProgressBar'),
-      meterModeLabel: document.getElementById('meterModeLabel'),
-      liveAngleText: document.getElementById('liveAngleText'),
-      liveRankBadge: document.getElementById('liveRankBadge'),
-      targetGoalText: document.getElementById('targetGoalText'),
-      remainingTimeBox: document.getElementById('remainingTimeBox'),
-      remainingSecondsText: document.getElementById('remainingSecondsText'),
-      pipVisualContainer: document.getElementById('pipVisualContainer'),
-      pipActionCaption: document.getElementById('pipActionCaption'),
-      voiceCoachIndicator: document.getElementById('voiceCoachIndicator'),
-      voiceCoachText: document.getElementById('voiceCoachText'),
-      countdownOverlay: document.getElementById('countdownOverlay'),
-      countdownNumber: document.getElementById('countdownNumber'),
-      sideLeftBtn: document.getElementById('sideLeftBtn'),
-      sideRightBtn: document.getElementById('sideRightBtn'),
-      tabThoracic: document.getElementById('tabThoracic'),
-      tabHip: document.getElementById('tabHip'),
-      tabAslr: document.getElementById('tabAslr'),
-      startCameraScreen: document.getElementById('startCameraScreen'),
-      requestCameraBtn: document.getElementById('requestCameraBtn'),
-      requestCameraBtnIcon: document.getElementById('requestCameraBtnIcon'),
-      requestCameraBtnText: document.getElementById('requestCameraBtnText'),
-      cameraStatusProgress: document.getElementById('cameraStatusProgress'),
-      cameraStatusProgressText: document.getElementById('cameraStatusProgressText'),
-      cameraErrorMessageBox: document.getElementById('cameraErrorMessageBox'),
-      cameraErrorMessage: document.getElementById('cameraErrorMessage'),
-      cameraSwitchBtn: document.getElementById('cameraSwitchBtn'),
-      cameraSwitchLabel: document.getElementById('cameraSwitchLabel'),
-      replayVoiceBtn: document.getElementById('replayVoiceBtn'),
-      howToBtn: document.getElementById('howToBtn'),
-      howToModal: document.getElementById('howToModal'),
-      closeHowToBtn: document.getElementById('closeHowToBtn'),
-      closeHowToBottomBtn: document.getElementById('closeHowToBottomBtn'),
-      historyOpenBtn: document.getElementById('historyOpenBtn'),
-      historyModal: document.getElementById('historyModal'),
-      closeHistoryBtn: document.getElementById('closeHistoryBtn'),
-      closeHistoryBottomBtn: document.getElementById('closeHistoryBottomBtn'),
-      reportModal: document.getElementById('reportModal'),
-      reportTestTitle: document.getElementById('reportTestTitle'),
-      reportAngleText: document.getElementById('reportAngleText'),
-      reportRankTitle: document.getElementById('reportRankTitle'),
-      reportFeedbackText: document.getElementById('reportFeedbackText'),
-      drillTitleText: document.getElementById('drillTitleText'),
-      startDrillBtn: document.getElementById('startDrillBtn'),
-      retryTestBtn: document.getElementById('retryTestBtn'),
-      shareOrNextBtn: document.getElementById('shareOrNextBtn'),
-      saveStatusText: document.getElementById('saveStatusText')
-    };
-
-    voice.bindElements(DOM.voiceCoachIndicator, DOM.voiceCoachText);
-
-    const TimerPool = {
-      activeIntervals: new Set(),
-      activeTimeouts: new Set(),
-      setInterval(fn, ms) {
-        const id = setInterval(fn, ms);
-        this.activeIntervals.add(id);
-        return id;
-      },
-      clearInterval(id) {
-        clearInterval(id);
-        this.activeIntervals.delete(id);
-      },
-      setTimeout(fn, ms) {
-        const id = setTimeout(() => {
-          this.activeTimeouts.delete(id);
-          fn();
-        }, ms);
-        this.activeTimeouts.add(id);
-        return id;
-      },
-      clearTimeout(id) {
-        clearTimeout(id);
-        this.activeTimeouts.delete(id);
-      },
-      clearAll() {
-        this.activeIntervals.forEach(id => clearInterval(id));
-        this.activeIntervals.clear();
-        this.activeTimeouts.forEach(id => clearTimeout(id));
-        this.activeTimeouts.clear();
-      }
-    };
-
-    /* --------------------------------------------------------------------------
-       6. BiomechanicsCore: 数理幾何計算
-       -------------------------------------------------------------------------- */
-    const BiomechanicsCore = {
-      calculateThoracic(landmarks, side, baseline) {
-        const lSh = landmarks[11];
-        const rSh = landmarks[12];
-        const lHip = landmarks[23];
-        const rHip = landmarks[24];
-        const lKnee = landmarks[25];
-        const rKnee = landmarks[26];
-
-        const kneeDist = Math.hypot(rKnee.x - lKnee.x, rKnee.y - lKnee.y);
-        const hipDist = Math.hypot(rHip.x - lHip.x, rHip.y - lHip.y);
-        let cheat = false;
-        let reason = '';
-        if (kneeDist > hipDist * BIOMECHANICS_CONFIG.THORACIC.MAX_KNEE_HIP_RATIO) {
-          cheat = true;
-          reason = '膝が開いてるぞ！膝をピタッと閉じて！';
-        }
-
-        if (!baseline || !baseline.shoulderWidth) {
-          return { angle: 0, cheat, reason };
-        }
-
-        const currentWidth = Math.hypot(rSh.x - lSh.x, rSh.y - lSh.y);
-        const baseWidth = baseline.shoulderWidth + 1e-6;
-
-        const widthCompression = Math.max(0, Math.min(1.0, currentWidth / baseWidth));
-        const widthAngle = Math.sqrt(Math.max(0, 1.0 - widthCompression * widthCompression)) * (180 / Math.PI);
-
-        const sternumX = (rSh.x + lSh.x) / 2;
-        const targetShoulder = side === 'right' ? rSh : lSh;
-        const otherShoulder = side === 'right' ? lSh : rSh;
-        const targetArmLen = Math.abs(targetShoulder.x - sternumX);
-        const otherArmLen = Math.abs(otherShoulder.x - sternumX);
-        const asymmetryRatio = Math.max(0, (otherArmLen - targetArmLen) / (currentWidth + 1e-6));
-        const asymmetryAngle = asymmetryRatio * BIOMECHANICS_CONFIG.THORACIC.ROTATION_SCALE;
-
-        let rawAngle = (widthAngle * 0.55) + (asymmetryAngle * 0.45);
-
-        const shoulderMidX = (rSh.x + lSh.x) / 2;
-        const hipMidX = (rHip.x + lHip.x) / 2;
-        const sideOffset = side === 'right' ? (shoulderMidX - hipMidX) : (hipMidX - shoulderMidX);
-        if (sideOffset < -0.05) {
-          rawAngle *= 0.5;
-        }
-
-        const angle = Math.min(BIOMECHANICS_CONFIG.THORACIC.MAX_MEASURE_ANGLE, Math.max(0, rawAngle));
-        return { angle: Math.round(angle), cheat, reason };
-      },
-
-      calculateHip(landmarks, side, baseline) {
-        const lKnee = landmarks[25];
-        const rKnee = landmarks[26];
-        const lAnkle = landmarks[27];
-        const rAnkle = landmarks[28];
-        const lHip = landmarks[23];
-        const rHip = landmarks[24];
-
-        const kneeGap = Math.hypot(rKnee.x - lKnee.x, rKnee.y - lKnee.y);
-        const hipGap = Math.hypot(rHip.x - lHip.x, rHip.y - lHip.y);
-        let cheat = false;
-        let reason = '';
-        if (kneeGap > hipGap * BIOMECHANICS_CONFIG.HIP.MAX_KNEE_HIP_RATIO) {
-          cheat = true;
-          reason = '太ももが開いてるぞ！膝を閉じて足首だけ外へ！';
-        }
-
-        const knee = side === 'right' ? rKnee : lKnee;
-        const ankle = side === 'right' ? rAnkle : lAnkle;
-
-        const legDx = ankle.x - knee.x;
-        const legDy = ankle.y - knee.y;
-        const currentSlope = Math.atan2(legDx, legDy) * (180 / Math.PI);
-
-        if (!baseline) {
-          return { angle: 0, cheat, reason };
-        }
-
-        const anatomySign = side === 'right' ? -1 : 1;
-        const rawSwing = (currentSlope - baseline.slope) * anatomySign;
-        const angle = Math.min(BIOMECHANICS_CONFIG.HIP.MAX_MEASURE_ANGLE, Math.max(0, rawSwing));
-
-        return { angle: Math.round(angle), cheat, reason };
-      },
-
-      calculateAslr(landmarks, side, baseline) {
-        const hip = side === 'right' ? landmarks[24] : landmarks[23];
-        const knee = side === 'right' ? landmarks[26] : landmarks[25];
-        const ankle = side === 'right' ? landmarks[28] : landmarks[27];
-
-        const thDx = knee.x - hip.x;
-        const thDy = knee.y - hip.y;
-        const legSlope = Math.atan2(Math.abs(thDy), Math.abs(thDx)) * (180 / Math.PI);
-
-        let angle = 0;
-        if (baseline) {
-          const delta = legSlope - baseline.slope;
-          angle = Math.min(BIOMECHANICS_CONFIG.ASLR.MAX_MEASURE_ANGLE, Math.max(0, delta));
-        }
-
-        const v1x = hip.x - knee.x, v1y = hip.y - knee.y;
-        const v2x = ankle.x - knee.x, v2y = ankle.y - knee.y;
-        const dot = v1x * v2x + v1y * v2y;
-        const mag1 = Math.hypot(v1x, v1y);
-        const mag2 = Math.hypot(v2x, v2y);
-        const kneeAngle = Math.acos(Math.max(-1, Math.min(1, dot / (mag1 * mag2 + 1e-6)))) * (180 / Math.PI);
-
-        let cheat = false;
-        let reason = '';
-        if (angle > BIOMECHANICS_CONFIG.ASLR.CHEAT_TRIGGER_ANGLE && kneeAngle < BIOMECHANICS_CONFIG.ASLR.MIN_KNEE_EXTENSION_DEG) {
-          cheat = true;
-          reason = '膝をピンと伸ばして！';
-        }
-
-        return { angle: Math.round(angle), cheat, reason };
-      },
-
-      checkPoseReady(testId, landmarks) {
-        if (!landmarks || landmarks.length < 33) return false;
-        const lSh = landmarks[11], rSh = landmarks[12];
-        const lHip = landmarks[23], rHip = landmarks[24];
-        const lKnee = landmarks[25], rKnee = landmarks[26];
-        const lAnkle = landmarks[27], rAnkle = landmarks[28];
-
-        if (!lSh || !rSh || !lHip || !rHip || !lKnee || !rKnee) return false;
-
-        if (testId === 'thoracic_seated' || testId === 'hip_seated') {
-          const kneeGap = Math.hypot(rKnee.x - lKnee.x, rKnee.y - lKnee.y);
-          const hipGap = Math.hypot(rHip.x - lHip.x, rHip.y - lHip.y);
-          const isKneeClosed = kneeGap < hipGap * BIOMECHANICS_CONFIG.THORACIC.MAX_KNEE_HIP_RATIO;
-          const isSeated = (lHip.y < lKnee.y) && (lKnee.y - lHip.y > BIOMECHANICS_CONFIG.LOCKON.SEATED_HIP_KNEE_DY);
-          return isKneeClosed && isSeated;
-        } else if (testId === 'aslr_floor') {
-          if (!lAnkle || !rAnkle) return false;
-          const isShoulderHipHorizontal = Math.abs(lSh.y - lHip.y) < BIOMECHANICS_CONFIG.ASLR.HORIZONTAL_TOLERANCE_DY;
-          const isHipKneeHorizontal = Math.abs(lHip.y - lKnee.y) < BIOMECHANICS_CONFIG.ASLR.HORIZONTAL_TOLERANCE_DY;
-          const isHipAnkleHorizontal = Math.abs(lHip.y - lAnkle.y) < BIOMECHANICS_CONFIG.ASLR.HORIZONTAL_TOLERANCE_DY;
-          const isLowerScreen = (lSh.y > BIOMECHANICS_CONFIG.ASLR.BODY_MIN_Y) && (lHip.y > BIOMECHANICS_CONFIG.ASLR.BODY_MIN_Y);
-
-          return isShoulderHipHorizontal && isHipKneeHorizontal && isHipAnkleHorizontal && isLowerScreen;
-        }
-        return false;
-      },
-
-      captureBaseline(testId, landmarks, side) {
-        if (testId === 'thoracic_seated') {
-          return {
-            shoulderWidth: Math.hypot(landmarks[12].x - landmarks[11].x, landmarks[12].y - landmarks[11].y),
-            p1: { x: landmarks[11].x, y: landmarks[11].y },
-            p2: { x: landmarks[12].x, y: landmarks[12].y }
-          };
-        } else if (testId === 'hip_seated') {
-          const knee = side === 'right' ? landmarks[26] : landmarks[25];
-          const ankle = side === 'right' ? landmarks[28] : landmarks[27];
-          return {
-            slope: Math.atan2(ankle.x - knee.x, ankle.y - knee.y) * (180 / Math.PI),
-            knee: { x: knee.x, y: knee.y },
-            ankle: { x: ankle.x, y: ankle.y }
-          };
-        } else if (testId === 'aslr_floor') {
-          const hip = side === 'right' ? landmarks[24] : landmarks[23];
-          const knee = side === 'right' ? landmarks[26] : landmarks[25];
-          return {
-            slope: Math.atan2(Math.abs(knee.y - hip.y), Math.abs(knee.x - hip.x)) * (180 / Math.PI),
-            hip: { x: hip.x, y: hip.y },
-            knee: { x: knee.x, y: knee.y }
-          };
-        }
-        return null;
-      }
-    };
-
-    /* --------------------------------------------------------------------------
-       7. AppFSM: 有限ステートマシン
-       -------------------------------------------------------------------------- */
-    const AppFSM = {
-      state: 'WAITING',
-      currentTest: 'thoracic_seated',
-      targetSide: 'right',
-      facingMode: 'user',
-      isModalOpen: false,
-
-      currentAngle: 0,
-      maxAngle: 0,
-      baselineData: null,
-      holdStartTime: 0,
-      countdownValue: 3,
-      measureStartTime: 0,
-      isCheatDetected: false,
-      cheatReason: '',
-
-      transitionTo(newState, payload = {}) {
-        if (this.state === newState) return;
-        this.exitState(this.state);
-        this.state = newState;
-        this.enterState(newState, payload);
-      },
-
-      exitState(state) {
-        voice.stop();
-        if (state === 'CHARGING') {
-          DOM.holdProgressBar.style.width = '0%';
-        } else if (state === 'COUNTDOWN') {
-          DOM.countdownOverlay.classList.add('hidden');
-        } else if (state === 'MEASURING') {
-          DOM.cheatWarningHud.classList.add('hidden');
-          DOM.remainingTimeBox.classList.add('hidden');
-        }
-      },
-
-      enterState(state, payload) {
-        const now = Date.now();
-        if (state === 'WAITING') {
-          ViewRenderer.renderWaitingState();
-        } else if (state === 'CHARGING') {
-          this.holdStartTime = now;
-          sound.playPip();
-          voice.speak(TEST_SPECS[this.currentTest].readyInstruction);
-        } else if (state === 'COUNTDOWN') {
-          this.countdownValue = 3;
-          DOM.countdownOverlay.classList.remove('hidden');
-          DOM.countdownNumber.innerText = '3';
-          sound.playCountdownTick();
-          voice.speak('3！');
-
-          TimerPool.clearAll();
-          let timerId = null;
-          timerId = TimerPool.setInterval(() => {
-            this.countdownValue--;
-            if (this.countdownValue > 0) {
-              DOM.countdownNumber.innerText = this.countdownValue;
-              sound.playCountdownTick();
-              voice.speak(`${this.countdownValue}！`);
-            } else if (this.countdownValue === 0) {
-              TimerPool.clearInterval(timerId);
-              DOM.countdownNumber.innerText = 'GO!';
-              sound.playWhistle();
-              voice.speak(TEST_SPECS[this.currentTest].actionInstruction, true);
-              this.baselineData = BiomechanicsCore.captureBaseline(this.currentTest, payload.landmarks, this.targetSide);
-              this.transitionTo('MEASURING');
-            }
-          }, 1000);
-        } else if (state === 'MEASURING') {
-          this.maxAngle = 0;
-          this.currentAngle = 0;
-          this.measureStartTime = now;
-          DOM.remainingTimeBox.classList.remove('hidden');
-          ViewRenderer.renderMeasuringHeader();
-        } else if (state === 'FINISHED') {
-          sound.playFanfare();
-          ViewRenderer.showResultModal(this.currentTest, this.targetSide, this.maxAngle);
-        }
-      },
-
-      update(landmarks) {
-        if (this.isModalOpen || !landmarks) return;
-        const isReady = BiomechanicsCore.checkPoseReady(this.currentTest, landmarks);
-        const now = Date.now();
-
-        if (this.state === 'WAITING') {
-          if (isReady) {
-            this.transitionTo('CHARGING');
-          }
-        } else if (this.state === 'CHARGING') {
-          if (!isReady) {
-            this.transitionTo('WAITING');
-            return;
-          }
-          const elapsed = now - this.holdStartTime;
-          const progress = Math.min(100, (elapsed / BIOMECHANICS_CONFIG.LOCKON.HOLD_DURATION_MS) * 100);
-          DOM.holdProgressBar.style.width = `${progress}%`;
-          DOM.screenBorder.className = 'absolute inset-0 border-4 border-cyan-400 pointer-events-none z-10 transition-colors duration-75';
-          DOM.remoteStepIcon.innerText = '⚡';
-          DOM.remoteStepText.innerText = 'そのままジッとキープ！';
-
-          if (progress >= 100) {
-            this.transitionTo('COUNTDOWN', { landmarks });
-          }
-        } else if (this.state === 'MEASURING') {
-          const elapsed = now - this.measureStartTime;
-          const remainingMs = Math.max(0, BIOMECHANICS_CONFIG.APP.MEASURE_DURATION_MS - elapsed);
-          const remainingSeconds = (remainingMs / 1000).toFixed(1);
-          DOM.remainingSecondsText.innerText = remainingSeconds;
-
-          const remainProgress = (remainingMs / BIOMECHANICS_CONFIG.APP.MEASURE_DURATION_MS) * 100;
-          DOM.holdProgressBar.style.width = `${remainProgress}%`;
-
-          let calc;
-          if (this.currentTest === 'thoracic_seated') {
-            calc = BiomechanicsCore.calculateThoracic(landmarks, this.targetSide, this.baselineData);
-          } else if (this.currentTest === 'hip_seated') {
-            calc = BiomechanicsCore.calculateHip(landmarks, this.targetSide, this.baselineData);
-          } else {
-            calc = BiomechanicsCore.calculateAslr(landmarks, this.targetSide, this.baselineData);
-          }
-
-          this.currentAngle = calc.angle;
-          this.isCheatDetected = calc.cheat;
-          this.cheatReason = calc.reason;
-
-          if (calc.cheat) {
-            DOM.cheatWarningHud.classList.remove('hidden');
-            DOM.cheatWarningText.innerText = calc.reason;
-            DOM.screenBorder.className = 'absolute inset-0 border-4 border-red-500 pointer-events-none z-10 cheat-active';
-            sound.playBuzzer();
-            voice.speak(calc.reason);
-          } else {
-            DOM.cheatWarningHud.classList.add('hidden');
-            DOM.screenBorder.className = 'absolute inset-0 border-4 border-emerald-400 pointer-events-none z-10';
-          }
-
-          if (!calc.cheat && calc.angle > this.maxAngle) {
-            this.maxAngle = calc.angle;
-          }
-
-          ViewRenderer.renderLiveAngle(this.currentAngle, this.maxAngle, this.currentTest);
-
-          if (remainingMs <= 0) {
-            this.transitionTo('FINISHED');
-          }
-        }
-      },
-
-      setTest(testId) {
-        TimerPool.clearAll();
-        this.currentTest = testId;
-        this.baselineData = null;
-        this.currentAngle = 0;
-        this.maxAngle = 0;
-        this.isCheatDetected = false;
-        if (typeof landmarkFilters !== 'undefined') {
-          landmarkFilters.forEach(f => { f.x.reset(); f.y.reset(); });
-        }
-        this.transitionTo('WAITING');
-        ViewRenderer.renderTestSelection(testId);
-        voice.speak(TEST_SPECS[testId].voiceInstruction, true);
-      },
-
-      setSide(side) {
-        TimerPool.clearAll();
-        this.targetSide = side;
-        this.baselineData = null;
-        this.transitionTo('WAITING');
-        ViewRenderer.renderSideSelection(side);
-        sound.playPip();
-        voice.speak(`${side === 'right' ? '右' : '左'}側の測定にセットしたよ！`);
-      }
-    };
-
-    /* --------------------------------------------------------------------------
-       8. ViewRenderer: 高DPI描画 & UI更新
-       -------------------------------------------------------------------------- */
-    const ViewRenderer = {
-      dpr: window.devicePixelRatio || 1,
-
-      renderWaitingState() {
-        DOM.screenBorder.className = 'absolute inset-0 border-4 border-slate-700/50 pointer-events-none z-10 transition-colors duration-300';
-        DOM.remoteStepIcon.innerText = '🎯';
-        DOM.remoteStepText.innerText = 'カメラに全身を映して！';
-        DOM.holdProgressBar.style.width = '0%';
-        DOM.liveAngleText.innerText = '0';
-        DOM.liveRankBadge.innerText = '構え待機中';
-        DOM.liveRankBadge.style.borderColor = '#64748b';
-        DOM.liveRankBadge.style.color = '#cbd5e1';
-      },
-
-      renderMeasuringHeader() {
-        DOM.screenBorder.className = 'absolute inset-0 border-4 border-emerald-400 pointer-events-none z-10';
-        DOM.remoteStepIcon.innerText = '🔥';
-        DOM.remoteStepText.innerText = '大きくしならせろ！';
-      },
-
-      renderLiveAngle(angle, maxAngle, testId) {
-        DOM.liveAngleText.innerText = angle;
-        const spec = TEST_SPECS[testId];
-        let rank = spec.ranks[spec.ranks.length - 1];
-        for (const r of spec.ranks) {
-          if (maxAngle >= r.min) {
-            rank = r;
-            break;
-          }
-        }
-        DOM.liveRankBadge.innerText = rank.title;
-        DOM.liveRankBadge.style.borderColor = rank.color;
-        DOM.liveRankBadge.style.color = rank.color;
-      },
-
-      renderTestSelection(testId) {
-        const spec = TEST_SPECS[testId];
-        DOM.setupBadge.innerText = spec.setupText;
-        DOM.guideTitle.innerText = spec.title;
-        DOM.targetGoalText.innerText = `${spec.targetGoal}°`;
-        DOM.pipVisualContainer.innerHTML = spec.pipSvg;
-        DOM.pipActionCaption.innerText = spec.actionInstruction;
-
-        [DOM.tabThoracic, DOM.tabHip, DOM.tabAslr].forEach(tab => {
-          tab.className = 'btn-3d py-1.5 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700';
-        });
-        if (testId === 'thoracic_seated') DOM.tabThoracic.className = 'btn-3d py-1.5 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300';
-        if (testId === 'hip_seated') DOM.tabHip.className = 'btn-3d py-1.5 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300';
-        if (testId === 'aslr_floor') DOM.tabAslr.className = 'btn-3d py-1.5 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300';
-      },
-
-      renderSideSelection(side) {
-        if (side === 'right') {
-          DOM.sideRightBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow';
-          DOM.sideLeftBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400';
-        } else {
-          DOM.sideLeftBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow';
-          DOM.sideRightBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400';
-        }
-      },
-
-      showResultModal(testId, side, maxAngle) {
-        const spec = TEST_SPECS[testId];
-        let rankTitle = '🛡️ B級 (サビあり)';
-        for (const r of spec.ranks) {
-          if (maxAngle >= r.min) {
-            rankTitle = r.title;
-            break;
-          }
-        }
-        voice.speak(`測定終了！最高角度は${maxAngle}度！${rankTitle.replace(/🐉|🔥|⚡|🛡️/g, '')}！`, true);
-
-        DOM.reportTestTitle.innerText = `${spec.title} (${side === 'right' ? '右側' : '左側'}) [${APP_VERSION}]`;
-        DOM.reportAngleText.innerText = maxAngle;
-        DOM.reportRankTitle.innerText = rankTitle;
-        DOM.reportFeedbackText.innerText = spec.feedback;
-        DOM.drillTitleText.innerText = spec.drillTitle;
-        DOM.reportModal.classList.remove('hidden');
-        AppFSM.isModalOpen = true;
-
-        if (typeof window.saveMeasurementToCloud === 'function') {
-          window.saveMeasurementToCloud(
-            testId,
-            spec.title,
-            side,
-            maxAngle,
-            rankTitle.replace(/🐉|🔥|⚡|🛡️/g, '').trim()
-          );
-        }
-      },
-
-      renderCanvas(landmarks, rawVideo) {
-        const canvas = DOM.canvas;
-        const ctx = canvas.getContext('2d');
-
-        const logicalW = window.innerWidth;
-        const logicalH = window.innerHeight;
-
-        ctx.clearRect(0, 0, logicalW, logicalH);
-
-        let renderW = logicalW;
-        let renderH = logicalH;
-        let offsetX = 0;
-        let offsetY = 0;
-
-        if (rawVideo && rawVideo.videoWidth) {
-          const vw = rawVideo.videoWidth;
-          const vh = rawVideo.videoHeight;
-          const scale = Math.max(logicalW / vw, logicalH / vh);
-          renderW = vw * scale;
-          renderH = vh * scale;
-          offsetX = (logicalW - renderW) / 2;
-          offsetY = (logicalH - renderH) / 2;
-
-          ctx.save();
-          if (AppFSM.facingMode === 'user') {
-            ctx.translate(logicalW, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(rawVideo, (logicalW - (offsetX + renderW)), offsetY, renderW, renderH);
-          } else {
-            ctx.drawImage(rawVideo, offsetX, offsetY, renderW, renderH);
-          }
-          ctx.restore();
-        }
-
-        if (!landmarks) return;
-
-        const toPx = (lm) => {
-          let normX = lm.x;
-          if (AppFSM.facingMode === 'user') {
-            normX = 1.0 - normX;
-          }
-          return {
-            x: offsetX + normX * renderW,
-            y: offsetY + lm.y * renderH
-          };
-        };
-
-        ctx.lineWidth = 6;
-        ctx.lineCap = 'round';
-
-        if (AppFSM.currentTest === 'thoracic_seated') {
-          const p1 = toPx(landmarks[11]);
-          const p2 = toPx(landmarks[12]);
-          ctx.strokeStyle = AppFSM.isCheatDetected ? '#ef4444' : '#38bdf8';
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.stroke();
-
-          [p1, p2].forEach(p => {
-            ctx.fillStyle = '#fde047';
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
-            ctx.fill();
-          });
-        } else if (AppFSM.currentTest === 'hip_seated') {
-          const side = AppFSM.targetSide;
-          const knee = toPx(side === 'right' ? landmarks[26] : landmarks[25]);
-          const ankle = toPx(side === 'right' ? landmarks[28] : landmarks[27]);
-
-          ctx.strokeStyle = AppFSM.isCheatDetected ? '#ef4444' : '#38bdf8';
-          ctx.beginPath();
-          ctx.moveTo(knee.x, knee.y);
-          ctx.lineTo(ankle.x, ankle.y);
-          ctx.stroke();
-
-          ctx.fillStyle = '#fde047';
-          ctx.beginPath();
-          ctx.arc(knee.x, knee.y, 8, 0, Math.PI * 2);
-          ctx.arc(ankle.x, ankle.y, 6, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (AppFSM.currentTest === 'aslr_floor') {
-          const side = AppFSM.targetSide;
-          const hip = toPx(side === 'right' ? landmarks[24] : landmarks[23]);
-          const knee = toPx(side === 'right' ? landmarks[26] : landmarks[25]);
-          const ankle = toPx(side === 'right' ? landmarks[28] : landmarks[27]);
-
-          ctx.strokeStyle = AppFSM.isCheatDetected ? '#ef4444' : '#38bdf8';
-          ctx.beginPath();
-          ctx.moveTo(hip.x, hip.y);
-          ctx.lineTo(knee.x, knee.y);
-          ctx.lineTo(ankle.x, ankle.y);
-          ctx.stroke();
-
-          [hip, knee, ankle].forEach(p => {
-            ctx.fillStyle = '#fde047';
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
-            ctx.fill();
-          });
-        }
-
-        if (AppFSM.state === 'MEASURING' && AppFSM.baselineData) {
-          ctx.save();
-          ctx.setLineDash([6, 6]);
-          ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 3;
-
-          if (AppFSM.currentTest === 'thoracic_seated' && AppFSM.baselineData.p1) {
-            const bp1 = toPx(AppFSM.baselineData.p1);
-            const bp2 = toPx(AppFSM.baselineData.p2);
-            ctx.beginPath();
-            ctx.moveTo(bp1.x, bp1.y);
-            ctx.lineTo(bp2.x, bp2.y);
-            ctx.stroke();
-            ctx.font = 'bold 12px sans-serif';
-            ctx.fillStyle = '#facc15';
-            ctx.fillText('0° 基準線', (bp1.x + bp2.x) / 2 - 20, (bp1.y + bp2.y) / 2 - 12);
-          } else if (AppFSM.currentTest === 'hip_seated' && AppFSM.baselineData.knee) {
-            const bKnee = toPx(AppFSM.baselineData.knee);
-            const bAnkle = toPx(AppFSM.baselineData.ankle);
-            ctx.beginPath();
-            ctx.moveTo(bKnee.x, bKnee.y);
-            ctx.lineTo(bAnkle.x, bAnkle.y);
-            ctx.stroke();
-            ctx.font = 'bold 12px sans-serif';
-            ctx.fillStyle = '#facc15';
-            ctx.fillText('0° 基準線', bKnee.x - 25, bKnee.y - 12);
-          } else if (AppFSM.currentTest === 'aslr_floor' && AppFSM.baselineData.hip) {
-            const bHip = toPx(AppFSM.baselineData.hip);
-            const bKnee = toPx(AppFSM.baselineData.knee);
-            ctx.beginPath();
-            ctx.moveTo(bHip.x, bHip.y);
-            ctx.lineTo(bKnee.x, bKnee.y);
-            ctx.stroke();
-            ctx.font = 'bold 12px sans-serif';
-            ctx.fillStyle = '#facc15';
-            ctx.fillText('0° 基準線', bHip.x, bHip.y - 12);
-          }
-          ctx.restore();
-        }
-      }
-    };
-
-    /* --------------------------------------------------------------------------
-       9. MediaPipe Pose & カメラパイプライン
-       -------------------------------------------------------------------------- */
-    const landmarkFilters = Array.from({ length: 33 }, () => ({
-      x: new OneEuroFilter(30, 0.8, 0.005),
-      y: new OneEuroFilter(30, 0.8, 0.005)
-    }));
-
-    let poseDetector = null;
-    let currentStream = null;
-    let isDetecting = false;
-    let animFrameId = null;
-    let isSwitchingCamera = false;
-
-    async function waitForMediaPipeScript(maxWaitMs = 10000) {
-      const startTime = Date.now();
-      while (typeof window.Pose === 'undefined') {
-        if (Date.now() - startTime > maxWaitMs) {
-          throw new Error('AIエンジン(MediaPipe Pose)の読み込みがタイムアウトしました。通信環境を確認してページを再読み込みしてください。');
-        }
-        await new Promise(r => setTimeout(r, 100));
-      }
-    }
-
-    async function initMediaPipePose() {
-      if (poseDetector) return;
-      await waitForMediaPipeScript();
-
-      poseDetector = new window.Pose({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
-      });
-
-      poseDetector.setOptions({
-        modelComplexity: 1,
-        smoothLandmarks: false,
-        enableSegmentation: false,
-        smoothSegmentation: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-      });
-
-      poseDetector.onResults(onPoseResults);
-    }
-
-    function onPoseResults(results) {
-      const now = Date.now();
-      let smoothedLandmarks = null;
-
-      if (results.poseLandmarks) {
-        smoothedLandmarks = results.poseLandmarks.map((lm, idx) => ({
-          x: landmarkFilters[idx].x.filter(lm.x, now),
-          y: landmarkFilters[idx].y.filter(lm.y, now),
-          z: lm.z,
-          visibility: lm.visibility
-        }));
-      }
-
-      ViewRenderer.renderCanvas(smoothedLandmarks, DOM.video);
-      AppFSM.update(smoothedLandmarks);
-    }
-
-    async function poseDetectionLoop() {
-      if (!currentStream || !DOM.video) return;
-
-      if (DOM.video.readyState >= 2 && !isDetecting && poseDetector) {
-        isDetecting = true;
-        try {
-          await poseDetector.send({ image: DOM.video });
-        } catch (e) {
-        } finally {
-          isDetecting = false;
-        }
-      }
-      animFrameId = requestAnimationFrame(poseDetectionLoop);
-    }
-
-    function updateCanvasSize() {
-      const dpr = window.devicePixelRatio || 1;
-      ViewRenderer.dpr = dpr;
-      DOM.canvas.width = window.innerWidth * dpr;
-      DOM.canvas.height = window.innerHeight * dpr;
-      const ctx = DOM.canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
-    }
-
-    async function startCamera(facing = 'user') {
-      try {
-        if (animFrameId) {
-          cancelAnimationFrame(animFrameId);
-          animFrameId = null;
-        }
-
-        if (currentStream) {
-          currentStream.getTracks().forEach(track => track.stop());
-          currentStream = null;
-        }
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('お使いのブラウザはカメラAPIに対応していないか、安全な接続(HTTPS)で開かれていません。');
-        }
-
-        const constraintsList = [
-          { video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-          { video: { facingMode: facing }, audio: false },
-          { video: true, audio: false }
-        ];
-
-        let stream = null;
-        let lastErr = null;
-        for (const c of constraintsList) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia(c);
-            if (stream) break;
-          } catch (err) {
-            lastErr = err;
-            console.warn('Constraint attempt failed:', err);
-          }
-        }
-
-        if (!stream) {
-          if (lastErr && lastErr.name === 'NotAllowedError') {
-            throw new Error('カメラへのアクセスが拒否されています。ブラウザの設定でカメラの使用を許可してください。');
-          } else if (lastErr && lastErr.name === 'NotFoundError') {
-            throw new Error('利用可能なカメラが見つかりません。外付けカメラ等の接続をご確認ください。');
-          }
-          throw new Error(lastErr ? lastErr.message : 'カメラの起動に失敗しました。');
-        }
-
-        currentStream = stream;
-        DOM.video.srcObject = stream;
-        DOM.video.muted = true;
-        DOM.video.playsInline = true;
-
-        await new Promise((resolve) => {
-          if (DOM.video.readyState >= 2) {
-            resolve();
-          } else {
-            DOM.video.onloadeddata = () => resolve();
-            setTimeout(resolve, 1500);
-          }
-        });
-
-        try {
-          await DOM.video.play();
-        } catch (playErr) {
-          console.warn('video.play exception:', playErr);
-        }
-
-        updateCanvasSize();
-        window.removeEventListener('resize', updateCanvasSize);
-        window.addEventListener('resize', updateCanvasSize);
-
-        poseDetectionLoop();
-        DOM.startCameraScreen.classList.add('hidden');
-        return true;
-      } catch (err) {
-        console.error('startCamera failed:', err);
-        throw err;
-      }
-    }
-
-    /* --------------------------------------------------------------------------
-       10. イベントリスナー登録 ＆ アプリケーション初期化
-       -------------------------------------------------------------------------- */
-    function setCameraStatus(msg) {
-      DOM.cameraStatusProgress.classList.remove('hidden');
-      DOM.cameraStatusProgressText.innerText = msg;
-    }
-
-    function showCameraError(msg) {
-      DOM.cameraErrorMessageBox.classList.remove('hidden');
-      DOM.cameraErrorMessage.innerText = msg;
-      DOM.cameraStatusProgress.classList.add('hidden');
-      DOM.requestCameraBtn.disabled = false;
-      DOM.requestCameraBtnIcon.innerText = '🔄';
-      DOM.requestCameraBtnText.innerText = 'もう一度試す';
-    }
-
-    DOM.requestCameraBtn.addEventListener('click', async () => {
-      DOM.requestCameraBtn.disabled = true;
-      DOM.cameraErrorMessageBox.classList.add('hidden');
-      DOM.requestCameraBtnIcon.innerText = '⏳';
-      DOM.requestCameraBtnText.innerText = 'カメラ起動中...';
-
-      try {
-        setCameraStatus('音声システム初期化中...');
-        sound.init();
-        sound.playPip();
-
-        setCameraStatus('AIエンジン(MediaPipe)を準備中...');
-        await initMediaPipePose();
-
-        setCameraStatus('カメラのアクセスを要求中...');
-        const success = await startCamera(AppFSM.facingMode);
-
-        if (success) {
-          AppFSM.setTest('thoracic_seated');
-        }
-      } catch (e) {
-        console.error('Boot error:', e);
-        showCameraError(e.message || '初期化中に予期せぬエラーが発生しました。');
-      }
-    });
-
-    DOM.cameraSwitchBtn.addEventListener('click', async () => {
-      if (isSwitchingCamera) return;
-      isSwitchingCamera = true;
-      DOM.cameraSwitchBtn.disabled = true;
-
-      try {
-        sound.playPip();
-        AppFSM.facingMode = AppFSM.facingMode === 'user' ? 'environment' : 'user';
-        DOM.cameraSwitchLabel.innerText = AppFSM.facingMode === 'user' ? '内カメ' : '外カメ';
-        await startCamera(AppFSM.facingMode);
-        voice.speak(AppFSM.facingMode === 'user' ? 'インカメラに切り替えたよ！' : '外カメラに切り替えたよ！');
-      } catch(err) {
-        console.error('Switch camera error:', err);
-      } finally {
-        isSwitchingCamera = false;
-        DOM.cameraSwitchBtn.disabled = false;
-      }
-    });
-
-    DOM.tabThoracic.addEventListener('click', () => { sound.playPip(); AppFSM.setTest('thoracic_seated'); });
-    DOM.tabHip.addEventListener('click', () => { sound.playPip(); AppFSM.setTest('hip_seated'); });
-    DOM.tabAslr.addEventListener('click', () => { sound.playPip(); AppFSM.setTest('aslr_floor'); });
-    DOM.sideLeftBtn.addEventListener('click', () => AppFSM.setSide('left'));
-    DOM.sideRightBtn.addEventListener('click', () => AppFSM.setSide('right'));
-
-    DOM.replayVoiceBtn.addEventListener('click', () => {
-      sound.playPip();
-      voice.speak(TEST_SPECS[AppFSM.currentTest].voiceInstruction, true);
-    });
-
-    DOM.howToBtn.addEventListener('click', () => {
-      DOM.howToModal.classList.remove('hidden');
-      AppFSM.isModalOpen = true;
-      voice.stop();
-      sound.playPip();
-    });
-    DOM.closeHowToBtn.addEventListener('click', () => { DOM.howToModal.classList.add('hidden'); AppFSM.isModalOpen = false; });
-    DOM.closeHowToBottomBtn.addEventListener('click', () => { DOM.howToModal.classList.add('hidden'); AppFSM.isModalOpen = false; });
-
-    DOM.historyOpenBtn.addEventListener('click', () => {
-      DOM.historyModal.classList.remove('hidden');
-      AppFSM.isModalOpen = true;
-      voice.stop();
-      sound.playPip();
-    });
-    DOM.closeHistoryBtn.addEventListener('click', () => { DOM.historyModal.classList.add('hidden'); AppFSM.isModalOpen = false; });
-    DOM.closeHistoryBottomBtn.addEventListener('click', () => { DOM.historyModal.classList.add('hidden'); AppFSM.isModalOpen = false; });
-
-    DOM.retryTestBtn.addEventListener('click', () => {
-      DOM.reportModal.classList.add('hidden');
-      AppFSM.isModalOpen = false;
-      AppFSM.setTest(AppFSM.currentTest);
-      sound.playPip();
-    });
-
-    DOM.shareOrNextBtn.addEventListener('click', () => {
-      DOM.reportModal.classList.add('hidden');
-      AppFSM.isModalOpen = false;
-      const tests = ['thoracic_seated', 'hip_seated', 'aslr_floor'];
-      const nextIdx = (tests.indexOf(AppFSM.currentTest) + 1) % tests.length;
-      AppFSM.setTest(tests[nextIdx]);
-      sound.playPip();
-    });
-
-    DOM.startDrillBtn.addEventListener('click', () => {
-      sound.playPip();
-      voice.speak('1分間ドリルスタート！息を止めずにリラックスして伸ばそう！', true);
-    });
-
-    // 初期化
-    AppFSM.setTest('thoracic_seated');
-  </script>
+<!-- カメラ映像（最背面に1x1pxで安全に常駐） -->
+<video id="webcam" class="fixed bottom-0 right-0 w-1 h-1 opacity-[0.01] pointer-events-none -z-50" playsinline muted autoplay></video>
+<!-- メイン高DPI描画キャンバス -->
+<canvas id="outputCanvas" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0"></canvas>
+<!-- 全画面状態連動ネオンボーダー -->
+<div id="screenBorder" class="absolute inset-0 border-4 border-slate-700/50 pointer-events-none z-10 transition-colors duration-300"></div>
+<!-- 1. スマート・フローティングHUD（ヘッダー） -->
+<header class="relative z-30 mx-3 mt-2.5">
+<div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-xl px-3 py-2 flex flex-col gap-1.5 max-w-2xl mx-auto">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-base font-black shadow">
+🐉
+</div>
+<div>
+<div class="text-[9px] font-bold text-amber-300 leading-none">ジュニア柔軟性チェッカー</div>
+<h1 class="text-xs sm:text-sm font-black text-white tracking-wider flex items-center gap-1">
+しなりドラゴン <span class="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded font-black shadow">PRO v2.5.3</span>
+</h1>
+</div>
+</div>
+<!-- アクションボタン群 -->
+<div class="flex items-center space-x-1 shrink-0">
+<button id="replayVoiceBtn" class="bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-yellow-300 px-2 py-1 rounded-xl text-[11px] font-black flex items-center space-x-1 shadow transition">
+<span>🔊</span>
+<span class="hidden sm:inline">説明</span>
+</button>
+<button id="howToBtn" class="bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-cyan-300 px-2 py-1 rounded-xl text-[11px] font-black flex items-center space-x-1 shadow transition">
+<span>📖</span>
+<span class="hidden sm:inline">やり方</span>
+</button>
+<button id="historyOpenBtn" class="bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-violet-300 px-2 py-1 rounded-xl text-[11px] font-black flex items-center space-x-1 shadow transition">
+<span>📊</span>
+<span class="hidden sm:inline">履歴</span>
+</button>
+<button id="cameraSwitchBtn" class="bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-amber-300 px-2 py-1 rounded-xl text-[11px] font-black flex items-center space-x-1 shadow transition">
+<span>🔄</span>
+<span id="cameraSwitchLabel" class="hidden sm:inline">内カメ</span>
+</button>
+</div>
+</div>
+<!-- 下段: ステップ案内＆エラー警告統合バナー（被りゼロ設計） -->
+<div id="stepBannerContainer" class="flex items-center justify-between bg-slate-950/70 border border-slate-800/90 rounded-xl px-2.5 py-1.5 transition-colors duration-200">
+<div class="flex items-center space-x-2 truncate">
+<span id="setupBadge" class="bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0">🪑 椅子に座る</span>
+<span id="guideTitle" class="text-xs font-black text-amber-200 truncate">① 胸パカーン（胸椎回旋）</span>
+</div>
+<div class="text-[11px] font-black shrink-0 flex items-center space-x-1">
+<span id="remoteStepIcon">🎯</span>
+<span id="remoteStepText" class="text-yellow-300 truncate">カメラに全身を映して！</span>
+</div>
+</div>
+<!-- 構え判定オートチャージゲージ / 測定中プログレスバー -->
+<div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+<div id="holdProgressBar" class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-0 transition-all duration-75"></div>
+</div>
+</div>
+</header>
+<!-- 2. 左上: スリム角度メーターHUD ＆ 右上: お手本ミニワイプ（水平レイアウトで被り防止） -->
+<div class="relative z-20 flex items-start justify-between px-3 mt-1 pointer-events-none">
+<!-- 左: 角度メーター -->
+<div class="bg-slate-900/85 backdrop-blur-md border-2 border-cyan-400/70 rounded-2xl p-2.5 shadow-2xl flex flex-col items-center min-w-[105px]">
+<div class="text-[9px] font-black text-cyan-300 flex items-center space-x-1">
+<span id="meterModeLabel">0°基準からの増加</span>
+</div>
+<div class="flex items-baseline my-0.5">
+<span id="liveAngleText" class="text-3xl font-black text-yellow-300 leading-none drop-shadow">0</span>
+<span class="text-sm font-bold text-yellow-400 ml-0.5">°</span>
+</div>
+<div id="liveRankBadge" class="bg-slate-800 text-slate-300 border border-slate-600 text-[10px] font-black px-2 py-0.5 rounded-full">
+構え待機中
+</div>
+<div class="text-[9px] font-bold text-slate-400 mt-1 flex items-center gap-1">
+<span>目標:</span><span id="targetGoalText" class="text-white font-black">45°</span>
+</div>
+<div id="remainingTimeBox" class="mt-1 hidden text-[10px] font-black text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/50">
+残り <span id="remainingSecondsText">7.0</span>s
+</div>
+</div>
+<!-- 右: お手本ミニワイプ（独立カード） -->
+<div class="bg-slate-900/90 backdrop-blur-md border border-cyan-400/60 rounded-2xl p-2 shadow-2xl pointer-events-auto flex flex-col items-center w-28">
+<div class="text-[9px] font-black text-cyan-300 mb-1 flex items-center space-x-1">
+<span>💡 お手本動作</span>
+</div>
+<div id="pipVisualContainer" class="w-20 h-20 flex items-center justify-center bg-slate-950/80 rounded-xl overflow-hidden border border-slate-800"></div>
+<div id="pipActionCaption" class="text-[9px] font-black text-amber-300 mt-1 text-center leading-tight">
+膝を閉じて胸を回す！
+</div>
+</div>
+</div>
+<!-- 3. 音声コーチ字幕ピルタグ -->
+<div class="relative z-10 flex justify-center mb-36 sm:mb-40 pointer-events-none px-4">
+<div id="voiceCoachIndicator" class="bg-slate-950/85 backdrop-blur-md border border-amber-400/60 px-4 py-1.5 rounded-full shadow-lg flex items-center space-x-2 text-xs font-bold text-amber-200 max-w-sm transition-opacity duration-300">
+<span class="animate-pulse">🔊</span>
+<span id="voiceCoachText" class="truncate">椅子に座って、両膝を閉じてね！</span>
+</div>
+</div>
+<!-- 4. カウントダウン巨大オーバーレイ -->
+<div id="countdownOverlay" class="absolute inset-0 z-40 flex items-center justify-center pointer-events-none hidden">
+<div class="relative flex items-center justify-center">
+<div id="countdownCircle" class="w-40 h-40 rounded-full border-8 border-yellow-300 flex items-center justify-center bg-slate-950/80 shadow-[0_0_50px_rgba(253,224,71,0.8)] animate-ping"></div>
+<span id="countdownNumber" class="absolute text-7xl font-black text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)]">3</span>
+</div>
+</div>
+<!-- 5. 下部操作バー（iOS Safariツールバー被り完全防止のセーフエリア適用） -->
+<footer class="relative z-20 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-3 pt-2.5 safe-bottom-padding shrink-0 shadow-[0_-8px_20px_rgba(0,0,0,0.5)]">
+<div class="max-w-xl mx-auto flex items-center justify-between gap-2">
+<!-- 左右切替ボタン -->
+<div class="flex items-center bg-slate-950 border border-slate-700 rounded-xl p-0.5 shrink-0">
+<button id="sideLeftBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400">
+左側
+</button>
+<button id="sideRightBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow">
+右側
+</button>
+</div>
+<!-- 種目選択タブ -->
+<div class="grid grid-cols-3 gap-1.5 flex-1">
+<button id="tabThoracic" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300">
+① 胸パカーン
+</button>
+<button id="tabHip" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700">
+② タメ絞り
+</button>
+<button id="tabAslr" class="btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700">
+③ 床レッグ
+</button>
+</div>
+</div>
+</footer>
+<!-- 6. 初回起動スクリーン -->
+<div id="startCameraScreen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center">
+<div class="relative mb-5">
+<div class="absolute -inset-4 bg-gradient-to-r from-amber-500 to-yellow-300 rounded-full blur-xl opacity-40 animate-pulse"></div>
+<div class="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-slate-900 border-2 border-amber-400 flex items-center justify-center text-4xl sm:text-5xl shadow-2xl">
+🐉
+</div>
+</div>
+<div class="inline-flex items-center space-x-1.5 bg-amber-500/20 border border-amber-400/40 px-3 py-1 rounded-full mb-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+<span class="text-[11px] font-black text-amber-300">しなりドラゴン プロ v2.5.3</span>
+</div>
+<h2 class="text-xl sm:text-2xl font-black text-white mb-2 tracking-wide">
+ジュニア柔軟性チェッカー
+</h2>
+<p class="text-xs sm:text-sm text-slate-300 mb-6 max-w-xs leading-relaxed font-bold">
+ケガゼロで剛速球・ホームラン！
+
+スマホを置いて椅子に座るだけで、身体のしなりを全自動でAI計測します。
+</p>
+<button id="requestCameraBtn" class="btn-3d btn-3d-yellow px-8 py-4 rounded-2xl text-base font-black text-amber-950 tracking-wider flex items-center space-x-2">
+<span id="requestCameraBtnIcon">🚀</span>
+<span id="requestCameraBtnText">カメラを起動してスタート！</span>
+</button>
+<!-- 進行状況ステータステキスト -->
+<p id="cameraStatusProgress" class="text-xs text-amber-300 mt-3 font-bold hidden flex items-center space-x-1">
+<span class="animate-spin inline-block">⏳</span>
+<span id="cameraStatusProgressText">準備中...</span>
+</p>
+<!-- エラー案内メッセージ -->
+<div id="cameraErrorMessageBox" class="mt-4 p-3 bg-red-950/80 border border-red-500/60 rounded-xl text-left max-w-xs hidden">
+<div class="text-[11px] font-black text-red-300 flex items-center space-x-1 mb-1">
+<span>⚠️</span>
+<span>起動エラー</span>
+</div>
+<p id="cameraErrorMessage" class="text-xs text-red-200 font-bold leading-relaxed"></p>
+<div class="mt-2 pt-2 border-t border-red-800 text-[10px] text-red-300">
+💡 ブラウザのアドレスバー横の鍵アイコンから「カメラ」アクセスを許可してください。
+</div>
+</div>
+</div>
+<!-- 7. 測定結果レポートモーダル -->
+<div id="reportModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-4 hidden">
+<div class="relative bg-slate-900 border-2 border-amber-400 rounded-3xl p-5 w-full max-w-sm shadow-2xl flex flex-col items-center text-center overflow-hidden">
+<div class="absolute -inset-10 opacity-15 pointer-events-none flex items-center justify-center">
+<div class="w-96 h-96 bg-gradient-to-r from-yellow-400 to-amber-600 rounded-full animate-sunburst blur-xl"></div>
+</div>
+<div class="text-[10px] font-black text-amber-300 tracking-widest uppercase mb-1">MEASUREMENT RESULT (v2.5.3)</div>
+<h3 id="reportTestTitle" class="text-sm font-black text-white mb-2">胸パカーン（胸椎回旋）</h3>
+<div class="my-2 flex flex-col items-center">
+<div class="flex items-baseline">
+<span id="reportAngleText" class="text-6xl font-black text-yellow-300 drop-shadow">0</span>
+<span class="text-2xl font-bold text-yellow-400 ml-1">°</span>
+</div>
+<div id="reportRankTitle" class="mt-1 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 px-4 py-1 rounded-full text-xs font-black shadow-lg">
+🐉 SUPER DRAGON
+</div>
+</div>
+<div class="w-full bg-slate-950/80 border border-slate-800 rounded-2xl p-3 my-2 text-left">
+<div class="text-[10px] font-black text-cyan-300 mb-1 flex items-center space-x-1">
+<span>⚾ 野球の動きへの効果</span>
+</div>
+<p id="reportFeedbackText" class="text-xs text-slate-300 leading-relaxed font-bold">
+すばらしい胸椎のしなり！トップでの捻転差がしっかり作れ、球速・飛距離アップに直結します！
+</p>
+</div>
+<div class="w-full bg-gradient-to-r from-violet-950/50 to-indigo-950/50 border border-violet-500/40 rounded-2xl p-2.5 mb-3 flex items-center justify-between">
+<div class="text-left">
+<div class="text-[10px] font-black text-violet-300">即効！サビ取りドリル</div>
+<div id="drillTitleText" class="text-xs font-black text-white">胸開きオープンストレッチ</div>
+</div>
+<button id="startDrillBtn" class="btn-3d btn-3d-purple px-3 py-1.5 rounded-xl text-[10px] font-black">
+1分実践 ➔
+</button>
+</div>
+<div class="w-full grid grid-cols-2 gap-2">
+<button id="retryTestBtn" class="btn-3d btn-3d-yellow py-3 rounded-2xl text-xs font-black text-amber-950">
+🔄 もう一度
+</button>
+<button id="shareOrNextBtn" class="btn-3d btn-3d-green py-3 rounded-2xl text-xs font-black text-white">
+次のテスト ➔
+</button>
+</div>
+<div class="mt-2.5 text-[10px] font-bold text-slate-400 flex items-center justify-center space-x-1">
+<span>☁️</span>
+<span id="saveStatusText">クラウドに自動保存完了！</span>
+</div>
+</div>
+</div>
+<!-- 8. 測定データ履歴モーダル -->
+<div id="historyModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-4 hidden">
+<div class="bg-slate-900 border-2 border-violet-400 rounded-3xl p-5 w-full max-w-md shadow-2xl flex flex-col max-h-[88vh]">
+<div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+<h2 class="text-sm font-black text-violet-300 flex items-center space-x-1.5">
+<span>📊</span>
+<span>測定データ履歴 (v2.5.3)</span>
+</h2>
+<button id="closeHistoryBtn" class="text-slate-400 hover:text-white text-xl font-black">✕</button>
+</div>
+<div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-1.5 mb-3 text-left">
+<div class="text-[9px] font-bold text-slate-400">ユーザーID:</div>
+<div id="currentUserIdText" class="text-[10px] font-mono text-cyan-300 break-all select-all">認証待機中...</div>
+</div>
+<div id="historyListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px]">
+<div class="text-xs text-slate-400 text-center py-8">データ読み込み中...</div>
+</div>
+<div class="mt-3 pt-2 border-t border-slate-800">
+<button id="closeHistoryBottomBtn" class="btn-3d btn-3d-blue w-full py-2.5 rounded-xl text-xs font-black">
+閉じる
+</button>
+</div>
+</div>
+</div>
+<!-- 9. やり方ガイドモーダル -->
+<div id="howToModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-4 hidden">
+<div class="bg-slate-900 border-2 border-cyan-400 rounded-3xl p-5 w-full max-w-md shadow-2xl flex flex-col max-h-[88vh] overflow-y-auto">
+<div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+<h2 class="text-sm font-black text-cyan-300 flex items-center space-x-1.5">
+<span>📖</span>
+<span>測定のやり方とポイント</span>
+</h2>
+<button id="closeHowToBtn" class="text-slate-400 hover:text-white text-xl font-black">✕</button>
+</div>
+<div class="space-y-3 text-left text-xs text-slate-300">
+<div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+<div class="text-amber-300 font-black mb-1">① 胸パカーン（椅子に座る）</div>
+<p class="leading-relaxed">椅子に浅く腰掛け、両膝をピタッと閉じます。手は胸の前でクロス！GOの合図で膝を開かずに胸だけを大きく回します。</p>
+</div>
+<div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+<div class="text-amber-300 font-black mb-1">② タメ絞り（椅子に座る）</div>
+<p class="leading-relaxed">椅子に座り、両膝をくっつけます。太ももを開かないように固定したまま、足首だけを車のワイパーのように外側へ振ります。</p>
+</div>
+<div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+<div class="text-amber-300 font-black mb-1">③ 床レッグレイズ（床に仰向け）</div>
+<p class="leading-relaxed">床に仰向けに寝て、スマホを真横に置きます。膝をピンと伸ばしたまま、片足を天井に向かって真上へ持ち上げます。</p>
+</div>
+</div>
+<div class="mt-4">
+<button id="closeHowToBottomBtn" class="btn-3d btn-3d-yellow w-full py-2.5 rounded-xl text-xs font-black text-amber-950">
+わかった！
+</button>
+</div>
+</div>
+</div>
+<!-- ==================== Firebase 永続化ストレージモジュール ==================== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'flexible-dragon-pro';
+let db = null;
+let auth = null;
+let currentUserId = null;
+let isDbReady = false;
+const pendingSaveQueue = [];
+async function initFirebaseStorage() {
+try {
+if (typeof __firebase_config === 'undefined') {
+console.warn('Firebase config missing; running in local-session mode.');
+const userElem = document.getElementById('currentUserIdText');
+if (userElem) userElem.innerText = 'ローカルセッションモード';
+return;
+}
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+auth = getAuth(app);
+db = getFirestore(app);
+if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+await signInWithCustomToken(auth, __initial_auth_token);
+} else {
+await signInAnonymously(auth);
+}
+currentUserId = auth.currentUser ? auth.currentUser.uid : null;
+if (currentUserId) {
+isDbReady = true;
+const userElem = document.getElementById('currentUserIdText');
+if (userElem) userElem.innerText = currentUserId;
+while (pendingSaveQueue.length > 0) {
+const task = pendingSaveQueue.shift();
+await executeSave(task);
+}
+subscribeHistory();
+}
+} catch (err) {
+console.error('Storage Init Error:', err);
+}
+}
+async function executeSave(record) {
+if (!isDbReady || !db || !currentUserId) return;
+const statusElem = document.getElementById('saveStatusText');
+if (statusElem) statusElem.innerText = 'クラウドに保存中...';
+try {
+const recordsCol = collection(db, 'artifacts', appId, 'users', currentUserId, 'measurements');
+await addDoc(recordsCol, {
+testId: record.testId,
+testTitle: record.testTitle,
+side: record.side,
+angle: Number(record.angle),
+rank: record.rank,
+version: 'v2.5.3',
+createdAt: new Date().toISOString(),
+timestamp: Date.now()
+});
+if (statusElem) statusElem.innerText = '✅ クラウド保存完了！';
+} catch (e) {
+console.error('Save failed:', e);
+if (statusElem) statusElem.innerText = '⚠️ クラウド保存をスキップしました';
+}
+}
+window.saveMeasurementToCloud = async function(testId, testTitle, side, angle, rank) {
+const record = { testId, testTitle, side, angle, rank };
+if (!isDbReady) {
+pendingSaveQueue.push(record);
+const statusElem = document.getElementById('saveStatusText');
+if (statusElem) statusElem.innerText = '☁️ 認証完了後に保存されます';
+return;
+}
+await executeSave(record);
+};
+function subscribeHistory() {
+if (!isDbReady || !db || !currentUserId) return;
+const recordsCol = collection(db, 'artifacts', appId, 'users', currentUserId, 'measurements');
+onSnapshot(recordsCol, (snapshot) => {
+const listContainer = document.getElementById('historyListContainer');
+if (!listContainer) return;
+if (snapshot.empty) {
+listContainer.innerHTML = '<div class="text-xs text-slate-400 text-center py-8">まだ測定データがありません。
+測定すると自動でここに記録されます！</div>';
+return;
+}
+const records = [];
+snapshot.forEach((doc) => {
+records.push({ id: doc.id, ...doc.data() });
+});
+records.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+let html = '';
+records.forEach((rec) => {
+const dateStr = rec.createdAt ? new Date(rec.createdAt).toLocaleDateString('ja-JP', {
+month: 'numeric',
+day: 'numeric',
+hour: '2-digit',
+minute: '2-digit'
+}) : '---';
+const sideText = rec.side === 'right' ? '右' : '左';
+html += ⁠<div class="bg-slate-800/90 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-left"> <div class="min-w-0 flex-1 pr-2"> <div class="flex items-center space-x-1 text-[10px] text-slate-400 mb-0.5"> <span>${dateStr}</span> <span class="bg-slate-700 text-cyan-300 px-1 rounded">${sideText}側</span> </div> <div class="text-xs font-black text-white truncate">${rec.testTitle || rec.testId}</div> </div> <div class="text-right shrink-0"> <div class="text-base font-black text-yellow-300 leading-none">${rec.angle}<span class="text-xs">°</span></div> <div class="text-[9px] font-bold text-emerald-400 mt-0.5">${rec.rank || '記録'}</div> </div> </div>⁠;
+});
+listContainer.innerHTML = html;
+}, (err) => {
+console.error('Snapshot error:', err);
+});
+}
+initFirebaseStorage();
+</script>
+<!-- ==================== メインスクリプト ==================== -->
+<script>
+/**
+* アプリケーション定数定義 (v2.5.3)
+*/
+const APP_VERSION = 'v2.5.3';
+const BIOMECHANICS_CONFIG = {
+THORACIC: {
+MAX_KNEE_HIP_RATIO: 1.35,
+MAX_MEASURE_ANGLE: 90,
+ROTATION_SCALE: 85.0
+},
+HIP: {
+MAX_KNEE_HIP_RATIO: 1.25,
+MAX_MEASURE_ANGLE: 60
+},
+ASLR: {
+MIN_KNEE_EXTENSION_DEG: 145,
+MAX_MEASURE_ANGLE: 110,
+CHEAT_TRIGGER_ANGLE: 15,
+BODY_MIN_Y: 0.35,
+HORIZONTAL_TOLERANCE_DY: 0.22
+},
+LOCKON: {
+HOLD_DURATION_MS: 950,
+SEATED_HIP_KNEE_DY: 0.08
+},
+APP: {
+MEASURE_DURATION_MS: 7000,
+MIN_HUMAN_VISIBILITY: 0.65, // 人体検知の最低信頼度スコア（誤認防止）
+MIN_SHOULDER_WIDTH: 0.08,    // 画面に対する最小肩幅（天井等の誤認排除）
+MIN_TORSO_HEIGHT: 0.10,      // 画面に対する最小胴体長
+LOST_HUMAN_TIMEOUT_MS: 800   // 人物ロスト時の自動リセット判定時間
+}
+};
+/* --------------------------------------------------------------------------
+1. Web Audio API シンセサイザー
+-------------------------------------------------------------------------- */
+class SoundFX {
+constructor() {
+this.ctx = null;
+}
+init() {
+try {
+if (!this.ctx) {
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+if (AudioContextClass) {
+this.ctx = new AudioContextClass();
+}
+}
+if (this.ctx && this.ctx.state === 'suspended') {
+this.ctx.resume();
+}
+} catch (e) {
+console.warn('AudioContext init warning:', e);
+}
+}
+playPip() {
+if (!this.ctx) return;
+try {
+const now = this.ctx.currentTime;
+const osc = this.ctx.createOscillator();
+const gain = this.ctx.createGain();
+osc.type = 'sine';
+osc.frequency.setValueAtTime(880, now);
+gain.gain.setValueAtTime(0.15, now);
+gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+osc.connect(gain);
+gain.connect(this.ctx.destination);
+osc.start(now);
+osc.stop(now + 0.08);
+} catch (e) {}
+}
+playCountdownTick() {
+if (!this.ctx) return;
+try {
+const now = this.ctx.currentTime;
+const osc = this.ctx.createOscillator();
+const gain = this.ctx.createGain();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(600, now);
+gain.gain.setValueAtTime(0.25, now);
+gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+osc.connect(gain);
+gain.connect(this.ctx.destination);
+osc.start(now);
+osc.stop(now + 0.12);
+} catch (e) {}
+}
+playWhistle() {
+if (!this.ctx) return;
+try {
+const now = this.ctx.currentTime;
+const osc1 = this.ctx.createOscillator();
+const osc2 = this.ctx.createOscillator();
+const gain = this.ctx.createGain();
+osc1.type = 'sine';
+osc2.type = 'sine';
+osc1.frequency.setValueAtTime(2400, now);
+osc2.frequency.setValueAtTime(2450, now);
+gain.gain.setValueAtTime(0.2, now);
+gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+osc1.connect(gain);
+osc2.connect(gain);
+gain.connect(this.ctx.destination);
+osc1.start(now);
+osc2.start(now);
+osc1.stop(now + 0.45);
+osc2.stop(now + 0.45);
+} catch (e) {}
+}
+playFanfare() {
+if (!this.ctx) return;
+try {
+const notes = [523.25, 659.25, 783.99, 1046.50];
+notes.forEach((freq, idx) => {
+const now = this.ctx.currentTime + idx * 0.1;
+const osc = this.ctx.createOscillator();
+const gain = this.ctx.createGain();
+osc.type = 'triangle';
+osc.frequency.setValueAtTime(freq, now);
+gain.gain.setValueAtTime(0.25, now);
+gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+osc.connect(gain);
+gain.connect(this.ctx.destination);
+osc.start(now);
+osc.stop(now + 0.25);
+});
+} catch (e) {}
+}
+playBuzzer() {
+if (!this.ctx) return;
+try {
+const now = this.ctx.currentTime;
+const osc = this.ctx.createOscillator();
+const gain = this.ctx.createGain();
+osc.type = 'sawtooth';
+osc.frequency.setValueAtTime(160, now);
+gain.gain.setValueAtTime(0.2, now);
+gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+osc.connect(gain);
+gain.connect(this.ctx.destination);
+osc.start(now);
+osc.stop(now + 0.2);
+} catch (e) {}
+}
+}
+const sound = new SoundFX();
+/* --------------------------------------------------------------------------
+2. Web Speech API 音声コーチ
+-------------------------------------------------------------------------- */
+class SpeechCoach {
+constructor() {
+this.synth = window.speechSynthesis || null;
+this.lastSpeakTime = 0;
+this.minInterval = 1800;
+this.subIndicator = null;
+this.subText = null;
+this.currentUtterance = null;
+this.timeoutId = null;
+}
+bindElements(indicator, textElem) {
+this.subIndicator = indicator;
+this.subText = textElem;
+}
+speak(text, force = false) {
+if (!this.synth) return;
+const now = Date.now();
+if (!force && (now - this.lastSpeakTime < this.minInterval)) return;
+this.lastSpeakTime = now;
+try {
+if (this.timeoutId) clearTimeout(this.timeoutId);
+this.synth.cancel();
+setTimeout(() => {
+const uttr = new SpeechSynthesisUtterance(text);
+this.currentUtterance = uttr;
+uttr.lang = 'ja-JP';
+uttr.rate = 1.05;
+uttr.pitch = 1.05;
+uttr.onstart = () => {
+if (this.subText) this.subText.innerText = text;
+if (this.subIndicator) this.subIndicator.style.opacity = '1';
+};
+const cleanup = () => {
+this.currentUtterance = null;
+if (this.subIndicator) {
+this.subIndicator.style.opacity = '0.6';
+}
+};
+uttr.onend = cleanup;
+uttr.onerror = cleanup;
+this.timeoutId = setTimeout(cleanup, 5000);
+this.synth.speak(uttr);
+}, 50);
+} catch (e) {
+console.warn('Speech error:', e);
+}
+}
+stop() {
+if (this.synth) {
+try { this.synth.cancel(); } catch(e) {}
+}
+this.currentUtterance = null;
+if (this.timeoutId) clearTimeout(this.timeoutId);
+}
+}
+const voice = new SpeechCoach();
+/* --------------------------------------------------------------------------
+3. 1€フィルター（One Euro Filter）
+-------------------------------------------------------------------------- */
+class LowPassFilter {
+constructor(alpha) {
+this.setAlpha(alpha);
+this.y = null;
+this.s = null;
+}
+setAlpha(alpha) {
+this.alpha = alpha;
+}
+filter(value) {
+if (this.y === null) {
+this.s = value;
+this.y = value;
+} else {
+this.y = this.alpha * value + (1.0 - this.alpha) * this.s;
+this.s = this.y;
+}
+return this.y;
+}
+}
+class OneEuroFilter {
+constructor(freq, minCutoff = 1.0, beta = 0.007, dCutoff = 1.0) {
+this.freq = freq;
+this.minCutoff = minCutoff;
+this.beta = beta;
+this.dCutoff = dCutoff;
+this.x = new LowPassFilter(this.alpha(minCutoff));
+this.dx = new LowPassFilter(this.alpha(dCutoff));
+this.lastTime = null;
+}
+alpha(cutoff) {
+const te = 1.0 / this.freq;
+const tau = 1.0 / (2 * Math.PI * cutoff);
+return 1.0 / (1.0 + tau / te);
+}
+filter(val, timestamp) {
+if (this.lastTime && timestamp) {
+const dt = (timestamp - this.lastTime) / 1000;
+if (dt > 0 && dt < 1.0) {
+this.freq = 1.0 / dt;
+}
+}
+this.lastTime = timestamp;
+const prevX = this.x.y;
+const dx = prevX === null ? 0 : (val - prevX) * this.freq;
+const edx = this.dx.filter(dx);
+const cutoff = this.minCutoff + this.beta * Math.abs(edx);
+this.x.setAlpha(this.alpha(cutoff));
+return this.x.filter(val);
+}
+reset() {
+this.x.y = null;
+this.dx.y = null;
+this.lastTime = null;
+}
+}
+/* --------------------------------------------------------------------------
+4. テスト定義＆メタデータ
+-------------------------------------------------------------------------- */
+const TEST_SPECS = {
+thoracic_seated: {
+id: 'thoracic_seated',
+title: '① 胸パカーン（胸椎回旋）',
+setupText: '🪑 椅子に座る',
+targetGoal: 45,
+ranks: [
+{ min: 48, title: '🐉 SUPER DRAGON', color: '#fbbf24' },
+{ min: 40, title: '🔥 S級 (プロ級)', color: '#38bdf8' },
+{ min: 30, title: '⚡ A級 (標準)', color: '#4ade80' },
+{ min: 0,  title: '🛡️ B級 (サビあり)', color: '#94a3b8' }
+],
+voiceInstruction: '椅子に座って、両膝をピタッと閉じてね。両手は胸の前でクロス！',
+readyInstruction: 'いい構え！膝を閉じたまま動かずジッとキープ！',
+actionInstruction: '両膝を閉じたまま、胸を大きく回して！',
+feedback: '胸郭のしなりは、投球・打撃での「捻転差（割れ）」の源泉です。骨盤をロックして胸だけ回せると、球速と飛距離が劇的に伸びます！',
+drillTitle: '胸椎オープンソラシック・ドリル',
+pipSvg: ⁠<svg viewBox="0 0 100 100" class="w-16 h-16"> <rect x="25" y="60" width="50" height="6" rx="3" fill="#64748b"/> <circle cx="50" cy="25" r="10" fill="#facc15"/> <path d="M50,35 L50,65 M40,45 L60,45" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/> <path d="M35,65 L35,85 M65,65 L65,85" stroke="#94a3b8" stroke-width="6" stroke-linecap="round"/> <path d="M30,40 Q50,28 70,40" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="3,3"/> <polygon points="73,42 66,35 69,45" fill="#f59e0b"/> </svg>⁠
+},
+hip_seated: {
+id: 'hip_seated',
+title: '② タメ絞り（股関節内旋）',
+setupText: '🪑 椅子に座る',
+targetGoal: 35,
+ranks: [
+{ min: 35, title: '🐉 SUPER DRAGON', color: '#fbbf24' },
+{ min: 28, title: '🔥 S級 (プロ級)', color: '#38bdf8' },
+{ min: 20, title: '⚡ A級 (標準)', color: '#4ade80' },
+{ min: 0,  title: '🛡️ B級 (サビあり)', color: '#94a3b8' }
+],
+voiceInstruction: '椅子に座って、両膝をくっつけよう。太ももを開かないように固定！',
+readyInstruction: 'そのままキープ！膝を閉じたまま足首だけワイパー準備！',
+actionInstruction: '膝を閉じたまま、足首だけを外側へ振って！',
+feedback: '軸足のタメとは、骨盤を大腿骨の上にグッと絞り込む能力です。内旋可動域が広いほど、並進運動のパワーを逃さず地面に溜め込めます！',
+drillTitle: '座位ワイパー・モビリティドリル',
+pipSvg: ⁠<svg viewBox="0 0 100 100" class="w-16 h-16"> <rect x="25" y="55" width="50" height="6" rx="3" fill="#64748b"/> <circle cx="50" cy="22" r="8" fill="#facc15"/> <path d="M50,30 L50,60" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/> <path d="M42,60 L42,88" stroke="#64748b" stroke-width="5" stroke-linecap="round"/> <path d="M58,60 L78,82" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/> <circle cx="58" cy="60" r="4" fill="#fbbf24"/> <path d="M58,85 Q72,86 78,82" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="3,3"/> </svg>⁠
+},
+aslr_floor: {
+id: 'aslr_floor',
+title: '③ 床レッグレイズ（ハム柔軟性）',
+setupText: '🛏️ 床に仰向け',
+targetGoal: 85,
+ranks: [
+{ min: 88, title: '🐉 SUPER DRAGON', color: '#fbbf24' },
+{ min: 78, title: '🔥 S級 (プロ級)', color: '#38bdf8' },
+{ min: 65, title: '⚡ A級 (標準)', color: '#4ade80' },
+{ min: 0,  title: '🛡️ B級 (サビあり)', color: '#94a3b8' }
+],
+voiceInstruction: '床に仰向けに寝てね。スマホは横に置こう。両足をまっすぐ伸ばして！',
+readyInstruction: 'いい姿勢！膝を伸ばしたまま動かずジッとキープ！',
+actionInstruction: '膝をピンと伸ばしたまま、片足を真上に持ち上げて！',
+feedback: 'ハムストリングスの柔らかさは、投球時の踏み込み足の粘りとフォロースルーを支えます。骨盤を立てて強く振り抜くための必須条件です！',
+drillTitle: 'アクティブASLR・ハムストリング覚醒',
+pipSvg: ⁠<svg viewBox="0 0 100 100" class="w-16 h-16"> <line x1="10" y1="85" x2="90" y2="85" stroke="#64748b" stroke-width="4"/> <circle cx="25" cy="78" r="8" fill="#facc15"/> <path d="M32,80 L55,80" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/> <path d="M55,80 L88,80" stroke="#64748b" stroke-width="5" stroke-linecap="round"/> <path d="M55,80 L62,35" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/> <path d="M75,80 A30,30 0 0,0 62,45" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="3,3"/> </svg>⁠
+}
+};
+/* --------------------------------------------------------------------------
+5. DOM要素キャッシュ ＆ タイマープール
+-------------------------------------------------------------------------- */
+const DOM = {
+video: document.getElementById('webcam'),
+canvas: document.getElementById('outputCanvas'),
+screenBorder: document.getElementById('screenBorder'),
+stepBannerContainer: document.getElementById('stepBannerContainer'),
+setupBadge: document.getElementById('setupBadge'),
+guideTitle: document.getElementById('guideTitle'),
+remoteStepIcon: document.getElementById('remoteStepIcon'),
+remoteStepText: document.getElementById('remoteStepText'),
+holdProgressBar: document.getElementById('holdProgressBar'),
+meterModeLabel: document.getElementById('meterModeLabel'),
+liveAngleText: document.getElementById('liveAngleText'),
+liveRankBadge: document.getElementById('liveRankBadge'),
+targetGoalText: document.getElementById('targetGoalText'),
+remainingTimeBox: document.getElementById('remainingTimeBox'),
+remainingSecondsText: document.getElementById('remainingSecondsText'),
+pipVisualContainer: document.getElementById('pipVisualContainer'),
+pipActionCaption: document.getElementById('pipActionCaption'),
+voiceCoachIndicator: document.getElementById('voiceCoachIndicator'),
+voiceCoachText: document.getElementById('voiceCoachText'),
+countdownOverlay: document.getElementById('countdownOverlay'),
+countdownNumber: document.getElementById('countdownNumber'),
+sideLeftBtn: document.getElementById('sideLeftBtn'),
+sideRightBtn: document.getElementById('sideRightBtn'),
+tabThoracic: document.getElementById('tabThoracic'),
+tabHip: document.getElementById('tabHip'),
+tabAslr: document.getElementById('tabAslr'),
+startCameraScreen: document.getElementById('startCameraScreen'),
+requestCameraBtn: document.getElementById('requestCameraBtn'),
+requestCameraBtnIcon: document.getElementById('requestCameraBtnIcon'),
+requestCameraBtnText: document.getElementById('requestCameraBtnText'),
+cameraStatusProgress: document.getElementById('cameraStatusProgress'),
+cameraStatusProgressText: document.getElementById('cameraStatusProgressText'),
+cameraErrorMessageBox: document.getElementById('cameraErrorMessageBox'),
+cameraErrorMessage: document.getElementById('cameraErrorMessage'),
+cameraSwitchBtn: document.getElementById('cameraSwitchBtn'),
+cameraSwitchLabel: document.getElementById('cameraSwitchLabel'),
+replayVoiceBtn: document.getElementById('replayVoiceBtn'),
+howToBtn: document.getElementById('howToBtn'),
+howToModal: document.getElementById('howToModal'),
+closeHowToBtn: document.getElementById('closeHowToBtn'),
+closeHowToBottomBtn: document.getElementById('closeHowToBottomBtn'),
+historyOpenBtn: document.getElementById('historyOpenBtn'),
+historyModal: document.getElementById('historyModal'),
+closeHistoryBtn: document.getElementById('closeHistoryBtn'),
+closeHistoryBottomBtn: document.getElementById('closeHistoryBottomBtn'),
+reportModal: document.getElementById('reportModal'),
+reportTestTitle: document.getElementById('reportTestTitle'),
+reportAngleText: document.getElementById('reportAngleText'),
+reportRankTitle: document.getElementById('reportRankTitle'),
+reportFeedbackText: document.getElementById('reportFeedbackText'),
+drillTitleText: document.getElementById('drillTitleText'),
+startDrillBtn: document.getElementById('startDrillBtn'),
+retryTestBtn: document.getElementById('retryTestBtn'),
+shareOrNextBtn: document.getElementById('shareOrNextBtn'),
+saveStatusText: document.getElementById('saveStatusText')
+};
+voice.bindElements(DOM.voiceCoachIndicator, DOM.voiceCoachText);
+const TimerPool = {
+activeIntervals: new Set(),
+activeTimeouts: new Set(),
+setInterval(fn, ms) {
+const id = setInterval(fn, ms);
+this.activeIntervals.add(id);
+return id;
+},
+clearInterval(id) {
+clearInterval(id);
+this.activeIntervals.delete(id);
+},
+setTimeout(fn, ms) {
+const id = setTimeout(() => {
+this.activeTimeouts.delete(id);
+fn();
+}, ms);
+this.activeTimeouts.add(id);
+return id;
+},
+clearTimeout(id) {
+clearTimeout(id);
+this.activeTimeouts.delete(id);
+},
+clearAll() {
+this.activeIntervals.forEach(id => clearInterval(id));
+this.activeIntervals.clear();
+this.activeTimeouts.forEach(id => clearTimeout(id));
+this.activeTimeouts.clear();
+}
+};
+/* --------------------------------------------------------------------------
+6. BiomechanicsCore: 人体検知ガード＆数理幾何計算
+-------------------------------------------------------------------------- /
+const BiomechanicsCore = {
+/*
+* 人体が画面内に実在しているかを厳格に判定するガード関数
+* （天井や壁の影、背景ノイズによるゴースト誤認識を100%遮断）
+*/
+isHumanDetected(landmarks) {
+if (!landmarks || landmarks.length < 33) return false;
+const lSh = landmarks[11], rSh = landmarks[12];
+const lHip = landmarks[23], rHip = landmarks[24];
+const lKnee = landmarks[25], rKnee = landmarks[26];
+if (!lSh || !rSh || !lHip || !rHip || !lKnee || !rKnee) return false;
+// 主要関節の視認信頼度（visibility）スコアのチェック
+const minVis = BIOMECHANICS_CONFIG.APP.MIN_HUMAN_VISIBILITY;
+if ((lSh.visibility || 0) < minVis || (rSh.visibility || 0) < minVis) return false;
+if ((lHip.visibility || 0) < minVis || (rHip.visibility || 0) < minVis) return false;
+if ((lKnee.visibility || 0) < minVis && (rKnee.visibility || 0) < minVis) return false;
+// 人体スケール（サイズ）チェック（背景の極小ノイズを排除）
+const shoulderWidth = Math.hypot(rSh.x - lSh.x, rSh.y - lSh.y);
+const torsoHeight = Math.hypot(
+(rHip.x + lHip.x) / 2 - (rSh.x + lSh.x) / 2,
+(rHip.y + lHip.y) / 2 - (rSh.y + lSh.y) / 2
+);
+if (shoulderWidth < BIOMECHANICS_CONFIG.APP.MIN_SHOULDER_WIDTH) return false;
+if (torsoHeight < BIOMECHANICS_CONFIG.APP.MIN_TORSO_HEIGHT) return false;
+return true;
+},
+calculateThoracic(landmarks, side, baseline) {
+const lSh = landmarks[11];
+const rSh = landmarks[12];
+const lHip = landmarks[23];
+const rHip = landmarks[24];
+const lKnee = landmarks[25];
+const rKnee = landmarks[26];
+const kneeDist = Math.hypot(rKnee.x - lKnee.x, rKnee.y - lKnee.y);
+const hipDist = Math.hypot(rHip.x - lHip.x, rHip.y - lHip.y);
+let cheat = false;
+let reason = '';
+if (kneeDist > hipDist * BIOMECHANICS_CONFIG.THORACIC.MAX_KNEE_HIP_RATIO) {
+cheat = true;
+reason = '膝が開いてるぞ！膝をピタッと閉じて！';
+}
+if (!baseline || !baseline.shoulderWidth) {
+return { angle: 0, cheat, reason };
+}
+const currentWidth = Math.hypot(rSh.x - lSh.x, rSh.y - lSh.y);
+const baseWidth = baseline.shoulderWidth + 1e-6;
+const widthCompression = Math.max(0, Math.min(1.0, currentWidth / baseWidth));
+const widthAngle = Math.sqrt(Math.max(0, 1.0 - widthCompression * widthCompression)) * (180 / Math.PI);
+const sternumX = (rSh.x + lSh.x) / 2;
+const targetShoulder = side === 'right' ? rSh : lSh;
+const otherShoulder = side === 'right' ? lSh : rSh;
+const targetArmLen = Math.abs(targetShoulder.x - sternumX);
+const otherArmLen = Math.abs(otherShoulder.x - sternumX);
+const asymmetryRatio = Math.max(0, (otherArmLen - targetArmLen) / (currentWidth + 1e-6));
+const asymmetryAngle = asymmetryRatio * BIOMECHANICS_CONFIG.THORACIC.ROTATION_SCALE;
+let rawAngle = (widthAngle * 0.55) + (asymmetryAngle * 0.45);
+const shoulderMidX = (rSh.x + lSh.x) / 2;
+const hipMidX = (rHip.x + lHip.x) / 2;
+const sideOffset = side === 'right' ? (shoulderMidX - hipMidX) : (hipMidX - shoulderMidX);
+if (sideOffset < -0.05) {
+rawAngle *= 0.5;
+}
+const angle = Math.min(BIOMECHANICS_CONFIG.THORACIC.MAX_MEASURE_ANGLE, Math.max(0, rawAngle));
+return { angle: Math.round(angle), cheat, reason };
+},
+calculateHip(landmarks, side, baseline) {
+const lKnee = landmarks[25];
+const rKnee = landmarks[26];
+const lAnkle = landmarks[27];
+const rAnkle = landmarks[28];
+const lHip = landmarks[23];
+const rHip = landmarks[24];
+const kneeGap = Math.hypot(rKnee.x - lKnee.x, rKnee.y - lKnee.y);
+const hipGap = Math.hypot(rHip.x - lHip.x, rHip.y - lHip.y);
+let cheat = false;
+let reason = '';
+if (kneeGap > hipGap * BIOMECHANICS_CONFIG.HIP.MAX_KNEE_HIP_RATIO) {
+cheat = true;
+reason = '太ももが開いてるぞ！膝を閉じて足首だけ外へ！';
+}
+const knee = side === 'right' ? rKnee : lKnee;
+const ankle = side === 'right' ? rAnkle : lAnkle;
+const legDx = ankle.x - knee.x;
+const legDy = ankle.y - knee.y;
+const currentSlope = Math.atan2(legDx, legDy) * (180 / Math.PI);
+if (!baseline) {
+return { angle: 0, cheat, reason };
+}
+const anatomySign = side === 'right' ? -1 : 1;
+const rawSwing = (currentSlope - baseline.slope) * anatomySign;
+const angle = Math.min(BIOMECHANICS_CONFIG.HIP.MAX_MEASURE_ANGLE, Math.max(0, rawSwing));
+return { angle: Math.round(angle), cheat, reason };
+},
+calculateAslr(landmarks, side, baseline) {
+const hip = side === 'right' ? landmarks[24] : landmarks[23];
+const knee = side === 'right' ? landmarks[26] : landmarks[25];
+const ankle = side === 'right' ? landmarks[28] : landmarks[27];
+const thDx = knee.x - hip.x;
+const thDy = knee.y - hip.y;
+const legSlope = Math.atan2(Math.abs(thDy), Math.abs(thDx)) * (180 / Math.PI);
+let angle = 0;
+if (baseline) {
+const delta = legSlope - baseline.slope;
+angle = Math.min(BIOMECHANICS_CONFIG.ASLR.MAX_MEASURE_ANGLE, Math.max(0, delta));
+}
+const v1x = hip.x - knee.x, v1y = hip.y - knee.y;
+const v2x = ankle.x - knee.x, v2y = ankle.y - knee.y;
+const dot = v1x * v2x + v1y * v2y;
+const mag1 = Math.hypot(v1x, v1y);
+const mag2 = Math.hypot(v2x, v2y);
+const kneeAngle = Math.acos(Math.max(-1, Math.min(1, dot / (mag1 * mag2 + 1e-6)))) * (180 / Math.PI);
+let cheat = false;
+let reason = '';
+if (angle > BIOMECHANICS_CONFIG.ASLR.CHEAT_TRIGGER_ANGLE && kneeAngle < BIOMECHANICS_CONFIG.ASLR.MIN_KNEE_EXTENSION_DEG) {
+cheat = true;
+reason = '膝をピンと伸ばして！';
+}
+return { angle: Math.round(angle), cheat, reason };
+},
+checkPoseReady(testId, landmarks) {
+if (!this.isHumanDetected(landmarks)) return false;
+const lSh = landmarks[11], rSh = landmarks[12];
+const lHip = landmarks[23], rHip = landmarks[24];
+const lKnee = landmarks[25], rKnee = landmarks[26];
+const lAnkle = landmarks[27], rAnkle = landmarks[28];
+if (testId === 'thoracic_seated' || testId === 'hip_seated') {
+const kneeGap = Math.hypot(rKnee.x - lKnee.x, rKnee.y - lKnee.y);
+const hipGap = Math.hypot(rHip.x - lHip.x, rHip.y - lHip.y);
+const isKneeClosed = kneeGap < hipGap * BIOMECHANICS_CONFIG.THORACIC.MAX_KNEE_HIP_RATIO;
+const isSeated = (lHip.y < lKnee.y) && (lKnee.y - lHip.y > BIOMECHANICS_CONFIG.LOCKON.SEATED_HIP_KNEE_DY);
+return isKneeClosed && isSeated;
+} else if (testId === 'aslr_floor') {
+if (!lAnkle || !rAnkle) return false;
+const isShoulderHipHorizontal = Math.abs(lSh.y - lHip.y) < BIOMECHANICS_CONFIG.ASLR.HORIZONTAL_TOLERANCE_DY;
+const isHipKneeHorizontal = Math.abs(lHip.y - lKnee.y) < BIOMECHANICS_CONFIG.ASLR.HORIZONTAL_TOLERANCE_DY;
+const isHipAnkleHorizontal = Math.abs(lHip.y - lAnkle.y) < BIOMECHANICS_CONFIG.ASLR.HORIZONTAL_TOLERANCE_DY;
+const isLowerScreen = (lSh.y > BIOMECHANICS_CONFIG.ASLR.BODY_MIN_Y) && (lHip.y > BIOMECHANICS_CONFIG.ASLR.BODY_MIN_Y);
+return isShoulderHipHorizontal && isHipKneeHorizontal && isHipAnkleHorizontal && isLowerScreen;
+}
+return false;
+},
+captureBaseline(testId, landmarks, side) {
+if (testId === 'thoracic_seated') {
+return {
+shoulderWidth: Math.hypot(landmarks[12].x - landmarks[11].x, landmarks[12].y - landmarks[11].y),
+p1: { x: landmarks[11].x, y: landmarks[11].y },
+p2: { x: landmarks[12].x, y: landmarks[12].y }
+};
+} else if (testId === 'hip_seated') {
+const knee = side === 'right' ? landmarks[26] : landmarks[25];
+const ankle = side === 'right' ? landmarks[28] : landmarks[27];
+return {
+slope: Math.atan2(ankle.x - knee.x, ankle.y - knee.y) * (180 / Math.PI),
+knee: { x: knee.x, y: knee.y },
+ankle: { x: ankle.x, y: ankle.y }
+};
+} else if (testId === 'aslr_floor') {
+const hip = side === 'right' ? landmarks[24] : landmarks[23];
+const knee = side === 'right' ? landmarks[26] : landmarks[25];
+return {
+slope: Math.atan2(Math.abs(knee.y - hip.y), Math.abs(knee.x - hip.x)) * (180 / Math.PI),
+hip: { x: hip.x, y: hip.y },
+knee: { x: knee.x, y: knee.y }
+};
+}
+return null;
+}
+};
+/* --------------------------------------------------------------------------
+7. AppFSM: 有限ステートマシン（人物ロスト監視強化）
+-------------------------------------------------------------------------- */
+const AppFSM = {
+state: 'WAITING',
+currentTest: 'thoracic_seated',
+targetSide: 'right',
+facingMode: 'user',
+isModalOpen: false,
+currentAngle: 0,
+maxAngle: 0,
+baselineData: null,
+holdStartTime: 0,
+countdownValue: 3,
+measureStartTime: 0,
+isCheatDetected: false,
+cheatReason: '',
+lastHumanDetectedTime: 0, // 人物ロスト検出用
+transitionTo(newState, payload = {}) {
+if (this.state === newState) return;
+this.exitState(this.state);
+this.state = newState;
+this.enterState(newState, payload);
+},
+exitState(state) {
+voice.stop();
+if (state === 'CHARGING') {
+DOM.holdProgressBar.style.width = '0%';
+} else if (state === 'COUNTDOWN') {
+DOM.countdownOverlay.classList.add('hidden');
+} else if (state === 'MEASURING') {
+DOM.remainingTimeBox.classList.add('hidden');
+ViewRenderer.clearWarningState();
+}
+},
+enterState(state, payload) {
+const now = Date.now();
+if (state === 'WAITING') {
+ViewRenderer.renderWaitingState();
+} else if (state === 'CHARGING') {
+this.holdStartTime = now;
+sound.playPip();
+voice.speak(TEST_SPECS[this.currentTest].readyInstruction);
+} else if (state === 'COUNTDOWN') {
+this.countdownValue = 3;
+DOM.countdownOverlay.classList.remove('hidden');
+DOM.countdownNumber.innerText = '3';
+sound.playCountdownTick();
+voice.speak('3！');
+TimerPool.clearAll();
+let timerId = null;
+timerId = TimerPool.setInterval(() => {
+this.countdownValue--;
+if (this.countdownValue > 0) {
+DOM.countdownNumber.innerText = this.countdownValue;
+sound.playCountdownTick();
+voice.speak(⁠${this.countdownValue}！⁠);
+} else if (this.countdownValue === 0) {
+TimerPool.clearInterval(timerId);
+DOM.countdownNumber.innerText = 'GO!';
+sound.playWhistle();
+voice.speak(TEST_SPECS[this.currentTest].actionInstruction, true);
+this.baselineData = BiomechanicsCore.captureBaseline(this.currentTest, payload.landmarks, this.targetSide);
+this.transitionTo('MEASURING');
+}
+}, 1000);
+} else if (state === 'MEASURING') {
+this.maxAngle = 0;
+this.currentAngle = 0;
+this.measureStartTime = now;
+DOM.remainingTimeBox.classList.remove('hidden');
+ViewRenderer.renderMeasuringHeader();
+} else if (state === 'FINISHED') {
+sound.playFanfare();
+ViewRenderer.showResultModal(this.currentTest, this.targetSide, this.maxAngle);
+}
+},
+update(landmarks) {
+if (this.isModalOpen) return;
+const now = Date.now();
+const hasHuman = BiomechanicsCore.isHumanDetected(landmarks);
+// 人物検知のロスト管理
+if (hasHuman) {
+this.lastHumanDetectedTime = now;
+} else {
+// 人物が一定時間検出されなくなった場合、安全に初期状態へ強制リセット
+if (this.state !== 'WAITING' && (now - this.lastHumanDetectedTime > BIOMECHANICS_CONFIG.APP.LOST_HUMAN_TIMEOUT_MS)) {
+TimerPool.clearAll();
+this.transitionTo('WAITING');
+ViewRenderer.renderWaitingState('カメラに全身を映して！');
+return;
+}
+if (this.state === 'WAITING') {
+ViewRenderer.renderWaitingState('カメラに全身を映して！');
+}
+return;
+}
+const isReady = BiomechanicsCore.checkPoseReady(this.currentTest, landmarks);
+if (this.state === 'WAITING') {
+if (isReady) {
+this.transitionTo('CHARGING');
+}
+} else if (this.state === 'CHARGING') {
+if (!isReady) {
+this.transitionTo('WAITING');
+return;
+}
+const elapsed = now - this.holdStartTime;
+const progress = Math.min(100, (elapsed / BIOMECHANICS_CONFIG.LOCKON.HOLD_DURATION_MS) * 100);
+DOM.holdProgressBar.style.width = ⁠${progress}%⁠;
+DOM.screenBorder.className = 'absolute inset-0 border-4 border-cyan-400 pointer-events-none z-10 transition-colors duration-75';
+DOM.remoteStepIcon.innerText = '⚡';
+DOM.remoteStepText.innerText = 'そのままジッとキープ！';
+if (progress >= 100) {
+this.transitionTo('COUNTDOWN', { landmarks });
+}
+} else if (this.state === 'MEASURING') {
+const elapsed = now - this.measureStartTime;
+const remainingMs = Math.max(0, BIOMECHANICS_CONFIG.APP.MEASURE_DURATION_MS - elapsed);
+const remainingSeconds = (remainingMs / 1000).toFixed(1);
+DOM.remainingSecondsText.innerText = remainingSeconds;
+const remainProgress = (remainingMs / BIOMECHANICS_CONFIG.APP.MEASURE_DURATION_MS) * 100;
+DOM.holdProgressBar.style.width = ⁠${remainProgress}%⁠;
+let calc;
+if (this.currentTest === 'thoracic_seated') {
+calc = BiomechanicsCore.calculateThoracic(landmarks, this.targetSide, this.baselineData);
+} else if (this.currentTest === 'hip_seated') {
+calc = BiomechanicsCore.calculateHip(landmarks, this.targetSide, this.baselineData);
+} else {
+calc = BiomechanicsCore.calculateAslr(landmarks, this.targetSide, this.baselineData);
+}
+this.currentAngle = calc.angle;
+this.isCheatDetected = calc.cheat;
+this.cheatReason = calc.reason;
+if (calc.cheat) {
+ViewRenderer.renderWarningState(calc.reason);
+sound.playBuzzer();
+voice.speak(calc.reason);
+} else {
+ViewRenderer.clearWarningState();
+}
+if (!calc.cheat && calc.angle > this.maxAngle) {
+this.maxAngle = calc.angle;
+}
+ViewRenderer.renderLiveAngle(this.currentAngle, this.maxAngle, this.currentTest);
+if (remainingMs <= 0) {
+this.transitionTo('FINISHED');
+}
+}
+},
+setTest(testId) {
+TimerPool.clearAll();
+this.currentTest = testId;
+this.baselineData = null;
+this.currentAngle = 0;
+this.maxAngle = 0;
+this.isCheatDetected = false;
+if (typeof landmarkFilters !== 'undefined') {
+landmarkFilters.forEach(f => { f.x.reset(); f.y.reset(); });
+}
+this.transitionTo('WAITING');
+ViewRenderer.renderTestSelection(testId);
+voice.speak(TEST_SPECS[testId].voiceInstruction, true);
+},
+setSide(side) {
+TimerPool.clearAll();
+this.targetSide = side;
+this.baselineData = null;
+this.transitionTo('WAITING');
+ViewRenderer.renderSideSelection(side);
+sound.playPip();
+voice.speak(⁠${side === 'right' ? '右' : '左'}側の測定にセットしたよ！⁠);
+}
+};
+/* --------------------------------------------------------------------------
+8. ViewRenderer: 高DPI描画 & 被りゼロUIレイアウト管理
+-------------------------------------------------------------------------- */
+const ViewRenderer = {
+dpr: window.devicePixelRatio || 1,
+renderWaitingState(customMsg = 'カメラに全身を映して！') {
+DOM.screenBorder.className = 'absolute inset-0 border-4 border-slate-700/50 pointer-events-none z-10 transition-colors duration-300';
+DOM.stepBannerContainer.className = 'flex items-center justify-between bg-slate-950/70 border border-slate-800/90 rounded-xl px-2.5 py-1.5 transition-colors duration-200';
+DOM.remoteStepIcon.innerText = '🎯';
+DOM.remoteStepText.innerText = customMsg;
+DOM.remoteStepText.className = 'text-yellow-300 truncate';
+DOM.holdProgressBar.style.width = '0%';
+DOM.liveAngleText.innerText = '0';
+DOM.liveRankBadge.innerText = '構え待機中';
+DOM.liveRankBadge.style.borderColor = '#64748b';
+DOM.liveRankBadge.style.color = '#cbd5e1';
+},
+renderMeasuringHeader() {
+DOM.screenBorder.className = 'absolute inset-0 border-4 border-emerald-400 pointer-events-none z-10';
+DOM.stepBannerContainer.className = 'flex items-center justify-between bg-emerald-950/70 border border-emerald-500/60 rounded-xl px-2.5 py-1.5 transition-colors duration-200';
+DOM.remoteStepIcon.innerText = '🔥';
+DOM.remoteStepText.innerText = '大きくしならせろ！';
+DOM.remoteStepText.className = 'text-emerald-300 truncate';
+},
+renderWarningState(reason) {
+DOM.screenBorder.className = 'absolute inset-0 border-4 border-red-500 pointer-events-none z-10 cheat-active';
+DOM.stepBannerContainer.className = 'flex items-center justify-between bg-red-950/90 border-2 border-red-500 rounded-xl px-2.5 py-1.5 transition-colors duration-150 animate-pulse';
+DOM.remoteStepIcon.innerText = '⚠️';
+DOM.remoteStepText.innerText = reason;
+DOM.remoteStepText.className = 'text-white font-black truncate drop-shadow';
+},
+clearWarningState() {
+DOM.screenBorder.className = 'absolute inset-0 border-4 border-emerald-400 pointer-events-none z-10';
+DOM.stepBannerContainer.className = 'flex items-center justify-between bg-emerald-950/70 border border-emerald-500/60 rounded-xl px-2.5 py-1.5 transition-colors duration-200';
+DOM.remoteStepIcon.innerText = '🔥';
+DOM.remoteStepText.innerText = '大きくしならせろ！';
+DOM.remoteStepText.className = 'text-emerald-300 truncate';
+},
+renderLiveAngle(angle, maxAngle, testId) {
+DOM.liveAngleText.innerText = angle;
+const spec = TEST_SPECS[testId];
+let rank = spec.ranks[spec.ranks.length - 1];
+for (const r of spec.ranks) {
+if (maxAngle >= r.min) {
+rank = r;
+break;
+}
+}
+DOM.liveRankBadge.innerText = rank.title;
+DOM.liveRankBadge.style.borderColor = rank.color;
+DOM.liveRankBadge.style.color = rank.color;
+},
+renderTestSelection(testId) {
+const spec = TEST_SPECS[testId];
+DOM.setupBadge.innerText = spec.setupText;
+DOM.guideTitle.innerText = spec.title;
+DOM.targetGoalText.innerText = ⁠${spec.targetGoal}°⁠;
+DOM.pipVisualContainer.innerHTML = spec.pipSvg;
+DOM.pipActionCaption.innerText = spec.actionInstruction;
+[DOM.tabThoracic, DOM.tabHip, DOM.tabAslr].forEach(tab => {
+tab.className = 'btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-slate-800 text-slate-300 border-slate-700';
+});
+if (testId === 'thoracic_seated') DOM.tabThoracic.className = 'btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300';
+if (testId === 'hip_seated') DOM.tabHip.className = 'btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300';
+if (testId === 'aslr_floor') DOM.tabAslr.className = 'btn-3d py-2 rounded-xl text-[10px] sm:text-xs font-black bg-cyan-500 text-slate-950 border-cyan-300';
+},
+renderSideSelection(side) {
+if (side === 'right') {
+DOM.sideRightBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow';
+DOM.sideLeftBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400';
+} else {
+DOM.sideLeftBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition bg-cyan-500 text-slate-950 shadow';
+DOM.sideRightBtn.className = 'px-2.5 py-1.5 rounded-lg text-[11px] font-black transition text-slate-400';
+}
+},
+showResultModal(testId, side, maxAngle) {
+const spec = TEST_SPECS[testId];
+let rankTitle = '🛡️ B級 (サビあり)';
+for (const r of spec.ranks) {
+if (maxAngle >= r.min) {
+rankTitle = r.title;
+break;
+}
+}
+voice.speak(⁠測定終了！最高角度は${maxAngle}度！${rankTitle.replace(/🐉|🔥|⚡|🛡️/g, '')}！⁠, true);
+DOM.reportTestTitle.innerText = ⁠${spec.title} (${side === 'right' ? '右側' : '左側'}) [${APP_VERSION}]⁠;
+DOM.reportAngleText.innerText = maxAngle;
+DOM.reportRankTitle.innerText = rankTitle;
+DOM.reportFeedbackText.innerText = spec.feedback;
+DOM.drillTitleText.innerText = spec.drillTitle;
+DOM.reportModal.classList.remove('hidden');
+AppFSM.isModalOpen = true;
+if (typeof window.saveMeasurementToCloud === 'function') {
+window.saveMeasurementToCloud(
+testId,
+spec.title,
+side,
+maxAngle,
+rankTitle.replace(/🐉|🔥|⚡|🛡️/g, '').trim()
+);
+}
+},
+renderCanvas(landmarks, rawVideo) {
+const canvas = DOM.canvas;
+const ctx = canvas.getContext('2d');
+const logicalW = window.innerWidth;
+const logicalH = window.innerHeight;
+ctx.clearRect(0, 0, logicalW, logicalH);
+let renderW = logicalW;
+let renderH = logicalH;
+let offsetX = 0;
+let offsetY = 0;
+if (rawVideo && rawVideo.videoWidth) {
+const vw = rawVideo.videoWidth;
+const vh = rawVideo.videoHeight;
+const scale = Math.max(logicalW / vw, logicalH / vh);
+renderW = vw * scale;
+renderH = vh * scale;
+offsetX = (logicalW - renderW) / 2;
+offsetY = (logicalH - renderH) / 2;
+ctx.save();
+if (AppFSM.facingMode === 'user') {
+ctx.translate(logicalW, 0);
+ctx.scale(-1, 1);
+ctx.drawImage(rawVideo, (logicalW - (offsetX + renderW)), offsetY, renderW, renderH);
+} else {
+ctx.drawImage(rawVideo, offsetX, offsetY, renderW, renderH);
+}
+ctx.restore();
+}
+// 人体が検出されていない時はスケルトンを描画しない
+if (!landmarks || !BiomechanicsCore.isHumanDetected(landmarks)) return;
+const toPx = (lm) => {
+let normX = lm.x;
+if (AppFSM.facingMode === 'user') {
+normX = 1.0 - normX;
+}
+return {
+x: offsetX + normX * renderW,
+y: offsetY + lm.y * renderH
+};
+};
+ctx.lineWidth = 6;
+ctx.lineCap = 'round';
+if (AppFSM.currentTest === 'thoracic_seated') {
+const p1 = toPx(landmarks[11]);
+const p2 = toPx(landmarks[12]);
+ctx.strokeStyle = AppFSM.isCheatDetected ? '#ef4444' : '#38bdf8';
+ctx.beginPath();
+ctx.moveTo(p1.x, p1.y);
+ctx.lineTo(p2.x, p2.y);
+ctx.stroke();
+[p1, p2].forEach(p => {
+ctx.fillStyle = '#fde047';
+ctx.beginPath();
+ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+ctx.fill();
+});
+} else if (AppFSM.currentTest === 'hip_seated') {
+const side = AppFSM.targetSide;
+const knee = toPx(side === 'right' ? landmarks[26] : landmarks[25]);
+const ankle = toPx(side === 'right' ? landmarks[28] : landmarks[27]);
+ctx.strokeStyle = AppFSM.isCheatDetected ? '#ef4444' : '#38bdf8';
+ctx.beginPath();
+ctx.moveTo(knee.x, knee.y);
+ctx.lineTo(ankle.x, ankle.y);
+ctx.stroke();
+ctx.fillStyle = '#fde047';
+ctx.beginPath();
+ctx.arc(knee.x, knee.y, 8, 0, Math.PI * 2);
+ctx.arc(ankle.x, ankle.y, 6, 0, Math.PI * 2);
+ctx.fill();
+} else if (AppFSM.currentTest === 'aslr_floor') {
+const side = AppFSM.targetSide;
+const hip = toPx(side === 'right' ? landmarks[24] : landmarks[23]);
+const knee = toPx(side === 'right' ? landmarks[26] : landmarks[25]);
+const ankle = toPx(side === 'right' ? landmarks[28] : landmarks[27]);
+ctx.strokeStyle = AppFSM.isCheatDetected ? '#ef4444' : '#38bdf8';
+ctx.beginPath();
+ctx.moveTo(hip.x, hip.y);
+ctx.lineTo(knee.x, knee.y);
+ctx.lineTo(ankle.x, ankle.y);
+ctx.stroke();
+[hip, knee, ankle].forEach(p => {
+ctx.fillStyle = '#fde047';
+ctx.beginPath();
+ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+ctx.fill();
+});
+}
+if (AppFSM.state === 'MEASURING' && AppFSM.baselineData) {
+ctx.save();
+ctx.setLineDash([6, 6]);
+ctx.strokeStyle = '#facc15';
+ctx.lineWidth = 3;
+if (AppFSM.currentTest === 'thoracic_seated' && AppFSM.baselineData.p1) {
+const bp1 = toPx(AppFSM.baselineData.p1);
+const bp2 = toPx(AppFSM.baselineData.p2);
+ctx.beginPath();
+ctx.moveTo(bp1.x, bp1.y);
+ctx.lineTo(bp2.x, bp2.y);
+ctx.stroke();
+ctx.font = 'bold 12px sans-serif';
+ctx.fillStyle = '#facc15';
+ctx.fillText('0° 基準線', (bp1.x + bp2.x) / 2 - 20, (bp1.y + bp2.y) / 2 - 12);
+} else if (AppFSM.currentTest === 'hip_seated' && AppFSM.baselineData.knee) {
+const bKnee = toPx(AppFSM.baselineData.knee);
+const bAnkle = toPx(AppFSM.baselineData.ankle);
+ctx.beginPath();
+ctx.moveTo(bKnee.x, bKnee.y);
+ctx.lineTo(bAnkle.x, bAnkle.y);
+ctx.stroke();
+ctx.font = 'bold 12px sans-serif';
+ctx.fillStyle = '#facc15';
+ctx.fillText('0° 基準線', bKnee.x - 25, bKnee.y - 12);
+} else if (AppFSM.currentTest === 'aslr_floor' && AppFSM.baselineData.hip) {
+const bHip = toPx(AppFSM.baselineData.hip);
+const bKnee = toPx(AppFSM.baselineData.knee);
+ctx.beginPath();
+ctx.moveTo(bHip.x, bHip.y);
+ctx.lineTo(bKnee.x, bKnee.y);
+ctx.stroke();
+ctx.font = 'bold 12px sans-serif';
+ctx.fillStyle = '#facc15';
+ctx.fillText('0° 基準線', bHip.x, bHip.y - 12);
+}
+ctx.restore();
+}
+}
+};
+/* --------------------------------------------------------------------------
+9. MediaPipe Pose & カメラパイプライン
+-------------------------------------------------------------------------- */
+const landmarkFilters = Array.from({ length: 33 }, () => ({
+x: new OneEuroFilter(30, 0.8, 0.005),
+y: new OneEuroFilter(30, 0.8, 0.005)
+}));
+let poseDetector = null;
+let currentStream = null;
+let isDetecting = false;
+let animFrameId = null;
+let isSwitchingCamera = false;
+async function waitForMediaPipeScript(maxWaitMs = 10000) {
+const startTime = Date.now();
+while (typeof window.Pose === 'undefined') {
+if (Date.now() - startTime > maxWaitMs) {
+throw new Error('AIエンジン(MediaPipe Pose)の読み込みがタイムアウトしました。通信環境を確認してページを再読み込みしてください。');
+}
+await new Promise(r => setTimeout(r, 100));
+}
+}
+async function initMediaPipePose() {
+if (poseDetector) return;
+await waitForMediaPipeScript();
+poseDetector = new window.Pose({
+locateFile: (file) => ⁠https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}⁠
+});
+poseDetector.setOptions({
+modelComplexity: 1,
+smoothLandmarks: false,
+enableSegmentation: false,
+smoothSegmentation: false,
+minDetectionConfidence: 0.55,
+minTrackingConfidence: 0.55
+});
+poseDetector.onResults(onPoseResults);
+}
+function onPoseResults(results) {
+const now = Date.now();
+let smoothedLandmarks = null;
+if (results.poseLandmarks) {
+smoothedLandmarks = results.poseLandmarks.map((lm, idx) => ({
+x: landmarkFilters[idx].x.filter(lm.x, now),
+y: landmarkFilters[idx].y.filter(lm.y, now),
+z: lm.z,
+visibility: lm.visibility
+}));
+}
+ViewRenderer.renderCanvas(smoothedLandmarks, DOM.video);
+AppFSM.update(smoothedLandmarks);
+}
+async function poseDetectionLoop() {
+if (!currentStream || !DOM.video) return;
+if (DOM.video.readyState >= 2 && !isDetecting && poseDetector) {
+isDetecting = true;
+try {
+await poseDetector.send({ image: DOM.video });
+} catch (e) {
+} finally {
+isDetecting = false;
+}
+}
+animFrameId = requestAnimationFrame(poseDetectionLoop);
+}
+function updateCanvasSize() {
+const dpr = window.devicePixelRatio || 1;
+ViewRenderer.dpr = dpr;
+DOM.canvas.width = window.innerWidth * dpr;
+DOM.canvas.height = window.innerHeight * dpr;
+const ctx = DOM.canvas.getContext('2d');
+ctx.scale(dpr, dpr);
+}
+async function startCamera(facing = 'user') {
+try {
+if (animFrameId) {
+cancelAnimationFrame(animFrameId);
+animFrameId = null;
+}
+if (currentStream) {
+currentStream.getTracks().forEach(track => track.stop());
+currentStream = null;
+}
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+throw new Error('お使いのブラウザはカメラAPIに対応していないか、安全な接続(HTTPS)で開かれていません。');
+}
+const constraintsList = [
+{ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+{ video: { facingMode: facing }, audio: false },
+{ video: true, audio: false }
+];
+let stream = null;
+let lastErr = null;
+for (const c of constraintsList) {
+try {
+stream = await navigator.mediaDevices.getUserMedia(c);
+if (stream) break;
+} catch (err) {
+lastErr = err;
+console.warn('Constraint attempt failed:', err);
+}
+}
+if (!stream) {
+if (lastErr && lastErr.name === 'NotAllowedError') {
+throw new Error('カメラへのアクセスが拒否されています。ブラウザの設定でカメラの使用を許可してください。');
+} else if (lastErr && lastErr.name === 'NotFoundError') {
+throw new Error('利用可能なカメラが見つかりません。外付けカメラ等の接続をご確認ください。');
+}
+throw new Error(lastErr ? lastErr.message : 'カメラの起動に失敗しました。');
+}
+currentStream = stream;
+DOM.video.srcObject = stream;
+DOM.video.muted = true;
+DOM.video.playsInline = true;
+await new Promise((resolve) => {
+if (DOM.video.readyState >= 2) {
+resolve();
+} else {
+DOM.video.onloadeddata = () => resolve();
+setTimeout(resolve, 1500);
+}
+});
+try {
+await DOM.video.play();
+} catch (playErr) {
+console.warn('video.play exception:', playErr);
+}
+updateCanvasSize();
+window.removeEventListener('resize', updateCanvasSize);
+window.addEventListener('resize', updateCanvasSize);
+poseDetectionLoop();
+DOM.startCameraScreen.classList.add('hidden');
+return true;
+} catch (err) {
+console.error('startCamera failed:', err);
+throw err;
+}
+}
+/* --------------------------------------------------------------------------
+10. イベントリスナー登録 ＆ アプリケーション初期化
+-------------------------------------------------------------------------- */
+function setCameraStatus(msg) {
+DOM.cameraStatusProgress.classList.remove('hidden');
+DOM.cameraStatusProgressText.innerText = msg;
+}
+function showCameraError(msg) {
+DOM.cameraErrorMessageBox.classList.remove('hidden');
+DOM.cameraErrorMessage.innerText = msg;
+DOM.cameraStatusProgress.classList.add('hidden');
+DOM.requestCameraBtn.disabled = false;
+DOM.requestCameraBtnIcon.innerText = '🔄';
+DOM.requestCameraBtnText.innerText = 'もう一度試す';
+}
+DOM.requestCameraBtn.addEventListener('click', async () => {
+DOM.requestCameraBtn.disabled = true;
+DOM.cameraErrorMessageBox.classList.add('hidden');
+DOM.requestCameraBtnIcon.innerText = '⏳';
+DOM.requestCameraBtnText.innerText = 'カメラ起動中...';
+try {
+setCameraStatus('音声システム初期化中...');
+sound.init();
+sound.playPip();
+setCameraStatus('AIエンジン(MediaPipe)を準備中...');
+await initMediaPipePose();
+setCameraStatus('カメラのアクセスを要求中...');
+const success = await startCamera(AppFSM.facingMode);
+if (success) {
+AppFSM.setTest('thoracic_seated');
+}
+} catch (e) {
+console.error('Boot error:', e);
+showCameraError(e.message || '初期化中に予期せぬエラーが発生しました。');
+}
+});
+DOM.cameraSwitchBtn.addEventListener('click', async () => {
+if (isSwitchingCamera) return;
+isSwitchingCamera = true;
+DOM.cameraSwitchBtn.disabled = true;
+try {
+sound.playPip();
+AppFSM.facingMode = AppFSM.facingMode === 'user' ? 'environment' : 'user';
+DOM.cameraSwitchLabel.innerText = AppFSM.facingMode === 'user' ? '内カメ' : '外カメ';
+await startCamera(AppFSM.facingMode);
+voice.speak(AppFSM.facingMode === 'user' ? 'インカメラに切り替えたよ！' : '外カメラに切り替えたよ！');
+} catch(err) {
+console.error('Switch camera error:', err);
+} finally {
+isSwitchingCamera = false;
+DOM.cameraSwitchBtn.disabled = false;
+}
+});
+DOM.tabThoracic.addEventListener('click', () => { sound.playPip(); AppFSM.setTest('thoracic_seated'); });
+DOM.tabHip.addEventListener('click', () => { sound.playPip(); AppFSM.setTest('hip_seated'); });
+DOM.tabAslr.addEventListener('click', () => { sound.playPip(); AppFSM.setTest('aslr_floor'); });
+DOM.sideLeftBtn.addEventListener('click', () => AppFSM.setSide('left'));
+DOM.sideRightBtn.addEventListener('click', () => AppFSM.setSide('right'));
+DOM.replayVoiceBtn.addEventListener('click', () => {
+sound.playPip();
+voice.speak(TEST_SPECS[AppFSM.currentTest].voiceInstruction, true);
+});
+DOM.howToBtn.addEventListener('click', () => {
+DOM.howToModal.classList.remove('hidden');
+AppFSM.isModalOpen = true;
+voice.stop();
+sound.playPip();
+});
+DOM.closeHowToBtn.addEventListener('click', () => { DOM.howToModal.classList.add('hidden'); AppFSM.isModalOpen = false; });
+DOM.closeHowToBottomBtn.addEventListener('click', () => { DOM.howToModal.classList.add('hidden'); AppFSM.isModalOpen = false; });
+DOM.historyOpenBtn.addEventListener('click', () => {
+DOM.historyModal.classList.remove('hidden');
+AppFSM.isModalOpen = true;
+voice.stop();
+sound.playPip();
+});
+DOM.closeHistoryBtn.addEventListener('click', () => { DOM.historyModal.classList.add('hidden'); AppFSM.isModalOpen = false; });
+DOM.closeHistoryBottomBtn.addEventListener('click', () => { DOM.historyModal.classList.add('hidden'); AppFSM.isModalOpen = false; });
+DOM.retryTestBtn.addEventListener('click', () => {
+DOM.reportModal.classList.add('hidden');
+AppFSM.isModalOpen = false;
+AppFSM.setTest(AppFSM.currentTest);
+sound.playPip();
+});
+DOM.shareOrNextBtn.addEventListener('click', () => {
+DOM.reportModal.classList.add('hidden');
+AppFSM.isModalOpen = false;
+const tests = ['thoracic_seated', 'hip_seated', 'aslr_floor'];
+const nextIdx = (tests.indexOf(AppFSM.currentTest) + 1) % tests.length;
+AppFSM.setTest(tests[nextIdx]);
+sound.playPip();
+});
+DOM.startDrillBtn.addEventListener('click', () => {
+sound.playPip();
+voice.speak('1分間ドリルスタート！息を止めずにリラックスして伸ばそう！', true);
+});
+// 初期化
+AppFSM.setTest('thoracic_seated');
+</script>
 </body>
 </html>
