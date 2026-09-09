@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🦴 柔軟性・しなりドック v3.1</title>
+  <title>🦴 柔軟性・しなりドック v3.2</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -53,7 +53,6 @@
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
-    /* ブロスタ風極太二重ドロップシャドウテキスト */
     .brawl-text {
       text-shadow: 0 2px 0 #000, 0 3px 6px rgba(0, 0, 0, 0.85);
     }
@@ -126,7 +125,7 @@
       from { border-color: #eab308; box-shadow: 0 0 10px rgba(234, 179, 8, 0.5); }
       to { border-color: #ef4444; box-shadow: 0 0 24px rgba(239, 68, 68, 0.85); }
     }
-    /* ガイド枠のビジュアル演出 */
+    /* ガイド枠演出 */
     .guide-box {
       border: 3px dashed rgba(56, 189, 248, 0.6);
       border-radius: 1.25rem;
@@ -186,7 +185,7 @@
     <div class="flex items-center gap-1">
       <span class="text-lg">🦴</span>
       <h1 class="text-xs sm:text-sm font-black text-yellow-300 brawl-text tracking-wider">しなりドック</h1>
-      <span class="text-[9px] bg-slate-800 text-sky-400 border border-sky-500/60 rounded px-1 font-extrabold">v3.1</span>
+      <span class="text-[9px] bg-slate-800 text-sky-400 border border-sky-500/60 rounded px-1 font-extrabold">v3.2</span>
     </div>
 
     <div class="flex items-center gap-1">
@@ -238,10 +237,10 @@
     <video id="cameraVideo" class="absolute inset-0 w-full h-full object-cover transition-transform duration-200" playsinline muted autoplay></video>
     <canvas id="poseCanvas" class="absolute inset-0 w-full h-full object-cover pointer-events-none z-10 transition-transform duration-200"></canvas>
 
-    <!-- ゴースト人型シルエット（前傾アドレスポーズ対応） -->
+    <!-- ゴースト人型シルエット -->
     <div id="ghostContainer" class="ghost-silhouette">
       <svg id="ghostSvg" viewBox="0 0 200 320" class="h-4/5 max-h-[85%] w-auto stroke-sky-400 fill-sky-400/20 stroke-2 transition-all duration-300" style="stroke-dasharray: 6 4;">
-        <!-- 前傾胸パカーン（片手頭、片手反対の膝） -->
+        <!-- ①前傾胸パカーン -->
         <g id="ghostPathThoracic">
           <circle cx="100" cy="50" r="22" />
           <line x1="100" y1="72" x2="100" y2="165" stroke-width="8" stroke-linecap="round"/>
@@ -251,7 +250,7 @@
           <polyline points="80,165 72,215 78,280" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
           <polyline points="120,165 128,215 122,280" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
         </g>
-        <!-- 片足タメ絞り -->
+        <!-- ②片足タメ絞り -->
         <g id="ghostPathHipIR" class="hidden">
           <circle cx="100" cy="45" r="20" />
           <line x1="100" y1="65" x2="100" y2="160" stroke-width="6" stroke-linecap="round"/>
@@ -259,7 +258,7 @@
           <line x1="100" y1="160" x2="85" y2="280" stroke-width="5" stroke-linecap="round"/>
           <polyline points="100,160 125,200 138,250" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
         </g>
-        <!-- 立ちペタ前屈 -->
+        <!-- ③立ちペタ前屈 -->
         <g id="ghostPathHinge" class="hidden">
           <circle cx="100" cy="45" r="20" />
           <line x1="100" y1="65" x2="100" y2="165" stroke-width="6" stroke-linecap="round"/>
@@ -288,11 +287,10 @@
       </div>
     </div>
 
-    <!-- 姿勢ガイド枠＆中央動的オーバーレイ（重なり防止レイアウト） -->
+    <!-- 姿勢ガイド枠＆中央動的オーバーレイ -->
     <div id="guideOverlay" class="absolute inset-2 sm:inset-3 guide-box pointer-events-none z-20 flex flex-col items-center justify-between p-1.5 transition-all duration-300">
-      <!-- 上部：離れていても一目でわかる遠隔メガ案内バナー -->
+      <!-- 上部：遠隔メガ案内バナー -->
       <div class="w-full flex flex-col items-center pt-8 sm:pt-9 gap-1">
-        <!-- 遠隔メガ案内バナー（2m離れてもハッキリ読める特大サイズ） -->
         <div id="megaGuideBanner" class="bg-black/90 border-2 border-yellow-400 px-3 py-1.5 rounded-2xl shadow-2xl flex items-center gap-2 max-w-[95%] backdrop-blur-md transition-all duration-200">
           <span id="megaGuideIcon" class="text-xl sm:text-2xl animate-bounce">👉</span>
           <span id="megaGuideText" class="text-xs sm:text-sm font-black text-yellow-300 brawl-text leading-tight text-center">
@@ -325,7 +323,7 @@
         </div>
       </div>
 
-      <!-- 中央：ロックオン進行度（大型化） -->
+      <!-- 中央：ロックオン進行度 -->
       <div class="flex flex-col items-center gap-2">
         <div id="lockonChargeBox" class="hidden flex flex-col items-center gap-1 bg-black/90 px-5 py-2.5 rounded-2xl border-2 border-sky-400 shadow-2xl backdrop-blur-md scale-105">
           <div class="flex items-center gap-2">
@@ -342,11 +340,11 @@
         </div>
       </div>
 
-      <!-- 下部スペース（重なり防止用空ブロック） -->
+      <!-- 下部スペース -->
       <div class="w-full h-8"></div>
     </div>
 
-    <!-- HUD数値表示（上部左右固定） -->
+    <!-- HUD数値表示 -->
     <div class="absolute top-1.5 left-1.5 z-30 flex flex-col gap-1">
       <div class="panel-brawl px-2 py-1 flex items-center gap-1.5 border-emerald-500/60">
         <span id="hudMainIcon" class="text-base">🏹</span>
@@ -379,7 +377,7 @@
       <p id="countdownSubtitle" class="text-lg sm:text-xl font-black text-white brawl-text mt-3">胸を天井へ開く準備！</p>
     </div>
 
-    <!-- 測定中インジケーター（最下部バー） -->
+    <!-- 測定中インジケーター -->
     <div id="statusInstruction" class="absolute bottom-1.5 inset-x-2 z-30 bg-slate-950/90 border border-emerald-400/80 rounded-xl py-1 px-2 text-center text-[10px] sm:text-xs text-white brawl-text shadow-2xl flex items-center justify-center gap-1.5 backdrop-blur-md">
       <span class="animate-bounce text-xs">💡</span>
       <span id="instructionText">下の手を膝につけたまま、胸を天井へパカーン！</span>
@@ -576,7 +574,6 @@
     </div>
   </div>
 
-  <!-- JavaScript ロジック -->
   <script>
     /**
      * One Euro Filter (1€ Filter)
@@ -606,7 +603,6 @@
         }
 
         const dt = (t - this.tPrev) / 1000.0;
-        // 画面復帰などの巨大タイムラグ時は安全リセット
         if (dt <= 0 || dt > 0.5) {
           this.reset();
           this.xPrev = x;
@@ -667,13 +663,10 @@
       }
     }
 
-    /**
-     * アプリケーション本体
-     */
     const App = {
       Config: {
-        STABLE_DISTANCE_THRESHOLD: 0.075, // 前傾姿勢の微小な揺れを許容しやすく緩和
-        AUTO_TRIGGER_HOLD_MS: 1000,       // ロックオン所要時間をテンポよく1秒に
+        STABLE_DISTANCE_THRESHOLD: 0.075,
+        AUTO_TRIGGER_HOLD_MS: 1000,
         TEST_DURATION_MS: 3800,
         MAX_STORED_LOGS: 25
       },
@@ -938,7 +931,6 @@
           });
         },
 
-        // 2m離れても一目でわかるメガバナー更新 ＆ 音声アシスト
         updateMegaBanner(text, icon = '👉', type = 'warning') {
           const banner = this.elements.megaGuideBanner;
           const textEl = this.elements.megaGuideText;
@@ -961,6 +953,98 @@
             banner.className = 'bg-black/90 border-2 border-yellow-400 px-3 py-1.5 rounded-2xl shadow-2xl flex items-center gap-2 max-w-[95%] backdrop-blur-md';
             textEl.className = 'text-xs sm:text-sm font-black text-yellow-300 brawl-text leading-tight text-center';
             if (overlay) overlay.style.borderColor = 'rgba(56, 189, 248, 0.6)';
+          }
+        },
+
+        selectTest(type) {
+          App.State.clearAllActiveTimers();
+          App.State.fsmState = 'IDLE';
+
+          if (this.elements.countdownLayer) this.elements.countdownLayer.classList.add('hidden');
+          if (this.elements.drillHudLayer) this.elements.drillHudLayer.classList.add('hidden');
+
+          App.State.testType = type;
+          const meta = this.testsMeta[type];
+
+          if (this.elements.stepDotBoundsLabel) {
+            this.elements.stepDotBoundsLabel.textContent = type === 'THORACIC' ? '上半身' : '全身';
+          }
+
+          ['tabThoracic', 'tabHipIR', 'tabHinge'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+              const testKey = btn.getAttribute('data-test');
+              if (testKey === type) {
+                btn.className = 'btn-brawl btn-emerald py-1 px-1 flex items-center justify-center gap-1 transition-all border-white shadow-md';
+              } else {
+                btn.className = 'btn-brawl btn-dark py-1 px-1 flex items-center justify-center gap-1 transition-all opacity-85';
+              }
+            }
+          });
+
+          ['ghostPathThoracic', 'ghostPathHipIR', 'ghostPathHinge'].forEach(gid => {
+            const gEl = document.getElementById(gid);
+            if (gEl) {
+              if (gid === meta.ghostId) gEl.classList.remove('hidden');
+              else gEl.classList.add('hidden');
+            }
+          });
+
+          if (this.elements.modelPoseIcon) this.elements.modelPoseIcon.textContent = meta.modelIcon;
+          if (this.elements.modelPoseText) this.elements.modelPoseText.textContent = meta.modelPrompt;
+          if (this.elements.hudMainIcon) this.elements.hudMainIcon.textContent = meta.icon;
+          if (this.elements.hudMainLabel) this.elements.hudMainLabel.textContent = `${meta.name}角度`;
+          if (this.elements.hudTargetVal) this.elements.hudTargetVal.textContent = `${meta.target}°`;
+          if (this.elements.instructionText) this.elements.instructionText.textContent = meta.instruction;
+
+          const gModalIcon = document.getElementById('guideModalIcon');
+          const gModalTitle = document.getElementById('guideModalTitle');
+          const gPoseDesc = document.getElementById('guidePoseDesc');
+          const gCheatDesc = document.getElementById('guideCheatDesc');
+          const gBaseball = document.getElementById('guideBaseballEffect');
+
+          if (gModalIcon) gModalIcon.textContent = meta.icon;
+          if (gModalTitle) gModalTitle.textContent = `${meta.name}（${meta.sub}）のコツ`;
+          if (gPoseDesc) gPoseDesc.textContent = meta.guideTarget;
+          if (gCheatDesc) gCheatDesc.textContent = meta.cheatDesc;
+          if (gBaseball) gBaseball.textContent = meta.effect;
+
+          App.Audio.playSE(520, 0.06, 'triangle');
+          this.showToast(`🎯 テスト切替: ${meta.name}`);
+          App.Audio.speak(meta.voiceIntro);
+          App.Sensor.resetGateInState();
+        },
+
+        updateStepLamps(inBounds, poseReady, isStill) {
+          if (this.elements.stepDotBounds) this.elements.stepDotBounds.classList.toggle('active', inBounds);
+          if (this.elements.stepDotPose) {
+            this.elements.stepDotPose.classList.toggle('active', poseReady);
+            if (this.elements.ghostContainer) this.elements.ghostContainer.classList.toggle('matched', poseReady);
+          }
+          if (this.elements.stepDotStill) this.elements.stepDotStill.classList.toggle('active', isStill);
+        },
+
+        updateBadges(mainVal) {
+          if (this.elements.hudAngleVal) {
+            this.elements.hudAngleVal.textContent = `${Math.round(mainVal)}°`;
+          }
+
+          const rankBadge = this.elements.rankPreviewBadge;
+          const target = this.testsMeta[App.State.testType].target;
+          if (rankBadge) {
+            if (mainVal >= target + 5) {
+              rankBadge.className = 'badge-brawl text-[9px] py-0.5 px-1.5 bg-yellow-950 text-yellow-300 border-yellow-400';
+              rankBadge.textContent = '🌟 SUPER DRAGON達成！';
+            } else if (mainVal >= target) {
+              rankBadge.className = 'badge-brawl text-[9px] py-0.5 px-1.5 bg-emerald-950 text-emerald-300 border-emerald-400';
+              rankBadge.textContent = '⚡ LEVEL 2 実戦マスター';
+            } else if (mainVal >= target * 0.65) {
+              rankBadge.className = 'badge-brawl text-[9px] py-0.5 px-1.5 bg-blue-950 text-blue-300 border-blue-400';
+              rankBadge.textContent = '🔒 あと少しで覚醒！';
+            } else {
+              rankBadge.className = 'badge-brawl text-[9px] py-0.5 px-1.5 bg-red-950 text-red-300 border-red-400 alert-pulse';
+              rankBadge.textContent = '⚠️ カチコチ要解除';
+            }
           }
         },
 
@@ -1059,7 +1143,94 @@
         lastVoicePrompt: '',
         lastVoicePromptTime: 0,
 
-        // 離れているユーザーへ定期的かつ重複なく音声ガイド
+        async initCamera(videoEl, facingMode = 'user') {
+          try {
+            App.UI.hideCameraError();
+            this.stopDemoSimulation();
+
+            if (App.State.stream) {
+              App.State.stream.getTracks().forEach(t => t.stop());
+              App.State.stream = null;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+              throw new Error('お使いのブラウザはカメラAPIに対応していません。');
+            }
+
+            const isPortrait = window.innerHeight >= window.innerWidth;
+            let stream = null;
+
+            // 段階的フォールバック接続
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  facingMode: { ideal: facingMode },
+                  width: { ideal: isPortrait ? 720 : 1280 },
+                  height: { ideal: isPortrait ? 1280 : 720 }
+                },
+                audio: false
+              });
+            } catch (e1) {
+              try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: { facingMode: { ideal: facingMode } },
+                  audio: false
+                });
+              } catch (e2) {
+                try {
+                  const devices = await navigator.mediaDevices.enumerateDevices();
+                  const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                  if (videoDevices.length > 0) {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                      video: { deviceId: { exact: videoDevices[0].deviceId } },
+                      audio: false
+                    });
+                  } else {
+                    throw new Error('Requested device not found');
+                  }
+                } catch (e3) {
+                  stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                }
+              }
+            }
+
+            App.State.stream = stream;
+            videoEl.srcObject = stream;
+
+            const track = stream.getVideoTracks()[0];
+            const currentFacing = track?.getSettings()?.facingMode || facingMode;
+            App.State.cameraFacing = currentFacing;
+
+            const canvas = App.UI.elements.poseCanvas;
+            const transformStyle = currentFacing === 'environment' ? 'scaleX(1)' : 'scaleX(-1)';
+            videoEl.style.transform = transformStyle;
+            if (canvas) canvas.style.transform = transformStyle;
+
+            await new Promise((resolve) => {
+              if (videoEl.readyState >= 1 && videoEl.videoWidth > 0) {
+                resolve();
+              } else {
+                videoEl.onloadedmetadata = () => resolve();
+              }
+            });
+
+            await videoEl.play();
+
+            if (canvas) {
+              canvas.width = videoEl.videoWidth || 720;
+              canvas.height = videoEl.videoHeight || 1280;
+            }
+
+            this.initMediaPipe(videoEl, canvas);
+            App.UI.showToast('📷 カメラ接続完了！');
+            return true;
+          } catch (err) {
+            console.error('Camera Access Error:', err);
+            App.UI.showCameraError(err);
+            return false;
+          }
+        },
+
         speakGuidance(text, interval = 3500) {
           const now = Date.now();
           if (this.lastVoicePrompt !== text || (now - this.lastVoicePromptTime > interval)) {
@@ -1096,21 +1267,19 @@
         },
 
         generateMockLandmarks(t, testType) {
-          // デモ用擬似骨格生成（滑らかな動きをシミュレート）
           const baseLm = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
           
           if (testType === 'THORACIC') {
-            // 前傾姿勢シミュレーション
             const twistCycle = Math.sin(t * 1.5);
             const shoulderTilt = twistCycle * 0.12;
-            baseLm[11] = { x: 0.40, y: 0.38 - shoulderTilt, z: 0, visibility: 0.95 }; // 左肩
-            baseLm[12] = { x: 0.60, y: 0.38 + shoulderTilt, z: 0, visibility: 0.95 }; // 右肩
-            baseLm[13] = { x: 0.32, y: 0.34, z: 0, visibility: 0.9 }; // 左肘
-            baseLm[14] = { x: 0.68, y: 0.48, z: 0, visibility: 0.9 }; // 右肘
-            baseLm[15] = { x: 0.45, y: 0.22, z: 0, visibility: 0.95 }; // 左手（頭）
-            baseLm[16] = { x: 0.45, y: 0.62, z: 0, visibility: 0.95 }; // 右手（膝）
-            baseLm[23] = { x: 0.44, y: 0.58, z: 0, visibility: 0.95 }; // 左腰
-            baseLm[24] = { x: 0.56, y: 0.58, z: 0, visibility: 0.95 }; // 右腰
+            baseLm[11] = { x: 0.40, y: 0.38 - shoulderTilt, z: 0, visibility: 0.95 };
+            baseLm[12] = { x: 0.60, y: 0.38 + shoulderTilt, z: 0, visibility: 0.95 };
+            baseLm[13] = { x: 0.32, y: 0.34, z: 0, visibility: 0.9 };
+            baseLm[14] = { x: 0.68, y: 0.48, z: 0, visibility: 0.9 };
+            baseLm[15] = { x: 0.45, y: 0.22, z: 0, visibility: 0.95 };
+            baseLm[16] = { x: 0.45, y: 0.62, z: 0, visibility: 0.95 };
+            baseLm[23] = { x: 0.44, y: 0.58, z: 0, visibility: 0.95 };
+            baseLm[24] = { x: 0.56, y: 0.58, z: 0, visibility: 0.95 };
             baseLm[25] = { x: 0.44, y: 0.72, z: 0, visibility: 0.9 };
             baseLm[26] = { x: 0.56, y: 0.72, z: 0, visibility: 0.9 };
             baseLm[27] = { x: 0.44, y: 0.88, z: 0, visibility: 0.9 };
@@ -1122,9 +1291,9 @@
             baseLm[23] = { x: 0.44, y: 0.50, z: 0, visibility: 0.95 };
             baseLm[24] = { x: 0.56, y: 0.50, z: 0, visibility: 0.95 };
             baseLm[25] = { x: 0.44, y: 0.74, z: 0, visibility: 0.95 };
-            baseLm[26] = { x: 0.56, y: 0.64, z: 0, visibility: 0.95 }; // 右膝持ち上げ
+            baseLm[26] = { x: 0.56, y: 0.64, z: 0, visibility: 0.95 };
             baseLm[27] = { x: 0.44, y: 0.92, z: 0, visibility: 0.95 };
-            baseLm[28] = { x: 0.56 - wiper, y: 0.82, z: 0, visibility: 0.95 }; // 足首ワイパー
+            baseLm[28] = { x: 0.56 - wiper, y: 0.82, z: 0, visibility: 0.95 };
           } else {
             const bend = Math.max(0, Math.sin(t * 1.4)) * 0.24;
             baseLm[11] = { x: 0.42, y: 0.30 + bend * 0.5, z: 0, visibility: 0.95 };
@@ -1178,7 +1347,6 @@
                 try {
                   await this.poseInstance.send({ image: videoEl });
                 } catch (sendErr) {
-                  // フレーム落ちを吸収
                 } finally {
                   this.isProcessingFrame = false;
                 }
@@ -1205,7 +1373,6 @@
             return;
           }
 
-          // モーダル表示中は測定処理・自動スタートをサスペンド
           if (App.UI.isModalOpen()) {
             ctx.restore();
             return;
@@ -1258,7 +1425,6 @@
           return true;
         },
 
-        // ゴルフTPI式「前傾胸パカーン」構え判定（離れていても認識しやすい高感度版）
         checkStartPoseReady(lm, testType, activeSide) {
           if (!lm) return { ready: false, prompt: 'カメラに全身を映してね！', voice: 'カメラの正面に立ってね！' };
 
@@ -1278,7 +1444,6 @@
               };
             }
 
-            // 片手を頭、もう片方の手を反対の膝周辺にセットしているか判定
             const handNearHead = (wrist, elbow, shoulder) => {
               if (wrist && (wrist.visibility ?? 1) > 0.2) {
                 if (wrist.y < shoulder.y + 0.18) return true;
@@ -1458,7 +1623,6 @@
           if (App.UI.elements.lockonChargeBox) App.UI.elements.lockonChargeBox.classList.add('hidden');
           App.UI.updateMegaBanner('🎯 ロックオン完了！いくぞ！', '🔥', 'success');
 
-          // ロックオン完了時点の初期傾斜をキャリブレーション原点として記録
           if (this.lastLandmarks) {
             const lSh = this.lastLandmarks[11], rSh = this.lastLandmarks[12];
             const lHip = this.lastLandmarks[23], rHip = this.lastLandmarks[24];
@@ -1478,7 +1642,6 @@
           if (!landmarks) return { isCheating: false, reason: '' };
 
           if (testType === 'THORACIC') {
-            // 前傾胸パカーン：測定中に骨盤（腰）が大きく一緒に傾いた場合を検知
             if (App.State.fsmState === 'TESTING') {
               const lHip = landmarks[23], rHip = landmarks[24];
               if (lHip && rHip && (lHip.visibility ?? 1) > 0.35 && (rHip.visibility ?? 1) > 0.35) {
@@ -1606,9 +1769,6 @@
       Engine: {
         peakRecordedAngle: 0,
 
-        /**
-         * スマホ傾斜（ピッチ角）による縦方向遠近歪みの射影幾何補正（キーストーン逆補正）
-         */
         correctPerspectiveTilt(landmarks, pitchDeg) {
           if (!landmarks || Math.abs(pitchDeg) < 2.0) return landmarks;
 
@@ -1640,17 +1800,12 @@
           return angle;
         },
 
-        /**
-         * 【アイデアA：ゴルフTPI式 前傾胸パカーン】幾何計算
-         * 前傾姿勢から胸を開いた際の両肩ベクトル2D傾斜角から、骨盤の逃げを相殺して胸椎純粋開き角を算出
-         */
         evaluateForwardThoracicTwist(landmarks, side = 'RIGHT') {
           const lSh = landmarks[11], rSh = landmarks[12];
           const lHip = landmarks[23], rHip = landmarks[24];
           if (!lSh || !rSh) return 0;
           if ((lSh.visibility ?? 1) < 0.3 || (rSh.visibility ?? 1) < 0.3) return 0;
 
-          // 両肩の水平からの傾斜角（°）
           const currentShoulderSlope = this.calculateSlopeAngle(lSh, rSh);
           let deltaShoulder = 0;
 
@@ -1670,7 +1825,6 @@
             }
           }
 
-          // 骨盤が回った分を差し引き、純粋な胸椎の開き角のみを抽出
           const pureTwist = Math.max(0, deltaShoulder - (Math.max(0, deltaHip) * 0.45));
           return Math.min(85, Math.round(pureTwist));
         },
@@ -2129,7 +2283,6 @@
       init() {
         App.UI.cacheElements();
 
-        // iOS Safari対策：ユーザーの初回操作でAudioContextを事前アンロック
         const unlockAudio = () => {
           App.Audio.init();
           window.removeEventListener('pointerdown', unlockAudio);
@@ -2141,7 +2294,6 @@
         const videoEl = App.UI.elements.cameraVideo;
         App.Sensor.initCamera(videoEl, App.State.cameraFacing);
 
-        // スマホの前後傾斜（ピッチ角）自動取得
         if (window.DeviceOrientationEvent) {
           window.addEventListener('deviceorientation', (e) => {
             if (e.beta !== null) {
@@ -2284,7 +2436,7 @@
 
         App.Storage.renderChartList();
         App.UI.updateBalanceHeader();
-        console.info('🦴 Mobility Dock v2.9 Initialized successfully.');
+        console.info('🦴 Mobility Dock v3.2 Initialized successfully.');
       }
     };
 
