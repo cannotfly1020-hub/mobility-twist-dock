@@ -11,6 +11,7 @@ const AppEngine = {
   facingMode: 'user', // 'user' (インカメラ) または 'environment' (外カメラ)
   isProcessing: false,
   isBusy: false, // 重複推論防止フラグ
+  isPaused: false, // スリープ一時停止フラグ
   animFrameId: null,
 
   // 測定中および初期キャリブレーションデータ
@@ -152,6 +153,12 @@ const AppEngine = {
 
     const loop = async () => {
       if (!this.isProcessing) return;
+
+      // スリープ一時停止中は推論をスキップ
+      if (this.isPaused) {
+        this.animFrameId = requestAnimationFrame(loop);
+        return;
+      }
 
       // 前の推論処理が完了している時のみ新しいフレームを送信（スタック防止）
       if (!this.isBusy && this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -426,6 +433,21 @@ const AppEngine = {
     }
 
     return { detected: false, reason: '' };
+  },
+
+  pause() {
+    this.isPaused = true;
+    if (this.video) this.video.pause();
+    if (this.ctx && this.canvas) {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+  },
+
+  resume() {
+    this.isPaused = false;
+    if (this.video && this.video.srcObject) {
+      this.video.play().catch(() => {});
+    }
   },
 
   resetCalibration() {
