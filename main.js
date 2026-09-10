@@ -1,30 +1,46 @@
 /**
- * 柔軟性・しなりドック - メインアプリケーションコントローラー
- * 状態管理、フルボイス進行シーケンス、動的ストレッチ、選手カルテ保存
+ * 柔軟性・しなりドック - アプリケーションコントローラー (AppController)
+ * 
+ * 【主な改修点・追加仕様】
+ * 1. 非日常ポーズ認証ホールド連動 (Tポーズ / 頭上○サイン)
+ * 2. ゼロリセット（スタート合図の瞬間の姿勢角度をθ_baseとして記憶し、相対変化量を測定）
+ * 3. 生体追従ピークキープタイマー（動き出し検知 ➔ 最大角探索 ➔ 1.0秒キープで即ホイッスル確定）
+ * 4. 左右完全インターロック進行（左側完了後は勝手に進まず、右側の認証ポーズ静止まで待機）
+ * 5. 動的サビ取りドリル ＆ 個人カルテ管理 ＆ 完全省電力スリープ
  */
 const App = {
   // アプリケーション状態
   state: {
-    mode: 'idle', // 'idle' | 'waiting_ready' | 'counting_down' | 'measuring' | 'drill'
+    // 進行モード:
+    // 'idle': 待機中（ポーズ認証受付）
+    // 'counting_down': 3,2,1カウントダウン中
+    // 'waiting_movement': スタート後の動き出し待機
+    // 'measuring_peak': 身体を動かしてピーク角を探索中
+    // 'peaking_hold': 最大角付近でキープ中（1秒維持で確定）
+    // 'waiting_next_side': 左側完了後、右側の準備待ち（インターロック）
+    // 'drill': 動的ストレッチ実施中
+    mode: 'idle',
+
     currentTestType: 'thoracic', // 'thoracic' | 'hip' | 'hinge'
     currentSide: 'left', // 'left' | 'right'
     activePlayerId: null,
+
+    // スリープ管理
     isSleeping: false,
     sleepTimerId: null,
-    sleepTimeoutMs: 120000, // 2分間無操作でスリープ
+    sleepTimeoutMs: 120000, // 2分放置でスリープ
 
-    // ピーク測定角度
+    // 角度測定データ
     peakAngles: { left: 0, right: 0 },
     currentAngles: { main: 0, sub: 0 },
+    currentRelativeAngle: 0,
 
-    // ジェスチャーホールドタイマー（1.0秒キープで自動トリガー）
-    readyHoldStart: null,
-    readyHoldRequired: 1000, // 1000ms
-
-    // 計測カウントダウン・タイマー
+    // タイマー・追従制御
     countdownTimer: null,
-    measureTimer: null,
-    measureDuration: 4000, // 4秒間
+    motionWaitStartTime: null, // 動き出し監視開始時刻
+    peakingStartTime: null,    // ピーク維持開始時刻
+    measureMaxTimeoutId: null, // 8秒安全強制終了タイマー
+    trackedPeakAngle: 0,
 
     // 動的ドリル状態
     drill: {
@@ -34,36 +50,33 @@ const App = {
       combo: 0,
       reps: 0,
       maxReps: 10,
-      lastBeatSide: 'left',
-      beatDirection: 1 // 1 or -1
+      lastBeatSide: 'left'
     }
   },
 
-  // ストレージ定数キー
   STORAGE_KEYS: {
     PLAYERS: 'mobility_players_v1',
     RECORDS: 'mobility_records_v1'
   },
 
-  // テスト別ガイダンス文言
   TEST_CONFIG: {
     thoracic: {
       title: '胸パカーン（胸椎回旋）',
-      icon: '🦇',
-      guide: '正座お辞儀から片手を頭に当て、天井へ胸を開こう！',
+      icon: '🏹',
+      guide: 'イスや正座でお辞儀。両手を広げてTポーズか頭上○でスタート！',
       targetThreshold: 45
     },
     hip: {
       title: '股関節ワイパー（回旋可動）',
       icon: '🦊',
-      guide: 'イスに座り、膝を動かさずにすねを外/内へ振ろう！',
+      guide: 'イスに座り膝90度。Tポーズか頭上○を作ってスタート！',
       targetThreshold: 35
     },
     hinge: {
       title: 'もも裏前屈（ヒップヒンジ）',
       icon: '📐',
-      guide: '背中をまっすぐ伸ばしたまま、股関節から深く前屈！',
-      targetThreshold: 60
+      guide: '背筋を伸ばしてイス浅座り。Tポーズか頭上○でスタート！',
+      targetThreshold: 65
     }
   },
 
@@ -77,12 +90,8 @@ const App = {
     this.updateTestTypeUi();
   },
 
-  /**
-   * DOM参照のキャッシュ
-   */
   cacheDom() {
     this.dom = {
-      // ヘッダー要素
       btnSwitchCamera: document.getElementById('btn-switch-camera'),
       btnOpenCarte: document.getElementById('btn-open-carte'),
       btnPlayerSelect: document.getElementById('btn-player-select'),
@@ -93,7 +102,6 @@ const App = {
       tabHip: document.getElementById('tab-hip'),
       tabHinge: document.getElementById('tab-hinge'),
 
-      // ガイダンス＆ステータス要素
       guidanceBanner: document.getElementById('guidance-banner'),
       guideIcon: document.getElementById('guide-icon'),
       guideTitle: document.getElementById('guide-title'),
@@ -102,7 +110,6 @@ const App = {
       triggerDot: document.getElementById('trigger-dot'),
       triggerText: document.getElementById('trigger-text'),
 
-      // カメラ＆キャンバス要素
       webcamVideo: document.getElementById('webcam-video'),
       outputCanvas: document.getElementById('output-canvas'),
       safeBoundary: document.getElementById('safe-boundary'),
@@ -115,24 +122,22 @@ const App = {
       cheatAlertBadge: document.getElementById('cheat-alert-badge'),
       cheatAlertText: document.getElementById('cheat-alert-text'),
 
-      // ドリルHUD要素
       drillHud: document.getElementById('drill-hud'),
       drillComboCounter: document.getElementById('drill-combo-counter'),
       drillProgressCount: document.getElementById('drill-progress-count'),
       drillStatusText: document.getElementById('drill-status-text'),
 
-      // 操作ボタン群
       btnStartTrigger: document.getElementById('btn-start-trigger'),
       btnOpenReport: document.getElementById('btn-open-report'),
       btnOpenDynamicDrill: document.getElementById('btn-open-dynamic-drill'),
 
-      // モーダル要素群
       playerModal: document.getElementById('player-modal'),
       playerSelectDropdown: document.getElementById('player-select-dropdown'),
       formNewPlayer: document.getElementById('form-new-player'),
       inputPlayerName: document.getElementById('input-player-name'),
       inputPlayerDominant: document.getElementById('input-player-dominant'),
       inputPlayerGrade: document.getElementById('input-player-grade'),
+
       reportModal: document.getElementById('report-modal'),
       reportScoreGrade: document.getElementById('report-score-grade'),
       reportComment: document.getElementById('report-comment'),
@@ -142,6 +147,7 @@ const App = {
       barRight: document.getElementById('bar-right'),
       btnSaveReport: document.getElementById('btn-save-report'),
       btnReportStartDrill: document.getElementById('btn-report-start-drill'),
+
       carteModal: document.getElementById('carte-modal'),
       carteListContainer: document.getElementById('carte-list-container'),
       btnExportCsv: document.getElementById('btn-export-csv'),
@@ -153,7 +159,6 @@ const App = {
   },
 
   bindEvents() {
-    // カメラ切り替え
     this.dom.btnSwitchCamera.addEventListener('click', async () => {
       try {
         await window.AppEngine.switchCamera();
@@ -163,53 +168,44 @@ const App = {
       }
     });
 
-    // テスト切り替えタブ
     this.dom.tabThoracic.addEventListener('click', () => this.switchTestType('thoracic'));
     this.dom.tabHip.addEventListener('click', () => this.switchTestType('hip'));
     this.dom.tabHinge.addEventListener('click', () => this.switchTestType('hinge'));
 
-    // 測定手動スタートボタン
     this.dom.btnStartTrigger.addEventListener('click', () => {
       window.AppAudio.init();
-      if (this.state.mode === 'idle') {
-        this.startMeasurementSequence('left');
+      if (this.state.mode === 'idle' || this.state.mode === 'waiting_next_side') {
+        this.startCountdown(this.state.currentSide);
       } else if (this.state.mode === 'drill') {
         this.stopDynamicDrill();
       }
     });
 
-    // モーダルオープンボタン群
     this.dom.btnPlayerSelect.addEventListener('click', () => this.openPlayerModal());
     this.dom.btnOpenCarte.addEventListener('click', () => this.openCarteModal());
     this.dom.btnOpenReport.addEventListener('click', () => this.openReportModal());
     this.dom.btnOpenDynamicDrill.addEventListener('click', () => this.startDynamicDrill());
 
-    // 選手選択・登録フォーム
     this.dom.playerSelectDropdown.addEventListener('change', (e) => this.selectPlayer(e.target.value));
     this.dom.formNewPlayer.addEventListener('submit', (e) => this.handleSaveNewPlayer(e));
 
-    // レポートモーダル操作
     this.dom.btnSaveReport.addEventListener('click', () => this.saveCurrentTestRecord());
     this.dom.btnReportStartDrill.addEventListener('click', () => {
       this.closeModals();
       this.startDynamicDrill();
     });
 
-    // カルテモーダル操作
     this.dom.btnExportCsv.addEventListener('click', () => this.exportCarteCsv());
     this.dom.btnShareLine.addEventListener('click', () => this.shareToLine());
 
-    // 共通モーダルクローズ
     this.dom.modalCloseButtons.forEach((btn) => {
       btn.addEventListener('click', () => this.closeModals());
     });
 
-    // スリープ解除（オーバーレイタップ）
     if (this.dom.sleepOverlay) {
       this.dom.sleepOverlay.addEventListener('click', () => this.wakeUpFromSleep());
     }
 
-    // 画面操作によるスリープタイマーリセット
     ['touchstart', 'mousedown', 'keydown'].forEach(evt => {
       window.addEventListener(evt, () => this.resetSleepTimer(), { passive: true });
     });
@@ -220,8 +216,7 @@ const App = {
     if (this.state.isSleeping) return;
     if (this.state.sleepTimerId) clearTimeout(this.state.sleepTimerId);
     this.state.sleepTimerId = setTimeout(() => {
-      // 測定中やドリル中でなければスリープに入る
-      if (this.state.mode === 'idle') {
+      if (this.state.mode === 'idle' || this.state.mode === 'waiting_next_side') {
         this.enterSleepMode();
       } else {
         this.resetSleepTimer();
@@ -258,16 +253,14 @@ const App = {
         canvas: this.dom.outputCanvas
       });
 
-      // エンジンからの毎フレームコールバック
       window.AppEngine.onFrameUpdate = this.handleFrameUpdate.bind(this);
       window.AppEngine.onError = (err) => {
         console.error('Engine error:', err);
-        this.showToast('カメラの起動に失敗しました。権限を確認してください。');
+        this.showToast('カメラエラー。権限を確認してください。');
       };
 
-      // 実機カメラ起動
       await window.AppEngine.startCamera();
-      this.showToast('カメラとAI骨格認識が起動しました！');
+      this.showToast('スマート測定エンジンが起動しました！');
     } catch (e) {
       console.warn('Init engine error:', e);
       this.showToast('カメラアクセスを許可してください');
@@ -275,115 +268,121 @@ const App = {
   },
 
   /**
-   * 毎フレームの姿勢・角度・代償動作の評価処理
+   * 毎フレーム解析処理（生体追従・アダプティブタイマー連動）
    */
   handleFrameUpdate(data) {
     if (!data.detected) {
-      this.updatePoseBadge(false, '身体が映っていません');
+      this.updatePoseBadge(false, '全身をカメラに映してね', 0);
       return;
     }
 
-    const { angles, isReady, readyMessage, cheatDetected, cheatReason } = data;
+    const {
+      isReady,
+      authProgress,
+      poseMessage,
+      isStationary,
+      rawAngles,
+      relativeAngle,
+      cheatDetected,
+      cheatReason
+    } = data;
 
-    // 1. リアルタイム角度表示の更新
-    this.state.currentAngles = angles;
-    this.dom.metricMainVal.textContent = `${angles.main || 0}°`;
-    this.dom.metricSubVal.textContent = `${angles.sub || 0}°`;
+    // 1. リアルタイム角度表示（ゼロリセット適用後の相対角を表示）
+    this.state.currentAngles = rawAngles;
+    this.state.currentRelativeAngle = relativeAngle;
 
-    // 2. カンニング（代償動作・お尻浮き）の警告制御
-    if (cheatDetected && this.state.mode === 'measuring') {
+    if (this.state.mode === 'waiting_movement' || this.state.mode === 'measuring_peak' || this.state.mode === 'peaking_hold') {
+      // 測定中はゼロリセット後の相対変化量を大きく表示
+      this.dom.metricMainVal.textContent = `${relativeAngle}°`;
+      this.dom.metricSubVal.textContent = `生: ${rawAngles.currentAngle}°`;
+    } else {
+      this.dom.metricMainVal.textContent = `${rawAngles.main || 0}°`;
+      this.dom.metricSubVal.textContent = `${rawAngles.sub || 0}°`;
+    }
+
+    // 2. カンニング（お尻浮き）の警告
+    if (cheatDetected && (this.state.mode === 'measuring_peak' || this.state.mode === 'peaking_hold')) {
       this.dom.cheatAlertBadge.classList.remove('hidden');
       this.dom.cheatAlertText.textContent = cheatReason || 'お尻が浮いています！';
     } else {
       this.dom.cheatAlertBadge.classList.add('hidden');
     }
 
-    // 3. 待機中：顔・構えジェスチャーによる自動スタートトリガー判定
-    if (this.state.mode === 'idle') {
-      this.updatePoseBadge(isReady, readyMessage);
+    // 3. 待機時または反対側待機時：非日常ポーズ認証＆完全静止の監視
+    if (this.state.mode === 'idle' || this.state.mode === 'waiting_next_side') {
+      this.updatePoseBadge(isReady, poseMessage, authProgress, isStationary);
 
       if (isReady) {
-        if (!this.state.readyHoldStart) {
-          this.state.readyHoldStart = performance.now();
-        } else if (performance.now() - this.state.readyHoldStart >= this.state.readyHoldRequired) {
-          // 1.0秒キープ達成 ➔ ロック音発信 & 自動スタート
-          this.state.readyHoldStart = null;
-          window.AppAudio.playLockSound();
-          this.startMeasurementSequence('left');
-        }
+        // 1.5秒キープ達成 ➔ スタート合図
+        window.AppAudio.playLockSound();
+        this.startCountdown(this.state.currentSide);
+      }
+    }
+
+    // 4. 生体追従ピークタイマー処理
+    if (this.state.mode === 'waiting_movement') {
+      // 動き出し待機フェーズ（相対角が8度を超えたら回旋開始とみなす）
+      if (relativeAngle >= 8) {
+        this.state.mode = 'measuring_peak';
+        this.dom.measuringBadge.classList.remove('hidden');
+        this.dom.measuringBadge.innerHTML = '<span>⚡</span><span>測定中（ピーク探索）</span>';
+        window.AppAudio.speak('いいぞ、そのまま限界までキープ！');
       } else {
-        this.state.readyHoldStart = null;
+        // 動き出さないまま6秒経過したらタイムアウト
+        if (performance.now() - this.state.motionWaitStartTime > 6000) {
+          this.finishSingleSide(this.state.currentSide, 0);
+        }
       }
+    } else if (this.state.mode === 'measuring_peak' || this.state.mode === 'peaking_hold') {
+      this.processAdaptivePeakTracking(relativeAngle, isStationary);
     }
 
-    // 4. ピーク測定モード中の最大値更新
-    if (this.state.mode === 'measuring') {
-      const currentActiveVal = this.state.currentSide === 'left' ? (angles.main || 0) : (angles.sub || 0);
-      if (currentActiveVal > this.state.peakAngles[this.state.currentSide]) {
-        this.state.peakAngles[this.state.currentSide] = currentActiveVal;
-      }
-    }
-
-    // 5. 動的ドリルモード中のリアルタイム判定
+    // 5. 動的ドリルモード
     if (this.state.mode === 'drill' && this.state.drill.isActive) {
-      this.handleDrillFrame(angles);
+      this.handleDrillFrame(rawAngles);
     }
   },
 
   /**
-   * テスト切り替え (胸椎 / 股関節 / もも裏)
+   * 生体追従ピークキープ判定
+   * 角度が伸びている間は測定継続、最大角付近で1秒ピタッと静止したら即完了ホイッスル
    */
-  switchTestType(type) {
-    if (this.state.mode !== 'idle') return;
-    this.state.currentTestType = type;
-    window.AppEngine.currentTestType = type;
-    window.AppEngine.resetCalibration();
-    this.updateTestTypeUi();
+  processAdaptivePeakTracking(currentRelAngle, isStationary) {
+    const side = this.state.currentSide;
+    const now = performance.now();
 
-    const config = this.TEST_CONFIG[type];
-    window.AppAudio.speak(`${config.title}に切り替えました。${config.guide}`);
-  },
-
-  updateTestTypeUi() {
-    const type = this.state.currentTestType;
-    const config = this.TEST_CONFIG[type];
-
-    // タブのアクティブスタイル
-    [this.dom.tabThoracic, this.dom.tabHip, this.dom.tabHinge].forEach(el => {
-      el.classList.remove('active-tab', 'bg-indigo-700', 'border-indigo-950');
-      el.classList.add('bg-slate-800', 'border-slate-950', 'opacity-80');
-    });
-
-    const activeTab = type === 'thoracic' ? this.dom.tabThoracic :
-                      type === 'hip' ? this.dom.tabHip : this.dom.tabHinge;
-    activeTab.classList.add('active-tab', 'bg-indigo-700', 'border-indigo-950');
-    activeTab.classList.remove('opacity-80');
-
-    // ガイダンス更新
-    this.dom.guideIcon.textContent = config.icon;
-    this.dom.guideTitle.textContent = config.title;
-    this.dom.guideDesc.textContent = config.guide;
-
-    // リセット
-    this.state.peakAngles = { left: 0, right: 0 };
-    this.updateDiffDisplay();
+    // 最大角の更新
+    if (currentRelAngle > this.state.trackedPeakAngle) {
+      this.state.trackedPeakAngle = currentRelAngle;
+      this.state.peakAngles[side] = currentRelAngle;
+      // ピーク更新中はキープタイマーをリセット
+      this.state.peakingStartTime = null;
+      this.state.mode = 'measuring_peak';
+    } else if (currentRelAngle >= (this.state.trackedPeakAngle - 3) && isStationary) {
+      // 最大角付近（±3°以内）で静止している場合
+      if (!this.state.peakingStartTime) {
+        this.state.peakingStartTime = now;
+        this.state.mode = 'peaking_hold';
+        this.dom.measuringBadge.innerHTML = '<span>🎯</span><span>ナイス！1秒キープ！</span>';
+      } else if (now - this.state.peakingStartTime >= 1000) {
+        // ★ 1.0秒キープ達成！即座に正式記録として完了
+        this.finishSingleSide(side, this.state.trackedPeakAngle);
+      }
+    }
   },
 
   /**
-   * 全自動測定シーケンスの実行
-   * @param {'left' | 'right'} side
+   * カウントダウン開始 (3, 2, 1)
    */
-  startMeasurementSequence(side) {
-    this.state.currentSide = side;
+  startCountdown(side) {
     this.state.mode = 'counting_down';
-    window.AppEngine.resetCalibration();
+    this.state.currentSide = side;
 
-    const sideText = side === 'left' ? 'ひだり' : 'みぎ';
-    window.AppAudio.speak(`${sideText}側の測定をはじめます。姿勢をキープしてね！`);
+    const sideJa = side === 'left' ? 'ひだり' : 'みぎ';
+    window.AppAudio.speak(`${sideJa}側の測定！準備してね`);
 
-    // UI初期化
     this.dom.countdownBox.classList.remove('hidden');
-    this.dom.countdownGuide.textContent = `${side === 'left' ? '左側' : '右側'}の姿勢をキープ！`;
+    this.dom.countdownGuide.textContent = `${side === 'left' ? '左側' : '右側'}の姿勢！`;
     this.dom.btnStartTrigger.classList.add('opacity-50', 'pointer-events-none');
 
     let count = 3;
@@ -400,49 +399,117 @@ const App = {
       } else {
         clearInterval(this.state.countdownTimer);
         this.dom.countdownBox.classList.add('hidden');
-        this.runMeasurePeak(side);
+        this.triggerZeroResetAndStart(side);
       }
     }, 1000);
   },
 
   /**
-   * ピーク角の記録（4秒間）
+   * ゼロリセット実行 ＆ 測定追従開始
    */
-  runMeasurePeak(side) {
-    this.state.mode = 'measuring';
+  triggerZeroResetAndStart(side) {
+    // 【ゼロリセット】現在の構え角をθ_baseとしてエンジンに記憶
+    const rawNow = this.state.currentAngles.currentAngle || 0;
+    window.AppEngine.calibrateBaseAngle(rawNow);
+
+    this.state.trackedPeakAngle = 0;
+    this.state.motionWaitStartTime = performance.now();
+    this.state.peakingStartTime = null;
+    this.state.mode = 'waiting_movement';
+
     this.dom.measuringBadge.classList.remove('hidden');
-    window.AppAudio.speak('ぐーっとキープ！');
+    this.dom.measuringBadge.innerHTML = '<span>🏃</span><span>ゆっくり動かしてね</span>';
+    window.AppAudio.speak('スタート！ひねってキープ！');
 
-    // 4秒後にホイッスル
-    if (this.state.measureTimer) clearTimeout(this.state.measureTimer);
-
-    this.state.measureTimer = setTimeout(() => {
-      this.dom.measuringBadge.classList.add('hidden');
-      this.dom.cheatAlertBadge.classList.add('hidden');
-      window.AppAudio.playWhistle();
-
-      const measuredVal = this.state.peakAngles[side];
-      window.AppAudio.speak(`ナイス！記録は${measuredVal}度です。`);
-
-      if (side === 'left') {
-        // 右側の測定へ自動移行（2秒のインターバル）
-        setTimeout(() => {
-          this.startMeasurementSequence('right');
-        }, 2200);
-      } else {
-        // 左右測定完了 ➔ レポート表示
-        this.state.mode = 'idle';
-        this.dom.btnStartTrigger.classList.remove('opacity-50', 'pointer-events-none');
-        this.updateDiffDisplay();
-        setTimeout(() => {
-          this.openReportModal();
-        }, 1200);
+    // 安全遮断タイマー（8秒経ってもキープできなければその時点の最大値で終了）
+    if (this.state.measureMaxTimeoutId) clearTimeout(this.state.measureMaxTimeoutId);
+    this.state.measureMaxTimeoutId = setTimeout(() => {
+      if (this.state.mode === 'measuring_peak' || this.state.mode === 'peaking_hold' || this.state.mode === 'waiting_movement') {
+        this.finishSingleSide(side, this.state.trackedPeakAngle);
       }
-    }, this.state.measureDuration);
+    }, 8000);
   },
 
   /**
-   * 1分動的ストレッチ（音ゲー風反復ドリル）の開始
+   * 片側の測定完了処理
+   */
+  finishSingleSide(side, finalVal) {
+    if (this.state.measureMaxTimeoutId) {
+      clearTimeout(this.state.measureMaxTimeoutId);
+      this.state.measureMaxTimeoutId = null;
+    }
+
+    this.dom.measuringBadge.classList.add('hidden');
+    this.dom.cheatAlertBadge.classList.add('hidden');
+    window.AppEngine.resetBaseAngle(); // ゼロリセット解除
+
+    window.AppAudio.playWhistle(); // ピピッ！
+    window.AppAudio.speak(`ナイス！記録は${finalVal}度です。`);
+
+    if (side === 'left') {
+      // 【完全インターロック】勝手に右側を始めず、準備待機へ移行
+      this.state.mode = 'waiting_next_side';
+      this.state.currentSide = 'right';
+      this.dom.btnStartTrigger.classList.remove('opacity-50', 'pointer-events-none');
+      this.updateDiffDisplay();
+
+      // 右側準備の音声案内
+      setTimeout(() => {
+        window.AppAudio.speak('次は右側だよ。反対を向いて、Tポーズか頭上マルを作ってね！');
+        this.showToast('👉 次は右側！反対向きで認証ポーズを取ってね');
+      }, 1500);
+    } else {
+      // 左右両方完了 ➔ レポート表示
+      this.state.mode = 'idle';
+      this.dom.btnStartTrigger.classList.remove('opacity-50', 'pointer-events-none');
+      this.updateDiffDisplay();
+      setTimeout(() => {
+        this.openReportModal();
+      }, 1200);
+    }
+  },
+
+  /**
+   * テスト種目の切り替え
+   */
+  switchTestType(type) {
+    if (this.state.mode !== 'idle' && this.state.mode !== 'waiting_next_side') return;
+
+    this.state.currentTestType = type;
+    this.state.currentSide = 'left';
+    this.state.mode = 'idle';
+    window.AppEngine.currentTestType = type;
+    window.AppEngine.resetCalibration();
+    this.updateTestTypeUi();
+
+    const config = this.TEST_CONFIG[type];
+    window.AppAudio.speak(`${config.title}に切り替えました。${config.guide}`);
+  },
+
+  updateTestTypeUi() {
+    const type = this.state.currentTestType;
+    const config = this.TEST_CONFIG[type];
+
+    [this.dom.tabThoracic, this.dom.tabHip, this.dom.tabHinge].forEach(el => {
+      el.classList.remove('active-tab', 'bg-indigo-700', 'border-indigo-950');
+      el.classList.add('bg-slate-800', 'border-slate-950', 'opacity-80');
+    });
+
+    const activeTab = type === 'thoracic' ? this.dom.tabThoracic :
+                      type === 'hip' ? this.dom.tabHip : this.dom.tabHinge;
+    activeTab.classList.add('active-tab', 'bg-indigo-700', 'border-indigo-950');
+    activeTab.classList.remove('opacity-80');
+
+    this.dom.guideIcon.textContent = config.icon;
+    this.dom.guideTitle.textContent = config.title;
+    this.dom.guideDesc.textContent = config.guide;
+
+    this.state.peakAngles = { left: 0, right: 0 };
+    this.updateDiffDisplay();
+  },
+
+  /**
+   * 動的ストレッチ（音ゲー風ドリル）
    */
   startDynamicDrill() {
     if (this.state.drill.isActive) return;
@@ -456,27 +523,22 @@ const App = {
     this.dom.drillHud.classList.remove('hidden');
     this.dom.drillComboCounter.textContent = '0';
     this.dom.drillProgressCount.textContent = `0 / ${this.state.drill.maxReps}`;
-    this.dom.drillStatusText.textContent = `目標: 左右交互に${this.state.drill.targetAngle}度！`;
+    this.dom.drillStatusText.textContent = `目標: テンポよく左右${this.state.drill.targetAngle}度！`;
     this.dom.btnStartTrigger.innerHTML = '<span>⏹️</span><span>ドリル終了</span>';
 
-    window.AppAudio.speak('動的ストレッチドリルスタート！リズムに合わせて大きく動かそう！');
+    window.AppAudio.speak('動的ストレッチスタート！リズムに合わせて大きく動かそう！');
 
-    // 500ms間隔のメトロノームビート
     if (this.state.drill.intervalId) clearInterval(this.state.drill.intervalId);
     this.state.drill.intervalId = setInterval(() => {
       window.AppAudio.playTone(330, 'sine', 0.04, 0, 0.08);
     }, 500);
   },
 
-  /**
-   * ドリルのフレーム毎アクション検知
-   */
   handleDrillFrame(angles) {
     const drill = this.state.drill;
     const currentActive = angles.activeSide || 'left';
     const angleVal = angles.currentAngle || angles.main || 0;
 
-    // 目標角度の突破検知（反対側に切り替わった時にレップカウント）
     if (angleVal >= drill.targetAngle && currentActive !== drill.lastBeatSide) {
       drill.lastBeatSide = currentActive;
       drill.reps++;
@@ -495,7 +557,7 @@ const App = {
   finishDynamicDrill() {
     this.stopDynamicDrill();
     window.AppAudio.playFanfare();
-    window.AppAudio.speak('ドリルクリア！素晴らしいしなりです！');
+    window.AppAudio.speak('ドリル制覇！筋肉のサビが取れて可動域が覚醒しました！');
     this.showToast('🎉 10往復ドリル完全制覇！');
   },
 
@@ -513,12 +575,13 @@ const App = {
   initPlayers() {
     const players = this.getStoredPlayers();
     if (players.length === 0) {
-      // 初期デフォルト選手
       const defaultPlayer = {
-        id: 'p_' + Date.now(),
-        name: 'ルーキー選手',
+        id: 'player_' + Date.now(),
+        name: 'タイガ',
+        grade: '小学5年生',
+        height: 140,
         dominant: 'right',
-        grade: '4'
+        batSide: 'right'
       };
       this.savePlayers([defaultPlayer]);
       this.state.activePlayerId = defaultPlayer.id;
@@ -550,7 +613,7 @@ const App = {
     this.state.activePlayerId = playerId;
     this.refreshPlayerUi();
     this.closeModals();
-    this.showToast(`選手を切り替えました`);
+    this.showToast('選手を切り替えました');
   },
 
   handleSaveNewPlayer(e) {
@@ -559,10 +622,11 @@ const App = {
     if (!name) return;
 
     const newPlayer = {
-      id: 'p_' + Date.now(),
+      id: 'player_' + Date.now(),
       name: name,
       dominant: this.dom.inputPlayerDominant.value,
-      grade: this.dom.inputPlayerGrade.value
+      grade: this.dom.inputPlayerGrade.value,
+      batSide: this.dom.inputPlayerDominant.value
     };
 
     const players = this.getStoredPlayers();
@@ -582,10 +646,9 @@ const App = {
 
     this.dom.headerPlayerName.textContent = player.name;
 
-    // ドロップダウンの更新
     const players = this.getStoredPlayers();
     this.dom.playerSelectDropdown.innerHTML = '<option value="">-- 選手を選択してください --</option>' +
-      players.map(p => `<option value="${p.id}" ${p.id === player.id ? 'selected' : ''}>${p.name} (${p.grade}年・${p.dominant === 'right' ? '右投' : '左投'})</option>`).join('');
+      players.map(p => `<option value="${p.id}" ${p.id === player.id ? 'selected' : ''}>${p.name} (${p.grade}・${p.dominant === 'right' ? '右投' : '左投'})</option>`).join('');
   },
 
   openReportModal() {
@@ -594,19 +657,18 @@ const App = {
     const diff = Math.abs(left - right);
     const total = (left + right) || 1;
 
-    // ランク判定
     let grade = 'B';
-    let comment = '良好なしなり！左右の差を整えよう！';
+    let comment = '良好なしなり！左右差をなくそう！';
 
     if (left >= 45 && right >= 45 && diff <= 5) {
       grade = 'S';
-      comment = '完璧！超一流プロ級のしなりと極上バランス！';
+      comment = '超一流プロ級！神レベルのしなりと均整バランス！';
     } else if (left >= 35 && right >= 35 && diff <= 10) {
       grade = 'A';
-      comment = '素晴らしい柔軟性！球速UP間違いなし！';
+      comment = '素晴らしい柔軟性！球速UPの準備完了！';
     } else if (diff > 15) {
       grade = 'C';
-      comment = '左右差が目立ちます。硬い方を重点ストレッチ！';
+      comment = `左右差が${diff}°あります。硬い方を重点ドリルしよう！`;
     }
 
     this.dom.reportScoreGrade.textContent = grade;
@@ -614,14 +676,13 @@ const App = {
     this.dom.reportLeftVal.textContent = `${left}°`;
     this.dom.reportRightVal.textContent = `${right}°`;
 
-    // 左右バーの比率設定
     const leftRatio = Math.round((left / total) * 100);
     const rightRatio = 100 - leftRatio;
     this.dom.barLeft.style.width = `${leftRatio}%`;
     this.dom.barRight.style.width = `${rightRatio}%`;
 
     this.dom.reportModal.classList.remove('hidden');
-    window.AppAudio.speak(`測定結果です。総合しなりランクは${grade}です！`);
+    window.AppAudio.speak(`測定完了！総合しなりランクは${grade}です！`);
   },
 
   saveCurrentTestRecord() {
@@ -647,7 +708,7 @@ const App = {
     records.unshift(record);
     localStorage.setItem(this.STORAGE_KEYS.RECORDS, JSON.stringify(records));
 
-    this.showToast('測定結果をカルテに保存しました！');
+    this.showToast('カルテに保存しました！');
     this.closeModals();
   },
 
@@ -719,11 +780,11 @@ const App = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `しなりドック履歴_${Date.now()}.csv`);
+    link.setAttribute('download', `しなりドックカルテ_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    this.showToast('CSVファイルを書き出しました');
+    this.showToast('CSVファイルを保存しました');
   },
 
   shareToLine() {
@@ -733,7 +794,7 @@ const App = {
     const diff = Math.abs(left - right);
     const testName = this.TEST_CONFIG[this.state.currentTestType].title;
 
-    const message = `【柔軟性・しなりドック 測定結果】\n選手: ${player.name}\n種目: ${testName}\n左: ${left}° / 右: ${right}° (左右差: ${diff}°)\nしなりドックで可動域を鍛えよう！`;
+    const message = `【柔軟性・しなりドック 測定結果】\n選手: ${player.name}\n種目: ${testName}\n左: ${left}° / 右: ${right}° (左右差: ${diff}°)\n可動域を鍛えてパフォーマンスUP！`;
     const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(message)}`;
     window.open(lineUrl, '_blank');
   },
@@ -753,17 +814,30 @@ const App = {
     this.dom.headerDiffVal.textContent = (this.state.peakAngles.left && this.state.peakAngles.right) ? `${diff}°` : '--°';
   },
 
-  updatePoseBadge(isReady, message) {
+  /**
+   * 構え・認証バッジのUI更新
+   */
+  updatePoseBadge(isReady, message, progress = 0, isStationary = false) {
+    if (this.state.mode === 'waiting_next_side') {
+      this.dom.triggerDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+      this.dom.triggerText.textContent = '反対側のポーズで静止！';
+      this.dom.triggerText.className = 'text-[11px] font-bold text-amber-300';
+      return;
+    }
+
     if (isReady) {
-      this.dom.triggerDot.classList.remove('bg-red-500');
-      this.dom.triggerDot.classList.add('bg-emerald-400');
-      this.dom.triggerText.textContent = '構えOK！1秒キープ';
-      this.dom.triggerText.classList.add('text-emerald-300');
+      this.dom.triggerDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+      this.dom.triggerText.textContent = '認証完了！スタート！';
+      this.dom.triggerText.className = 'text-[11px] font-bold text-emerald-300';
+    } else if (progress > 0) {
+      const pct = Math.round(progress * 100);
+      this.dom.triggerDot.className = 'w-2 h-2 rounded-full bg-yellow-400 animate-ping';
+      this.dom.triggerText.textContent = `ポーズキープ中 (${pct}%)`;
+      this.dom.triggerText.className = 'text-[11px] font-bold text-yellow-300';
     } else {
-      this.dom.triggerDot.classList.remove('bg-emerald-400');
-      this.dom.triggerDot.classList.add('bg-red-500');
-      this.dom.triggerText.textContent = message || '全身認識待ち';
-      this.dom.triggerText.classList.remove('text-emerald-300');
+      this.dom.triggerDot.className = 'w-2 h-2 rounded-full bg-cyan-400';
+      this.dom.triggerText.textContent = message || 'Tポーズまたは頭上○サイン';
+      this.dom.triggerText.className = 'text-[11px] font-bold text-cyan-200';
     }
   },
 
