@@ -9,6 +9,9 @@ const App = {
     currentTestType: 'thoracic', // 'thoracic' | 'hip' | 'hinge'
     currentSide: 'left', // 'left' | 'right'
     activePlayerId: null,
+    isSleeping: false,
+    sleepTimerId: null,
+    sleepTimeoutMs: 120000, // 2分間無操作でスリープ
 
     // ピーク測定角度
     peakAngles: { left: 0, right: 0 },
@@ -143,6 +146,7 @@ const App = {
       carteListContainer: document.getElementById('carte-list-container'),
       btnExportCsv: document.getElementById('btn-export-csv'),
       btnShareLine: document.getElementById('btn-share-line'),
+      sleepOverlay: document.getElementById('sleep-overlay'),
       toastBox: document.getElementById('toast-box'),
       modalCloseButtons: document.querySelectorAll('.modal-close')
     };
@@ -199,6 +203,52 @@ const App = {
     this.dom.modalCloseButtons.forEach((btn) => {
       btn.addEventListener('click', () => this.closeModals());
     });
+
+    // スリープ解除（オーバーレイタップ）
+    if (this.dom.sleepOverlay) {
+      this.dom.sleepOverlay.addEventListener('click', () => this.wakeUpFromSleep());
+    }
+
+    // 画面操作によるスリープタイマーリセット
+    ['touchstart', 'mousedown', 'keydown'].forEach(evt => {
+      window.addEventListener(evt, () => this.resetSleepTimer(), { passive: true });
+    });
+    this.resetSleepTimer();
+  },
+
+  resetSleepTimer() {
+    if (this.state.isSleeping) return;
+    if (this.state.sleepTimerId) clearTimeout(this.state.sleepTimerId);
+    this.state.sleepTimerId = setTimeout(() => {
+      // 測定中やドリル中でなければスリープに入る
+      if (this.state.mode === 'idle') {
+        this.enterSleepMode();
+      } else {
+        this.resetSleepTimer();
+      }
+    }, this.state.sleepTimeoutMs);
+  },
+
+  enterSleepMode() {
+    this.state.isSleeping = true;
+    if (this.dom.sleepOverlay) {
+      this.dom.sleepOverlay.classList.remove('hidden');
+    }
+    if (window.AppEngine && window.AppEngine.pause) {
+      window.AppEngine.pause();
+    }
+  },
+
+  wakeUpFromSleep() {
+    this.state.isSleeping = false;
+    if (this.dom.sleepOverlay) {
+      this.dom.sleepOverlay.classList.add('hidden');
+    }
+    if (window.AppEngine && window.AppEngine.resume) {
+      window.AppEngine.resume();
+    }
+    this.resetSleepTimer();
+    this.showToast('スリープから復帰しました');
   },
 
   async initEngine() {
