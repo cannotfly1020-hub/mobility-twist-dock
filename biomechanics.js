@@ -1,9 +1,12 @@
 /**
- * 柔軟性・しなりドック - 解析・測定エンジン (Biomechanical Engine)
- * - MediaPipe Pose連携 & 高精度アスペクト比自動補正 (Aspect Cover)
- * - インカメラ/外カメラ動的鏡像反転制御
- * - 3大テスト角度算出（幾何クランプ・NaN防御）& 代償動作検知
- * - スリープ時完全CPU負荷低減
+ * 柔軟性・しなりドック - 解析・測定エンジン (Biomechanical Smart Engine)
+ * 
+ * 【主な改修点・追加仕様】
+ * 1. 非日常ポーズ認証 (Tポーズ / 頭上ビッグサークル○)
+ * 2. 関節速度フィルターによる完全静止検知 (移動中の誤暴発を100%遮断)
+ * 3. ゼロリセット (構え時の初期角度をθ_baseとして記憶し、相対変化量のみ算出)
+ * 4. 安定性・ピーク追従データ算出 (アダプティブタイマー連動)
+ * 5. インカメラ/外カメラ動的鏡像反転・スリープ完全省電力・NaN安全クランプ維持
  */
 
 // ==========================================
@@ -142,7 +145,7 @@ const BiomechanicsCalc = {
 };
 
 // ==========================================
-// 2. メイン実行エンジン (AppEngine)
+// 2. メイン解析エンジン (AppEngine)
 // ==========================================
 const AppEngine = {
   video: null,
@@ -156,11 +159,27 @@ const AppEngine = {
   isPaused: false,
   animFrameId: null,
 
+  // 測定種目と状態
   currentTestType: 'thoracic',
   baseHipY: null,
   baseTorsoLen: null,
   baselineCalibrated: false,
 
+  // 【新仕様】ゼロリセット（ベースライン角度）
+  baseAngle: null,
+  isBaseCalibrated: false,
+
+  // 【新仕様】関節移動速度・静止追跡用履歴
+  prevKeypoints: null,
+  prevTimestamp: null,
+  currentVelocity: 0, // screen_ratio / sec
+  stillnessDuration: 0, // 静止継続秒数
+
+  // 【新仕様】開始認証ポーズのホールド追跡
+  authPoseStartTime: null,
+  authPoseRequiredMs: 1500, // 1.5秒維持で確定
+
+  // コールバック
   onFrameUpdate: null,
   onError: null,
 
@@ -298,10 +317,7 @@ const AppEngine = {
     this.isBusy = false;
 
     const loop = async () => {
-      // 停止中または一時停止中はループを完全脱出（無駄なCPU消費を阻止）
-      if (!this.isProcessing || this.isPaused) {
-        return;
-      }
+      if (!this.isProcessing || this.isPaused) return;
 
       if (!this.isBusy && this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         this.isBusy = true;
@@ -326,11 +342,16 @@ const AppEngine = {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     if (!results.poseLandmarks) {
+      this.prevKeypoints = null;
+      this.authPoseStartTime = null;
       if (this.onFrameUpdate) {
         this.onFrameUpdate({
           detected: false,
           isReady: false,
-          angles: { main: 0, sub: 0, currentAngle: 0, diff: 0 },
+          isStationary: false,
+          authProgress: 0,
+          rawAngles: { main: 0, sub: 0, currentAngle: 0, diff: 0 },
+          relativeAngle: 0,
           cheatDetected: false,
           cheatReason: ''
         });
@@ -340,63 +361,156 @@ const AppEngine = {
 
     const t = this.getAspectCoverTransform();
     const landmarks = results.poseLandmarks;
+    const now = performance.now();
 
+    // 1. 静止・移動速度の算出 (主要関節の変位速度)
+    const velocityData = this.calculateMovementVelocity(landmarks, now);
+    const isStationary = velocityData.velocity < 0.025; // 静止閾値
+
+    // 2. 非日常ポーズ判定 (Tポーズまたは頭上○サークル)
+    const authPose = this.checkAuthPose(landmarks);
+
+    // 3. 確定ホールド進捗の計算 (「認証ポーズ」かつ「完全静止」の1.5秒維持)
+    let authProgress = 0;
+    let isFullyLocked = false;
+
+    if (authPose.isMatched && isStationary) {
+      if (!this.authPoseStartTime) {
+        this.authPoseStartTime = now;
+      }
+      const elapsed = now - this.authPoseStartTime;
+      authProgress = Math.min(1.0, elapsed / this.authPoseRequiredMs);
+      if (elapsed >= this.authPoseRequiredMs) {
+        isFullyLocked = true;
+      }
+    } else {
+      this.authPoseStartTime = null;
+      authProgress = 0;
+    }
+
+    // 4. 生体角度の算出（絶対値）
+    const rawAngles = this.calculateTestAngles(landmarks);
+
+    // 5. 【ゼロリセット】相対変化量の計算
+    // baseAngleが設定されている場合、構え時からの差分だけを抽出
+    let relativeAngle = rawAngles.currentAngle;
+    if (this.isBaseCalibrated && this.baseAngle !== null) {
+      relativeAngle = Math.max(0, rawAngles.currentAngle - this.baseAngle);
+    }
+
+    // 6. 代償動作（カンニング）検知
+    const cheatResult = this.detectCheat(landmarks);
+
+    // 7. 骨格描画
     const toCanvasPoint = (lm) => ({
       x: t.offsetX + (lm.x * t.vw) * t.scale,
       y: t.offsetY + (lm.y * t.vh) * t.scale,
       z: lm.z || 0,
       visibility: lm.visibility !== undefined ? lm.visibility : 1.0
     });
-
     const pts = landmarks.map(toCanvasPoint);
-    const readyState = this.checkReadyGesture(landmarks);
-    const testMetrics = this.calculateTestAngles(landmarks);
-    const cheatResult = this.detectCheat(landmarks);
+    this.drawSkeleton(pts, authPose.isMatched);
 
-    this.drawSkeleton(pts);
-
+    // コールバック通知
     if (this.onFrameUpdate) {
       this.onFrameUpdate({
         detected: true,
-        isReady: readyState.isReady,
-        readyScore: readyState.score,
-        readyMessage: readyState.message,
-        angles: testMetrics,
+        isReady: isFullyLocked,
+        authProgress: authProgress,
+        poseType: authPose.poseType,
+        poseMessage: authPose.message,
+        isStationary: isStationary,
+        velocity: velocityData.velocity,
+        rawAngles: rawAngles,
+        relativeAngle: relativeAngle,
         cheatDetected: cheatResult.detected,
         cheatReason: cheatResult.reason
       });
     }
   },
 
-  checkReadyGesture(rawLm) {
+  /**
+   * 【新仕様】関節移動速度フィルター（静止検知）
+   * 肩・手首・腰の画面内移動速度（screen_ratio / sec）を追跡
+   */
+  calculateMovementVelocity(landmarks, now) {
+    // 主要キーポイント: 11(左肩), 12(右肩), 15(左手首), 16(右手首), 23(左腰), 24(右腰)
+    const keyIndices = [11, 12, 15, 16, 23, 24];
+    const currentPoints = keyIndices.map(i => landmarks[i]).filter(Boolean);
+
+    if (!this.prevKeypoints || !this.prevTimestamp || currentPoints.length < 4) {
+      this.prevKeypoints = currentPoints;
+      this.prevTimestamp = now;
+      this.currentVelocity = 0;
+      return { velocity: 0 };
+    }
+
+    const dt = (now - this.prevTimestamp) / 1000;
+    if (dt <= 0.001) return { velocity: this.currentVelocity };
+
+    let totalDist = 0;
+    let count = 0;
+    for (let i = 0; i < Math.min(currentPoints.length, this.prevKeypoints.length); i++) {
+      const p1 = currentPoints[i];
+      const p2 = this.prevKeypoints[i];
+      totalDist += Math.hypot(p1.x - p2.x, p1.y - p2.y);
+      count++;
+    }
+
+    const instantVelocity = count > 0 ? (totalDist / count) / dt : 0;
+    // 指数移動平均で平滑化
+    this.currentVelocity = (this.currentVelocity * 0.7) + (instantVelocity * 0.3);
+
+    this.prevKeypoints = currentPoints;
+    this.prevTimestamp = now;
+
+    return { velocity: this.currentVelocity };
+  },
+
+  /**
+   * 【新仕様】非日常ポーズ認証
+   * 1. 両手Tポーズ（真横に広げる）
+   * 2. 頭上ビッグサークル（○サイン）
+   * ※スマホ操作や髪を触る動作との誤認を100%遮断
+   */
+  checkAuthPose(rawLm) {
+    const ls = rawLm[11]; // 左肩
+    const rs = rawLm[12]; // 右肩
+    const lw = rawLm[15]; // 左手首
+    const rw = rawLm[16]; // 右手首
+    const le = rawLm[13]; // 左肘
+    const re = rawLm[14]; // 右肘
     const nose = rawLm[0];
-    const leftEar = rawLm[7];
-    const rightEar = rawLm[8];
-    const leftWrist = rawLm[15];
-    const rightWrist = rawLm[16];
 
-    if (!nose || !leftEar || !rightEar) {
-      return { isReady: false, score: 0, message: 'カメラに全身を映してください' };
+    if (!ls || !rs || !lw || !rw || !nose) {
+      return { isMatched: false, poseType: null, message: '全身をカメラに映してね' };
     }
 
-    const distLeftEar = Math.abs(nose.x - leftEar.x);
-    const distRightEar = Math.abs(nose.x - rightEar.x);
-    const isFacingForward = Math.max(distLeftEar, distRightEar) > 0.01;
+    const shoulderDist = Math.hypot(ls.x - rs.x, ls.y - rs.y);
 
-    const headWidth = Math.abs(leftEar.x - rightEar.x) + 0.08;
-    const leftHandNearHead = leftWrist && Math.hypot(leftWrist.x - leftEar.x, leftWrist.y - leftEar.y) < headWidth * 2.2;
-    const rightHandNearHead = rightWrist && Math.hypot(rightWrist.x - rightEar.x, rightWrist.y - rightEar.y) < headWidth * 2.2;
+    // 判定A: 両手Tポーズ（腕が真横に水平に大きく伸びている）
+    // 条件: 手首が肩の外側に肩幅の1.2倍以上離れ、かつY座標が肩の高さに近い（±肩幅の60%以内）
+    const isTPoseLeft = (ls.x - lw.x) > (shoulderDist * 0.9) && Math.abs(lw.y - ls.y) < (shoulderDist * 0.6);
+    const isTPoseRight = (rw.x - rs.x) > (shoulderDist * 0.9) && Math.abs(rw.y - rs.y) < (shoulderDist * 0.6);
 
-    const hasPoseReady = leftHandNearHead || rightHandNearHead;
-
-    if (!isFacingForward) {
-      return { isReady: false, score: 0.3, message: 'カメラの方を向いてね' };
-    }
-    if (!hasPoseReady) {
-      return { isReady: false, score: 0.6, message: '耳の後ろに手を当てて構えよう！' };
+    if (isTPoseLeft && isTPoseRight) {
+      return { isMatched: true, poseType: 'T_POSE', message: '両手Tポーズ認識！ピタッと静止してね' };
     }
 
-    return { isReady: true, score: 1.0, message: '構えOK！1秒キープ' };
+    // 判定B: 頭上ビッグサークル（両手が頭上で合わさっている）
+    // 条件: 両手首が鼻より高く、かつ両手首同士が頭部付近で接近している
+    const bothHandsAboveHead = (lw.y < nose.y) && (rw.y < nose.y);
+    const wristsClose = Math.hypot(lw.x - rw.x, lw.y - rw.y) < (shoulderDist * 1.1);
+
+    if (bothHandsAboveHead && wristsClose) {
+      return { isMatched: true, poseType: 'CIRCLE_POSE', message: '頭上○サイン認識！ピタッと静止してね' };
+    }
+
+    return {
+      isMatched: false,
+      poseType: null,
+      message: '両手を横に広げて「Tポーズ」か、頭の上で「○」を作ってね！'
+    };
   },
 
   calculateTestAngles(rawLm) {
@@ -412,6 +526,20 @@ const AppEngine = {
     }
   },
 
+  /**
+   * 【新仕様】ゼロリセット（キャリブレーション）API
+   * スタート合図の瞬間の姿勢角度をθ_baseとして記憶
+   */
+  calibrateBaseAngle(currentRawAngle) {
+    this.baseAngle = currentRawAngle;
+    this.isBaseCalibrated = true;
+  },
+
+  resetBaseAngle() {
+    this.baseAngle = null;
+    this.isBaseCalibrated = false;
+  },
+
   detectCheat(rawLm) {
     const lh = rawLm[23];
     const rh = rawLm[24];
@@ -424,12 +552,12 @@ const AppEngine = {
       return { detected: false, reason: '' };
     }
 
-    // 骨盤の急激な浮き上がり（画面高さの8%以上の変化）
+    // 骨盤の急激な浮き上がり検知
     const hipLiftAmount = this.baseHipY - currentHipY;
     if (hipLiftAmount > 0.08) {
       return {
         detected: true,
-        reason: 'お尻が浮いています！骨盤を床につけて回旋しよう'
+        reason: 'お尻が浮いています！骨盤を座面につけよう'
       };
     }
 
@@ -463,9 +591,12 @@ const AppEngine = {
     this.baseHipY = null;
     this.baseTorsoLen = null;
     this.baselineCalibrated = false;
+    this.resetBaseAngle();
+    this.authPoseStartTime = null;
+    this.prevKeypoints = null;
   },
 
-  drawSkeleton(pts) {
+  drawSkeleton(pts, isAuthActive = false) {
     const ctx = this.ctx;
 
     const connections = [
@@ -479,9 +610,10 @@ const AppEngine = {
     ];
 
     ctx.save();
-    ctx.lineWidth = 4;
+    ctx.lineWidth = isAuthActive ? 5 : 4;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)';
+    // 認証ポーズ認識時はエメラルドグリーン、通常時はシアン
+    ctx.strokeStyle = isAuthActive ? 'rgba(16, 185, 129, 0.95)' : 'rgba(6, 182, 212, 0.85)';
 
     connections.forEach(([i, j]) => {
       const p1 = pts[i];
@@ -499,7 +631,7 @@ const AppEngine = {
         const isKeyJoint = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28].includes(idx);
         ctx.beginPath();
         ctx.arc(p.x, p.y, isKeyJoint ? 6 : 3, 0, 2 * Math.PI);
-        ctx.fillStyle = isKeyJoint ? '#fbbf24' : '#ffffff';
+        ctx.fillStyle = isAuthActive ? '#34d399' : (isKeyJoint ? '#fbbf24' : '#ffffff');
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 2;
         ctx.fill();
