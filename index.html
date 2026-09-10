@@ -297,6 +297,16 @@
     メッセージ
   </div>
 
+　<!-- 4-5. スリープ省電力オーバーレイ (#sleep-overlay) -->
+  　<div id="sleep-overlay" class="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center gap-3 p-6 text-center cursor-pointer transition-opacity duration-300 hidden">
+    　<span class="text-5xl animate-pulse">💤</span>
+    　<h3 class="text-lg font-black text-yellow-300">省電力スリープ中</h3>
+   　 <p class="text-xs text-slate-400">バッテリー消費と発熱を抑えるため<br>AI解析・カメラを一時停止しています</p>
+    　<div class="mt-4 px-4 py-2 rounded-full bg-indigo-600/80 border border-indigo-400 text-xs font-black text-white shadow-lg animate-bounce">
+      　画面をタップして復帰
+    </div>
+  </div>
+  
   <!-- スクリプト読み込み（指定順序を厳守） -->
   <script src="voice.js"></script>
   <script src="biomechanics.js"></script>
