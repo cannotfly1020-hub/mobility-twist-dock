@@ -12,6 +12,7 @@ const AppEngine = {
   isProcessing: false,
   isBusy: false, // 重複推論防止フラグ
   isPaused: false, // スリープ一時停止フラグ
+  isPaused: false,
   animFrameId: null,
 
   // 測定中および初期キャリブレーションデータ
@@ -153,7 +154,8 @@ const AppEngine = {
 
     const loop = async () => {
       if (!this.isProcessing) return;
-
+      if (this.isPaused) { ... return; }
+      
       // スリープ一時停止中は推論をスキップ
       if (this.isPaused) {
         this.animFrameId = requestAnimationFrame(loop);
@@ -449,7 +451,7 @@ const AppEngine = {
       this.video.play().catch(() => {});
     }
   },
-
+ 
   resetCalibration() {
     this.baseHipY = null;
     this.baseTorsoLen = null;
@@ -503,3 +505,5 @@ const AppEngine = {
 };
 
 window.AppEngine = AppEngine;
+pause() { ... } 
+resume() { ... }
