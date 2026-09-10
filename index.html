@@ -29,268 +29,238 @@
   <div class="relative z-10 flex flex-col h-full w-full max-w-md mx-auto justify-between p-2 pb-safe">
 
     <!-- 2. ヘッダー (#app-header) -->
-    <header id="app-header" class="flex flex-col gap-1.5 shrink-0">
-      <!-- 上段：タイトル & アクションボタン -->
-      <div class="flex items-center justify-between gap-1">
-        <h1 class="text-base font-black tracking-wider drop-shadow-md flex items-center gap-1 truncate">
-          <span>🦴</span>
-          <span class="text-yellow-400">柔軟性・しなりドック</span>
-        </h1>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button id="btn-switch-camera" type="button" class="btn-3d px-2 py-1 bg-sky-600 text-xs font-bold rounded-lg border-b-2 border-sky-800 active:translate-y-0.5">
-            📷 反転
-          </button>
-          <button id="btn-open-carte" type="button" class="btn-3d px-2 py-1 bg-amber-500 text-xs font-black rounded-lg border-b-2 border-amber-700 active:translate-y-0.5">
-            📋 カルテ
-          </button>
-        </div>
-      </div>
-
-      <!-- 中段：ステータスバッジ（選手選択 & 左右差） -->
-      <div class="flex items-center justify-between gap-2 text-xs">
-        <button id="btn-player-select" type="button" class="flex items-center gap-1 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-600 active:scale-95 transition-transform truncate">
-          <span class="text-slate-400">👤 選手:</span>
-          <span id="header-player-name" class="font-extrabold text-white truncate">未選択</span>
-          <span class="text-[10px] text-slate-400">▼</span>
-        </button>
-        <button id="btn-diff-badge" type="button" class="flex items-center gap-1 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-600 shrink-0">
-          <span class="text-slate-400">左右差:</span>
-          <span id="header-diff-val" class="font-black text-yellow-300">--°</span>
-        </button>
-      </div>
-
-      <!-- 下段：3大テスト切り替えタブ -->
-      <nav class="grid grid-cols-3 gap-1.5 pt-0.5">
-        <button id="tab-thoracic" type="button" class="tab-btn py-1.5 px-1 bg-indigo-700 font-extrabold text-xs rounded-xl border-b-2 border-indigo-950 text-center leading-tight active:translate-y-0.5 shadow">
-          胸パカーン<br><span class="text-[10px] font-medium text-indigo-200">胸椎回旋</span>
-        </button>
-        <button id="tab-hip" type="button" class="tab-btn py-1.5 px-1 bg-slate-800 font-extrabold text-xs rounded-xl border-b-2 border-slate-950 text-center leading-tight active:translate-y-0.5 shadow opacity-80">
-          股関節ワイパー<br><span class="text-[10px] font-medium text-slate-300">回旋可動</span>
-        </button>
-        <button id="tab-hinge" type="button" class="tab-btn py-1.5 px-1 bg-slate-800 font-extrabold text-xs rounded-xl border-b-2 border-slate-950 text-center leading-tight active:translate-y-0.5 shadow opacity-80">
-          もも裏前屈<br><span class="text-[10px] font-medium text-slate-300">ヒップヒンジ</span>
-        </button>
-      </nav>
-    </header>
-
-    <!-- 3. メインパネル (main.brawl-panel) -->
-    <main class="brawl-panel flex flex-col flex-1 my-1.5 relative rounded-2xl bg-slate-900/90 border-2 border-indigo-500/40 p-2 shadow-2xl overflow-hidden justify-between">
-
-      <!-- ガイダンスバナー (#guidance-banner) -->
-      <div id="guidance-banner" class="bg-indigo-950/80 border border-indigo-500/30 rounded-xl p-2 flex items-center justify-between shrink-0 gap-2 shadow-inner">
-        <div class="flex items-center gap-2 overflow-hidden">
-          <span id="guide-icon" class="text-2xl shrink-0">🦇</span>
-          <div class="flex flex-col overflow-hidden">
-            <span id="guide-title" class="text-xs font-black text-yellow-300 tracking-wide truncate">胸を限界までパカーンと開こう！</span>
-            <span id="guide-desc" class="text-[10px] text-slate-300 truncate">スマホを正面に置いて全身を枠に入れてね</span>
-          </div>
-        </div>
-        <div id="pose-trigger-badge" class="flex items-center gap-1.5 bg-slate-900/90 px-2 py-1 rounded-full border border-slate-700 shrink-0">
-          <span id="trigger-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-          <span id="trigger-text" class="text-[10px] font-bold text-slate-200">全身認識待ち</span>
-        </div>
-      </div>
-
-      <!-- カメラ・キャンバス画面 (#camera-screen-wrapper) -->
-      <div id="camera-screen-wrapper" class="relative flex-1 w-full my-1.5 rounded-xl overflow-hidden bg-black flex items-center justify-center border border-slate-700/60 shadow-inner">
-        <!-- 映像入力 & 描画層 -->
-        <video id="webcam-video" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" playsinline webkit-playsinline muted autoplay></video>
-        <canvas id="output-canvas" class="absolute inset-0 w-full h-full object-cover z-10 transform -scale-x-100"></canvas>
-
-        <!-- ガイド枠 (#safe-boundary) -->
-        <div id="safe-boundary" class="absolute inset-2 border-2 border-dashed border-cyan-400/40 rounded-lg pointer-events-none z-20 transition-colors"></div>
-
-        <!-- リアルタイム数値バッジ -->
-        <div class="absolute top-2 left-2 z-20 flex flex-col items-center bg-slate-900/85 backdrop-blur-sm border border-cyan-500/50 px-2.5 py-1 rounded-xl shadow-lg">
-          <span class="text-[9px] font-black text-cyan-400 uppercase tracking-wider">LEFT</span>
-          <span id="metric-main-val" class="text-xl font-black text-white leading-none">0°</span>
-        </div>
-        <div class="absolute top-2 right-2 z-20 flex flex-col items-center bg-slate-900/85 backdrop-blur-sm border border-pink-500/50 px-2.5 py-1 rounded-xl shadow-lg">
-          <span class="text-[9px] font-black text-pink-400 uppercase tracking-wider">RIGHT</span>
-          <span id="metric-sub-val" class="text-xl font-black text-white leading-none">0°</span>
-        </div>
-
-        <!-- カウントダウンレイヤー (#countdown-box) -->
-        <div id="countdown-box" class="absolute inset-0 bg-slate-950/70 z-30 flex flex-col items-center justify-center pointer-events-none hidden">
-          <div id="countdown-num" class="text-7xl font-black text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] animate-bounce">3</div>
-          <div id="countdown-guide" class="text-sm font-bold text-white mt-2 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-600">姿勢をキープ！</div>
-        </div>
-
-        <!-- 測定中バッジ (#measuring-badge) -->
-        <div id="measuring-badge" class="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-rose-600 text-white text-[10px] font-black px-3 py-0.5 rounded-full border border-rose-400 shadow animate-pulse hidden">
-          ● 計測中
-        </div>
-
-        <!-- 代償動作警告バッジ (#cheat-alert-badge) -->
-        <div id="cheat-alert-badge" class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 bg-amber-500 text-slate-950 text-xs font-black px-3 py-1 rounded-full border-2 border-white shadow-xl flex items-center gap-1.5 hidden animate-bounce">
-          <span>⚠️</span>
-          <span id="cheat-alert-text">腰が反りすぎています！</span>
-        </div>
-
-        <!-- 動的ストレッチ用HUDオーバーレイ (#drill-hud) -->
-        <div id="drill-hud" class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 hidden bg-indigo-950/20">
-          <div class="flex justify-between items-center w-full">
-            <div class="bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-amber-400/60">
-              <span class="text-[9px] text-amber-300 block font-bold">COMBO</span>
-              <span id="drill-combo-counter" class="text-xl font-black text-yellow-300">0</span>
-            </div>
-            <div class="bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-cyan-400/60 text-right">
-              <span class="text-[9px] text-cyan-300 block font-bold">REPS</span>
-              <span id="drill-progress-count" class="text-xl font-black text-cyan-300">0 / 10</span>
-            </div>
-          </div>
-          <div class="text-center">
-            <span id="drill-status-text" class="bg-indigo-600/90 text-white font-extrabold text-xs px-4 py-1.5 rounded-full border border-indigo-300 shadow">しっかり胸を開こう！</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- フッター操作部 (#test-controls-container) -->
-      <footer id="test-controls-container" class="flex flex-col gap-1.5 shrink-0 pt-1">
-        <!-- メイン3Dボタン -->
-        <button id="btn-start-trigger" type="button" class="btn-3d w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white text-base font-black rounded-xl border-b-4 border-green-800 active:translate-y-1 shadow-lg flex items-center justify-center gap-2">
-          <span>🚀</span>
-          <span>測定スタート</span>
-        </button>
-
-        <!-- サブボタン列 -->
-        <div class="grid grid-cols-2 gap-1.5">
-          <button id="btn-open-report" type="button" class="btn-3d py-1.5 bg-slate-800 text-cyan-300 text-xs font-black rounded-xl border-b-2 border-slate-950 active:translate-y-0.5 text-center shadow">
-            📊 レポートを見る
-          </button>
-          <button id="btn-open-dynamic-drill" type="button" class="btn-3d py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-xs font-black rounded-xl border-b-2 border-orange-700 active:translate-y-0.5 text-center shadow">
-            🔥 1分動的ドリル
-          </button>
-        </div>
-      </footer>
-    </main>
+<header id="app-header" class="flex flex-col gap-1.5 shrink-0">
+  <!-- 上段：タイトル & アクションボタン -->
+  <div class="flex items-center justify-between gap-1">
+    <h1 class="text-base font-black tracking-wider drop-shadow-md flex items-center gap-1 truncate">
+      <span>🦴</span>
+      <span class="text-yellow-400">柔軟性・しなりドック</span>
+    </h1>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button id="btn-switch-camera" type="button" class="btn-3d px-2 py-1 bg-sky-600 text-xs font-bold rounded-lg border-b-2 border-sky-800 active:translate-y-0.5">
+        📷 反転
+      </button>
+      <button id="btn-open-carte" type="button" class="btn-3d px-2 py-1 bg-amber-500 text-xs font-black rounded-lg border-b-2 border-amber-700 active:translate-y-0.5">
+        📋 カルテ
+      </button>
+    </div>
   </div>
 
-  <!-- 4. モーダル群 -->
+  <!-- 中段：ステータスバッジ（選手選択 & 左右差） -->
+  <div class="flex items-center justify-between gap-2 text-xs">
+    <button id="btn-player-select" type="button" class="flex items-center gap-1 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-600 active:scale-95 transition-transform truncate">
+      <span class="text-slate-400">👤 選手:</span>
+      <span id="header-player-name" class="font-extrabold text-white truncate">未選択</span>
+      <span class="text-[10px] text-slate-400">▼</span>
+    </button>
+    <button id="btn-diff-badge" type="button" class="flex items-center gap-1 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-600 shrink-0">
+      <span class="text-slate-400">左右差:</span>
+      <span id="header-diff-val" class="font-black text-yellow-300">--°</span>
+    </button>
+  </div>
 
-  <!-- 4-1. 選手切替・新規登録モーダル (#player-modal) -->
-  <div id="player-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border-2 border-indigo-500 rounded-2xl w-full max-w-sm p-4 flex flex-col gap-3 shadow-2xl">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
-        <h2 class="text-sm font-black text-yellow-400">👤 選手切り替え・登録</h2>
-        <button type="button" class="modal-close text-slate-400 hover:text-white font-bold text-lg p-1">&times;</button>
+  <!-- 下段：3大テスト切り替えタブ -->
+  <nav class="grid grid-cols-3 gap-1.5 pt-0.5">
+    <button id="tab-thoracic" type="button" class="tab-btn py-1.5 px-1 bg-indigo-700 font-extrabold text-xs rounded-xl border-b-2 border-indigo-950 text-center leading-tight active:translate-y-0.5 shadow">
+      胸パカーン<br><span class="text-[10px] font-medium text-indigo-200">胸椎回旋</span>
+    </button>
+    <button id="tab-hip" type="button" class="tab-btn py-1.5 px-1 bg-slate-800 font-extrabold text-xs rounded-xl border-b-2 border-slate-950 text-center leading-tight active:translate-y-0.5 shadow opacity-80">
+      股関節ワイパー<br><span class="text-[10px] font-medium text-slate-300">回旋可動</span>
+    </button>
+    <button id="tab-hinge" type="button" class="tab-btn py-1.5 px-1 bg-slate-800 font-extrabold text-xs rounded-xl border-b-2 border-slate-950 text-center leading-tight active:translate-y-0.5 shadow opacity-80">
+      もも裏前屈<br><span class="text-[10px] font-medium text-slate-300">ヒップヒンジ</span>
+    </button>
+  </nav>
+</header>
+
+<!-- 3. メインパネル (main.brawl-panel) -->
+<main class="brawl-panel flex flex-col flex-1 my-1.5 relative rounded-2xl bg-slate-900/90 border-2 border-indigo-500/40 p-2 shadow-2xl overflow-hidden justify-between">
+
+  <!-- ガイダンスバナー (#guidance-banner) -->
+  <div id="guidance-banner" class="bg-indigo-950/80 border border-indigo-500/30 rounded-xl p-2 flex items-center justify-between shrink-0 gap-2 shadow-inner">
+    <div class="flex items-center gap-2 overflow-hidden">
+      <span id="guide-icon" class="text-2xl shrink-0">🦇</span>
+      <div class="flex flex-col overflow-hidden">
+        <span id="guide-title" class="text-xs font-black text-yellow-300 tracking-wide truncate">胸を限界までパカーンと開こう！</span>
+        <span id="guide-desc" class="text-[10px] text-slate-300 truncate">スマホを正面に置いて全身を枠に入れてね</span>
       </div>
-      
-      <!-- 選手選択 -->
-      <div class="flex flex-col gap-1">
-        <label for="player-select-dropdown" class="text-xs font-bold text-slate-300">登録済み選手を選択</label>
-        <select id="player-select-dropdown" class="bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-2 text-sm text-white font-bold outline-none focus:border-indigo-400">
-          <option value="">-- 選手を選択してください --</option>
+    </div>
+    <div id="pose-trigger-badge" class="flex items-center gap-1.5 bg-slate-900/90 px-2 py-1 rounded-full border border-slate-700 shrink-0">
+      <span id="trigger-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+      <span id="trigger-text" class="text-[10px] font-bold text-slate-200">全身認識待ち</span>
+    </div>
+  </div>
+
+  <!-- カメラ・キャンバス画面 (#camera-screen-wrapper) -->
+  <div id="camera-screen-wrapper" class="relative flex-1 w-full my-1.5 rounded-xl overflow-hidden bg-black flex items-center justify-center border border-slate-700/60 shadow-inner">
+    <!-- 映像入力 & 描画層（※反転クラス -scale-x-100 は削除し、JSで動的制御） -->
+    <video id="webcam-video" class="absolute inset-0 w-full h-full object-cover" playsinline webkit-playsinline muted autoplay></video>
+    <canvas id="output-canvas" class="absolute inset-0 w-full h-full object-cover z-10"></canvas>
+
+    <!-- ガイド枠 (#safe-boundary) -->
+    <div id="safe-boundary" class="absolute inset-2 border-2 border-dashed border-cyan-400/40 rounded-lg pointer-events-none z-20 transition-colors"></div>
+
+    <!-- リアルタイム数値バッジ -->
+    <div class="absolute top-2 left-2 z-20 flex flex-col items-center bg-slate-900/85 backdrop-blur-sm border border-cyan-500/50 px-2.5 py-1 rounded-xl shadow-lg">
+      <span class="text-[9px] font-black text-cyan-400 uppercase tracking-wider">LEFT</span>
+      <span id="metric-main-val" class="text-xl font-black text-white leading-none">0°</span>
+    </div>
+    <div class="absolute top-2 right-2 z-20 flex flex-col items-center bg-slate-900/85 backdrop-blur-sm border border-pink-500/50 px-2.5 py-1 rounded-xl shadow-lg">
+      <span class="text-[9px] font-black text-pink-400 uppercase tracking-wider">RIGHT</span>
+      <span id="metric-sub-val" class="text-xl font-black text-white leading-none">0°</span>
+    </div>
+
+    <!-- カウントダウンレイヤー (#countdown-box) -->
+    <div id="countdown-box" class="absolute inset-0 bg-slate-950/70 z-30 flex flex-col items-center justify-center pointer-events-none hidden">
+      <div id="countdown-num" class="text-7xl font-black text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] animate-bounce">3</div>
+      <div id="countdown-guide" class="text-sm font-bold text-white mt-2 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-600">姿勢をキープ！</div>
+    </div>
+
+    <!-- 測定中バッジ (#measuring-badge) -->
+    <div id="measuring-badge" class="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-rose-600 text-white text-[10px] font-black px-3 py-0.5 rounded-full border border-rose-400 shadow animate-pulse hidden">
+      ● 計測中
+    </div>
+
+    <!-- 代償動作警告バッジ (#cheat-alert-badge) -->
+    <div id="cheat-alert-badge" class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 bg-amber-500 text-slate-950 text-xs font-black px-3 py-1 rounded-full border-2 border-white shadow-xl flex items-center gap-1.5 hidden animate-bounce">
+      <span>⚠️</span>
+      <span id="cheat-alert-text">お尻が浮いています！</span>
+    </div>
+
+    <!-- 動的ストレッチ用HUDオーバーレイ (#drill-hud) -->
+    <div id="drill-hud" class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 hidden bg-indigo-950/20">
+      <div class="flex justify-between items-center w-full">
+        <div class="bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-amber-400/60">
+          <span class="text-[9px] text-amber-300 block font-bold">COMBO</span>
+          <span id="drill-combo-counter" class="text-xl font-black text-yellow-300">0</span>
+        </div>
+        <div class="bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-cyan-400/60 text-right">
+          <span class="text-[9px] text-cyan-300 block font-bold">REPS</span>
+          <span id="drill-progress-count" class="text-xl font-black text-cyan-300">0 / 10</span>
+        </div>
+      </div>
+      <div class="text-center">
+        <span id="drill-status-text" class="bg-indigo-600/90 text-white font-extrabold text-xs px-4 py-1.5 rounded-full border border-indigo-300 shadow">しっかり胸を開こう！</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- フッター操作部 (#test-controls-container) -->
+  <footer id="test-controls-container" class="flex flex-col gap-1.5 shrink-0 pt-1">
+    <!-- メイン3Dボタン -->
+    <button id="btn-start-trigger" type="button" class="btn-3d w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white text-base font-black rounded-xl border-b-4 border-green-800 active:translate-y-1 shadow-lg flex items-center justify-center gap-2">
+      <span>🚀</span>
+      <span>測定スタート</span>
+    </button>
+
+    <!-- サブボタン列 -->
+    <div class="grid grid-cols-2 gap-1.5">
+      <button id="btn-open-report" type="button" class="btn-3d py-1.5 bg-slate-800 text-cyan-300 text-xs font-black rounded-xl border-b-2 border-slate-950 active:translate-y-0.5 text-center shadow">
+        📊 レポートを見る
+      </button>
+      <button id="btn-open-dynamic-drill" type="button" class="btn-3d py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-xs font-black rounded-xl border-b-2 border-orange-700 active:translate-y-0.5 text-center shadow">
+        🔥 1分動的ドリル
+      </button>
+    </div>
+  </footer>
+</main>
+
+
+  <!-- 選手選択 -->
+  <div class="flex flex-col gap-1">
+    <label for="player-select-dropdown" class="text-xs font-bold text-slate-300">登録済み選手を選択</label>
+    <select id="player-select-dropdown" class="bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-2 text-sm text-white font-bold outline-none focus:border-indigo-400">
+      <option value="">-- 選手を選択してください --</option>
+    </select>
+  </div>
+
+  <div class="relative flex py-1 items-center">
+    <div class="flex-grow border-t border-slate-700"></div>
+    <span class="flex-shrink mx-2 text-[10px] text-slate-400">または新規作成</span>
+    <div class="flex-grow border-t border-slate-700"></div>
+  </div>
+
+  <!-- 新規登録フォーム -->
+  <form id="form-new-player" class="flex flex-col gap-2">
+    <div>
+      <label for="input-player-name" class="text-xs font-bold text-slate-300">選手名（ニックネーム）</label>
+      <input id="input-player-name" type="text" placeholder="例: たろう" required class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white outline-none focus:border-indigo-400">
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label for="input-player-dominant" class="text-xs font-bold text-slate-300">利き腕</label>
+        <select id="input-player-dominant" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-white outline-none focus:border-indigo-400">
+          <option value="right">右投げ</option>
+          <option value="left">左投げ</option>
         </select>
       </div>
-
-      <div class="relative flex py-1 items-center">
-        <div class="flex-grow border-t border-slate-700"></div>
-        <span class="flex-shrink mx-2 text-[10px] text-slate-400">または新規作成</span>
-        <div class="flex-grow border-t border-slate-700"></div>
+      <div>
+        <label for="input-player-grade" class="text-xs font-bold text-slate-300">学年</label>
+        <select id="input-player-grade" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-white outline-none focus:border-indigo-400">
+          <option value="1">小1</option>
+          <option value="2">小2</option>
+          <option value="3">小3</option>
+          <option value="4">小4</option>
+          <option value="5">小5</option>
+          <option value="6">小6</option>
+        </select>
       </div>
+    </div>
+    <button id="btn-save-player" type="submit" class="btn-3d mt-2 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl border-b-2 border-indigo-900 active:translate-y-0.5">
+      ＋ 新規選手を保存
+    </button>
+  </form>
+</div>
 
-      <!-- 新規登録フォーム -->
-      <form id="form-new-player" class="flex flex-col gap-2">
-        <div>
-          <label for="input-player-name" class="text-xs font-bold text-slate-300">選手名（ニックネーム）</label>
-          <input id="input-player-name" type="text" placeholder="例: たろう" required class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white outline-none focus:border-indigo-400">
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label for="input-player-dominant" class="text-xs font-bold text-slate-300">利き腕</label>
-            <select id="input-player-dominant" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-white outline-none focus:border-indigo-400">
-              <option value="right">右投げ</option>
-              <option value="left">左投げ</option>
-            </select>
-          </div>
-          <div>
-            <label for="input-player-grade" class="text-xs font-bold text-slate-300">学年</label>
-            <select id="input-player-grade" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-white outline-none focus:border-indigo-400">
-              <option value="1">小1</option>
-              <option value="2">小2</option>
-              <option value="3">小3</option>
-              <option value="4">小4</option>
-              <option value="5">小5</option>
-              <option value="6">小6</option>
-            </select>
-          </div>
-        </div>
-        <button id="btn-save-player" type="submit" class="btn-3d mt-2 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl border-b-2 border-indigo-900 active:translate-y-0.5">
-          ＋ 新規選手を保存
-        </button>
-      </form>
+
+  <!-- 評価スコア表示 -->
+  <div class="flex flex-col items-center justify-center bg-slate-800/80 rounded-xl p-3 border border-slate-700">
+    <span class="text-xs font-bold text-slate-300">総合しなりランク</span>
+    <span id="report-score-grade" class="text-4xl font-black text-yellow-400 my-1">A</span>
+    <span id="report-comment" class="text-xs text-center text-slate-200 font-bold">プロ級のしなり！左右バランスもバッチリ！</span>
+  </div>
+
+  <!-- 左右差可視化バー -->
+  <div class="flex flex-col gap-1 bg-slate-800/50 p-2.5 rounded-xl border border-slate-700">
+    <span class="text-xs font-extrabold text-slate-300">左右バランス比較</span>
+    <div class="flex items-center justify-between text-[11px] font-bold mt-1">
+      <span class="text-cyan-400">左: <span id="report-left-val">0°</span></span>
+      <span class="text-pink-400">右: <span id="report-right-val">0°</span></span>
+    </div>
+    <div class="h-3 w-full bg-slate-700 rounded-full overflow-hidden flex">
+      <div id="bar-left" class="bg-cyan-500 h-full transition-all duration-500" style="width: 50%"></div>
+      <div id="bar-right" class="bg-pink-500 h-full transition-all duration-500" style="width: 50%"></div>
     </div>
   </div>
 
-  <!-- 4-2. 診断レポートモーダル (#report-modal) -->
-  <div id="report-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border-2 border-yellow-400 rounded-2xl w-full max-w-sm p-4 flex flex-col gap-3 shadow-2xl max-h-[90dvh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
-        <h2 class="text-base font-black text-yellow-400 flex items-center gap-1">
-          <span>🏆</span> 測定診断レポート
-        </h2>
-        <button type="button" class="modal-close text-slate-400 hover:text-white font-bold text-lg p-1">&times;</button>
-      </div>
+  <!-- アクションボタン -->
+  <div class="flex flex-col gap-1.5 mt-1">
+    <button id="btn-save-report" type="button" class="btn-3d py-2 bg-emerald-600 text-white text-xs font-black rounded-xl border-b-2 border-emerald-900 active:translate-y-0.5">
+      💾 カルテに保存する
+    </button>
+    <button id="btn-report-start-drill" type="button" class="btn-3d py-2 bg-amber-500 text-slate-950 text-xs font-black rounded-xl border-b-2 border-amber-800 active:translate-y-0.5">
+      🔥 この弱点を治すドリルへ
+    </button>
+  </div>
+</div>
 
-      <!-- 評価スコア表示 -->
-      <div class="flex flex-col items-center justify-center bg-slate-800/80 rounded-xl p-3 border border-slate-700">
-        <span class="text-xs font-bold text-slate-300">総合しなりランク</span>
-        <span id="report-score-grade" class="text-4xl font-black text-yellow-400 my-1">A</span>
-        <span id="report-comment" class="text-xs text-center text-slate-200 font-bold">プロ級のしなり！左右バランスもバッチリ！</span>
-      </div>
 
-      <!-- 左右差可視化バー -->
-      <div class="flex flex-col gap-1 bg-slate-800/50 p-2.5 rounded-xl border border-slate-700">
-        <span class="text-xs font-extrabold text-slate-300">左右バランス比較</span>
-        <div class="flex items-center justify-between text-[11px] font-bold mt-1">
-          <span class="text-cyan-400">左: <span id="report-left-val">0°</span></span>
-          <span class="text-pink-400">右: <span id="report-right-val">0°</span></span>
-        </div>
-        <div class="h-3 w-full bg-slate-700 rounded-full overflow-hidden flex">
-          <div id="bar-left" class="bg-cyan-500 h-full transition-all duration-500" style="width: 50%"></div>
-          <div id="bar-right" class="bg-pink-500 h-full transition-all duration-500" style="width: 50%"></div>
-        </div>
-      </div>
-
-      <!-- アクションボタン -->
-      <div class="flex flex-col gap-1.5 mt-1">
-        <button id="btn-save-report" type="button" class="btn-3d py-2 bg-emerald-600 text-white text-xs font-black rounded-xl border-b-2 border-emerald-900 active:translate-y-0.5">
-          💾 カルテに保存する
-        </button>
-        <button id="btn-report-start-drill" type="button" class="btn-3d py-2 bg-amber-500 text-slate-950 text-xs font-black rounded-xl border-b-2 border-amber-800 active:translate-y-0.5">
-          🔥 この弱点を治すドリルへ
-        </button>
-      </div>
-    </div>
+  <!-- 履歴リストコンテナ (#carte-list-container) -->
+  <div id="carte-list-container" class="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
+    <!-- JSで履歴カードが動的追加される領域 -->
   </div>
 
-  <!-- 4-3. 測定履歴カルテモーダル (#carte-modal) -->
-  <div id="carte-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border-2 border-amber-500 rounded-2xl w-full max-w-sm p-4 flex flex-col gap-3 shadow-2xl h-[85dvh]">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-2 shrink-0">
-        <h2 class="text-base font-black text-amber-400 flex items-center gap-1">
-          <span>📋</span> 測定履歴カルテ
-        </h2>
-        <button type="button" class="modal-close text-slate-400 hover:text-white font-bold text-lg p-1">&times;</button>
-      </div>
-
-      <!-- 履歴リストコンテナ (#carte-list-container) -->
-      <div id="carte-list-container" class="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
-        <!-- JSで履歴カードが動的追加される領域 -->
-      </div>
-
-      <!-- 出力・共有フッター -->
-      <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700 shrink-0">
-        <button id="btn-export-csv" type="button" class="btn-3d py-2 bg-slate-800 text-slate-200 text-xs font-black rounded-xl border-b-2 border-slate-950 active:translate-y-0.5 flex items-center justify-center gap-1">
-          <span>📥</span> CSV出力
-        </button>
-        <button id="btn-share-line" type="button" class="btn-3d py-2 bg-[#06C755] text-white text-xs font-black rounded-xl border-b-2 border-[#04883b] active:translate-y-0.5 flex items-center justify-center gap-1">
-          <span>💬</span> LINE共有
-        </button>
-      </div>
-    </div>
+  <!-- 出力・共有フッター -->
+  <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700 shrink-0">
+    <button id="btn-export-csv" type="button" class="btn-3d py-2 bg-slate-800 text-slate-200 text-xs font-black rounded-xl border-b-2 border-slate-950 active:translate-y-0.5 flex items-center justify-center gap-1">
+      <span>📥</span> CSV出力
+    </button>
+    <button id="btn-share-line" type="button" class="btn-3d py-2 bg-[#06C755] text-white text-xs font-black rounded-xl border-b-2 border-[#04883b] active:translate-y-0.5 flex items-center justify-center gap-1">
+      <span>💬</span> LINE共有
+    </button>
   </div>
+</div>
+
 
   <!-- 4-4. トーストメッセージボックス (#toast-box) -->
   <div id="toast-box" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-full border border-indigo-400/50 shadow-2xl pointer-events-none transition-all duration-300 opacity-0 translate-y-4">
