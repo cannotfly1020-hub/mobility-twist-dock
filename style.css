@@ -67,7 +67,7 @@ background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 2px, transpa
 background-size: 20px 20px;
 }
 
-/* 回転するサンバースト（集中線）アニメーション /
+/* 回転するサンバースト（集中線）アニメーション */
 .sunburst {
 background: repeating-conic-gradient(
 from 0deg,
@@ -75,7 +75,6 @@ transparent 0deg 15deg,
 rgba(255, 255, 255, 0.04) 15deg 30deg
 );
 animation: rotate-sunburst 60s linear infinite;
-/ 画面より大きくして回転時に角が切れないようにする */
 transform-origin: center center;
 }
 
@@ -89,50 +88,8 @@ to { transform: scale(1.5) rotate(360deg); }
 box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
 }
 
-/* STREAMING_CHUNK:Creating 3D buttons and animations... /
+/* STREAMING_CHUNK:Animations and Overlays... /
 / =========================================
-Brawl Stars Style Buttons (3D風)
-========================================= /
-/ 3Dボタンの基本構造 */
-.btn-3d {
-position: relative;
-transition: all 0.1s ease-out;
-border-bottom-width: 4px;
-border-bottom-style: solid;
-border-radius: 0.75rem;
-font-weight: 900;
-display: flex;
-align-items: center;
-justify-content: center;
-}
-
-/* 押したときの沈み込みアクション /
-.btn-3d:active {
-border-bottom-width: 0px;
-transform: translateY(4px);
-margin-bottom: 4px; / 沈んだ分の高さを補填してレイアウト崩れを防ぐ */
-}
-
-/* 各カラーバリエーション */
-.btn-emerald {
-background-color: var(--brawl-emerald);
-border-color: #047857;
-color: white;
-}
-
-.btn-amber {
-background-color: var(--brawl-amber);
-border-color: #b45309;
-color: white;
-}
-
-.btn-gold {
-background-color: var(--brawl-gold);
-border-color: #b45309;
-color: #451a03;
-}
-
-/* =========================================
 Animations & Overlays
 ========================================= /
 / 脈動アニメーション（測定中バッジなどに使用） */
