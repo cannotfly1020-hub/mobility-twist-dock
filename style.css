@@ -1,118 +1,328 @@
-/* STREAMING_CHUNK:Defining variables and base styles... /
-/ =========================================
-Variables & Base Settings
-========================================= /
+/* STREAMING_CHUNK:Defining design tokens and CSS variables /
 :root {
-/ ブロスタ風のテーマカラー定義 */
+/ ブロスタ風カラーパレット */
+--bg-deep-navy: #0b1021;
+--bg-dark-surface: #131a35;
+--bg-card: rgba(26, 35, 68, 0.92);
+
 --brawl-emerald: #10b981;
+--brawl-emerald-dark: #047857;
 --brawl-amber: #f59e0b;
+--brawl-amber-dark: #b45309;
 --brawl-gold: #fbbf24;
---brawl-navy: #0f172a;
---brawl-dark-navy: #020617;
+--brawl-gold-dark: #d97706;
+--brawl-cyan: #06b6d4;
+--brawl-cyan-dark: #0891b2;
+--brawl-pink: #ec4899;
+--brawl-pink-dark: #be185d;
+--brawl-indigo: #6366f1;
+--brawl-indigo-dark: #4338ca;
 --brawl-red: #ef4444;
---brawl-blue: #3b82f6;
---brawl-purple: #8b5cf6;
+--brawl-red-dark: #b91c1c;
+
+--border-radius-sm: 8px;
+--border-radius-md: 14px;
+--border-radius-lg: 20px;
+
+/* セーフエリア余白 */
+--sat: env(safe-area-inset-top, 0px);
+--sab: env(safe-area-inset-bottom, 0px);
+--sal: env(safe-area-inset-left, 0px);
+--sar: env(safe-area-inset-right, 0px);
 }
 
-/* 全体の基本レイアウト（スマホの縦画面100%を強制） */
-body {
+/* STREAMING_CHUNK:Configuring base and full-viewport lock */
+*,
+*::before,
+*::after {
+box-sizing: border-box;
 margin: 0;
 padding: 0;
-width: 100vw;
-height: 100dvh;
-overflow: hidden;
-font-family: 'M PLUS Rounded 1c', sans-serif;
-background-color: var(--brawl-navy);
-
-/* セーフエリア対応 (iPhoneのノッチやホームバー対応) */
-padding-top: env(safe-area-inset-top);
-padding-bottom: env(safe-area-inset-bottom);
-padding-left: env(safe-area-inset-left);
-padding-right: env(safe-area-inset-right);
+-webkit-tap-highlight-color: transparent;
+user-select: none;
+-webkit-user-select: none;
 }
 
-/* STREAMING_CHUNK:Configuring camera layout and scaling... /
-/ =========================================
-Camera & Video Layout (超重要)
-========================================= /
-/ カメラ映像を内包する親コンテナ */
-.screen-wrapper, #camera-screen-wrapper {
+html {
+font-size: 16px;
+height: 100%;
+overflow: hidden;
+touch-action: manipulation;
+}
+
+body {
+height: 100dvh;
+min-height: 100dvh;
+width: 100vw;
+overflow: hidden;
+position: fixed;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+background-color: var(--bg-deep-navy);
+color: #ffffff;
+font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+padding-top: var(--sat);
+padding-bottom: var(--sab);
+padding-left: var(--sal);
+padding-right: var(--sar);
+display: flex;
+flex-direction: column;
+}
+
+/* STREAMING_CHUNK:Styling background textures and sunburst animations */
+.brawl-bg-pattern {
+position: absolute;
+inset: 0;
+background-image:
+radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.18) 0%, transparent 65%),
+linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+radial-gradient(#1e293b 1px, transparent 1px);
+background-size: 100% 100%, 100% 100%, 24px 24px;
+z-index: 0;
+pointer-events-none;
+}
+
+.sunburst {
+position: absolute;
+top: -50%;
+left: -50%;
+width: 200%;
+height: 200%;
+background: repeating-conic-gradient(
+from 0deg,
+rgba(255, 255, 255, 0.03) 0deg 15deg,
+transparent 15deg 30deg
+);
+animation: rotateSunburst 60s linear infinite;
+z-index: 0;
+pointer-events-none;
+}
+
+@keyframes rotateSunburst {
+from {
+transform: rotate(0deg);
+}
+to {
+transform: rotate(360deg);
+}
+}
+
+/* STREAMING_CHUNK:Optimizing camera wrapper and mirror rendering */
+#camera-screen-wrapper,
+.screen-wrapper {
 position: relative;
 overflow: hidden;
 flex: 1;
-display: flex;
-align-items: center;
-justify-content: center;
+width: 100%;
+height: 100%;
 min-height: 0;
+border-radius: var(--border-radius-md);
+background-color: #030712;
+box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* 映像とキャンバスをスマホ画面にピッタリ合わせ、絶対にズレさせない設定 /
-video, canvas {
+#camera-screen-wrapper video,
+.screen-wrapper video,
+#camera-screen-wrapper canvas,
+.screen-wrapper canvas {
 position: absolute;
 top: 0;
 left: 0;
 width: 100%;
 height: 100%;
-object-fit: cover; / 映像が潰れず、スマホ画面いっぱいに綺麗に切り抜かれる /
-transform: scaleX(-1); / カメラ映像を鏡像(左右反転)にする */
+object-fit: cover;
+transform: scaleX(-1);
+will-change: transform;
 }
 
-/* STREAMING_CHUNK:Styling backgrounds and UI elements... /
-/ =========================================
-Background Effects
-========================================= /
-/ ドットパターンの背景 */
-.brawl-bg-pattern {
-background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 2px, transparent 2px);
-background-size: 20px 20px;
+#camera-screen-wrapper video {
+z-index: 1;
 }
 
-/* 回転するサンバースト（集中線）アニメーション */
-.sunburst {
-background: repeating-conic-gradient(
-from 0deg,
-transparent 0deg 15deg,
-rgba(255, 255, 255, 0.04) 15deg 30deg
-);
-animation: rotate-sunburst 60s linear infinite;
-transform-origin: center center;
+#camera-screen-wrapper canvas {
+z-index: 2;
+pointer-events-none;
 }
 
-@keyframes rotate-sunburst {
-from { transform: scale(1.5) rotate(0deg); }
-to { transform: scale(1.5) rotate(360deg); }
+/* STREAMING_CHUNK:Crafting 3D tactility buttons and responsive active states */
+.btn-3d {
+position: relative;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+font-weight: 900;
+letter-spacing: 0.03em;
+text-transform: uppercase;
+border: 2px solid rgba(255, 255, 255, 0.3);
+box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+cursor: pointer;
 }
 
-/* メインパネルの内側シャドウ */
-.brawl-panel {
-box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
+.btn-3d:active {
+transform: translateY(3px);
+box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* STREAMING_CHUNK:Animations and Overlays... /
-/ =========================================
-Animations & Overlays
-========================================= /
-/ 脈動アニメーション（測定中バッジなどに使用） */
-.animate-pulse-custom {
-animation: pulse-badge 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.btn-3d:disabled {
+opacity: 0.5;
+cursor: not-allowed;
+transform: none;
+box-shadow: none;
+filter: grayscale(80%);
 }
 
-@keyframes pulse-badge {
-0%, 100% { opacity: 1; transform: scale(1); }
-50% { opacity: 0.8; transform: scale(1.05); }
+.btn-emerald {
+background: linear-gradient(180deg, #34d399 0%, var(--brawl-emerald) 50%, var(--brawl-emerald-dark) 100%);
+border-bottom: 4px solid #064e3b;
+color: #ffffff;
+text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
-/* モーダルオーバーレイのフェードトランジション用 */
+.btn-emerald:active {
+border-bottom: 1px solid #064e3b;
+}
+
+.btn-amber {
+background: linear-gradient(180deg, #fbbf24 0%, var(--brawl-amber) 50%, var(--brawl-amber-dark) 100%);
+border-bottom: 4px solid #78350f;
+color: #111827;
+text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.btn-amber:active {
+border-bottom: 1px solid #78350f;
+}
+
+.btn-gold {
+background: linear-gradient(180deg, #fef08a 0%, var(--brawl-gold) 50%, var(--brawl-gold-dark) 100%);
+border-bottom: 4px solid #92400e;
+color: #3b1d03;
+text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+
+.btn-gold:active {
+border-bottom: 1px solid #92400e;
+}
+
+/* STREAMING_CHUNK:Styling navigation tabs and interactive badges */
+.tab-btn {
+transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.tab-btn.active-tab {
+background: linear-gradient(180deg, #4f46e5 0%, #3730a3 100%) !important;
+border-color: #c7d2fe !important;
+border-bottom-width: 4px !important;
+transform: translateY(-1px);
+opacity: 1 !important;
+filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.6));
+}
+
+.tab-btn:not(.active-tab):hover {
+opacity: 0.95;
+}
+
+/* STREAMING_CHUNK:Designing dynamic indicators, overlays, and warnings */
+#safe-boundary {
+box-shadow: inset 0 0 15px rgba(6, 182, 212, 0.15);
+animation: boundaryPulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes boundaryPulse {
+0% {
+border-color: rgba(6, 182, 212, 0.3);
+}
+100% {
+border-color: rgba(6, 182, 212, 0.8);
+}
+}
+
+#cheat-alert-badge {
+animation: cheatAlertBounce 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes cheatAlertBounce {
+0% {
+transform: translate(-50%, 0) scale(0.96);
+filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.6));
+}
+100% {
+transform: translate(-50%, -4px) scale(1.04);
+filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.9));
+}
+}
+
+#measuring-badge {
+box-shadow: 0 0 12px rgba(225, 29, 72, 0.7);
+}
+
+/* STREAMING_CHUNK:Configuring modal transitions and toast overlays */
 .modal-overlay {
-transition: opacity 0.3s ease;
+transition: opacity 0.25s ease, visibility 0.25s ease;
 }
 
-/* トーストメッセージの表示状態 */
-.toast-msg {
-transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+.modal-overlay.hidden {
+display: none !important;
 }
-.toast-msg.show {
-transform: translateY(0) translateX(-50%);
+
+.modal-dialog {
+animation: modalPopIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPopIn {
+from {
+opacity: 0;
+transform: scale(0.92) translateY(12px);
+}
+to {
 opacity: 1;
+transform: scale(1) translateY(0);
+}
+}
+
+#toast-box,
+.toast-msg {
+backdrop-filter: blur(10px);
+-webkit-backdrop-filter: blur(10px);
+box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7), 0 0 12px rgba(99, 102, 241, 0.5);
+transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#toast-box.show,
+.toast-msg.show {
+opacity: 1;
+transform: translate(-50%, 0);
 pointer-events: auto;
+}
+
+/* STREAMING_CHUNK:Styling custom scrollbars and form inputs */
+#carte-list-container::-webkit-scrollbar,
+#report-modal::-webkit-scrollbar {
+width: 5px;
+}
+
+#carte-list-container::-webkit-scrollbar-track,
+#report-modal::-webkit-scrollbar-track {
+background: rgba(15, 23, 42, 0.5);
+border-radius: 4px;
+}
+
+#carte-list-container::-webkit-scrollbar-thumb,
+#report-modal::-webkit-scrollbar-thumb {
+background: rgba(99, 102, 241, 0.6);
+border-radius: 4px;
+}
+
+#carte-list-container::-webkit-scrollbar-thumb:hover,
+#report-modal::-webkit-scrollbar-thumb:hover {
+background: rgba(99, 102, 241, 0.9);
+}
+
+input,
+select {
+color-scheme: dark;
 }
