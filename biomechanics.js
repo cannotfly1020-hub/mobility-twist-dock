@@ -67,6 +67,9 @@ const AppEngine = {
       this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
       this.video.srcObject = this.currentStream;
 
+      // インカメラは鏡像反転 (scaleX(-1))、外カメラは通常表示 (scaleX(1)) に切り替え
+      this.updateCameraMirror();
+
       return new Promise((resolve) => {
         this.video.onloadedmetadata = () => {
           this.video.play();
@@ -80,6 +83,13 @@ const AppEngine = {
       if (this.onError) this.onError(err);
       throw err;
     }
+  },
+
+  updateCameraMirror() {
+    const isUserFacing = this.facingMode === 'user';
+    const transformVal = isUserFacing ? 'scaleX(-1)' : 'scaleX(1)';
+    if (this.video) this.video.style.transform = transformVal;
+    if (this.canvas) this.canvas.style.transform = transformVal;
   },
 
   stopCamera() {
