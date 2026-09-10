@@ -1,6 +1,6 @@
 /**
  * 柔軟性・しなりドック - 解析・測定エンジン
- * MediaPipe Pose連携、高精度アスペクト比補正、3大テスト角度・代償検知
+ * MediaPipe Pose連携、高精度アスペクト比補正、外カメラ/インカメラ鏡像制御、3大テスト角度・代償検知
  */
 const AppEngine = {
   video: null,
@@ -8,14 +8,14 @@ const AppEngine = {
   ctx: null,
   pose: null,
   currentStream: null,
-  facingMode: 'user', // 'user' (インカメ) or 'environment' (外カメ)
+  facingMode: 'user', // 'user' (インカメラ) または 'environment' (外カメラ)
   isProcessing: false,
   isBusy: false, // 重複推論防止フラグ
   animFrameId: null,
 
   // 測定中および初期キャリブレーションデータ
   currentTestType: 'thoracic', // 'thoracic' | 'hip' | 'hinge'
-  baseHipY: null, // カンニング（浮き上がり）検知用基準腰高
+  baseHipY: null, // 代償動作（お尻浮き）検知用基準腰高
   baseTorsoLen: null, // 前屈短縮率計算用基準体幹長
   baselineCalibrated: false,
   
@@ -67,7 +67,7 @@ const AppEngine = {
       this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
       this.video.srcObject = this.currentStream;
 
-      // インカメラは鏡像反転 (scaleX(-1))、外カメラは通常表示 (scaleX(1)) に切り替え
+      // インカメラは鏡像反転 (scaleX(-1))、外カメラは正像 (scaleX(1)) に切り替え
       this.updateCameraMirror();
 
       return new Promise((resolve) => {
@@ -88,8 +88,12 @@ const AppEngine = {
   updateCameraMirror() {
     const isUserFacing = this.facingMode === 'user';
     const transformVal = isUserFacing ? 'scaleX(-1)' : 'scaleX(1)';
-    if (this.video) this.video.style.transform = transformVal;
-    if (this.canvas) this.canvas.style.transform = transformVal;
+    if (this.video) {
+      this.video.style.transform = transformVal;
+    }
+    if (this.canvas) {
+      this.canvas.style.transform = transformVal;
+    }
   },
 
   stopCamera() {
@@ -226,13 +230,13 @@ const AppEngine = {
       return { isReady: false, score: 0, message: 'カメラに全身を映してください' };
     }
 
-    // 正対判定（緩めのマージンで判定してジュニアが認識されやすくする）
+    // 正対判定（ジュニアが認識されやすいようマージンを調整）
     const distLeftEar = Math.abs(nose.x - leftEar.x);
     const distRightEar = Math.abs(nose.x - rightEar.x);
     const maxDist = Math.max(distLeftEar, distRightEar);
     const isFacingForward = maxDist > 0.01;
 
-    // 手首が頭部・耳周りにあるか、または体幹が認識されているか
+    // 手首が耳や頭部周辺にあるか
     const headWidth = Math.abs(leftEar.x - rightEar.x) + 0.08;
     const leftHandNearHead = leftWrist && Math.hypot(leftWrist.x - leftEar.x, leftWrist.y - leftEar.y) < headWidth * 2.2;
     const rightHandNearHead = rightWrist && Math.hypot(rightWrist.x - rightEar.x, rightWrist.y - rightEar.y) < headWidth * 2.2;
@@ -280,7 +284,7 @@ const AppEngine = {
     const shoulderAngleRad = Math.atan2(shoulderDy, shoulderDx || 0.001);
     let shoulderDeg = Math.round(shoulderAngleRad * (180 / Math.PI));
 
-    // 肘が上がっている側の回旋ブースト（胸郭の開きをより自然に反映）
+    // 肘が上がっている側の回旋ブースト
     let leftArmAngle = 0;
     let rightArmAngle = 0;
     if (le && ls) {
@@ -292,7 +296,7 @@ const AppEngine = {
       rightArmAngle = Math.round(armRad * (180 / Math.PI));
     }
 
-    // 左肩・左肘が上がっている（画面上Y座標が小さい）か判定
+    // 左肩・左肘が上がっている（Y座標が小さい）か判定
     const isLeftHigher = (ls.y < rs.y) || (leftArmAngle > rightArmAngle);
     const maxDeg = Math.min(90, Math.max(shoulderDeg, isLeftHigher ? leftArmAngle : rightArmAngle));
 
@@ -352,7 +356,7 @@ const AppEngine = {
 
   /**
    * 📐 もも裏ヒンジテスト（体幹前屈）
-   * 側面時のdx/dyと、正面時の体幹縦長短縮率・Z深度変化をハイブリッド算出
+   * 側面時のdx/dyと、正面時の体幹短縮率・Z深度変化をハイブリッド算出
    */
   calcHamstringHinge(rawLm) {
     const ls = rawLm[11];
@@ -388,7 +392,7 @@ const AppEngine = {
     const depthAngleRad = Math.atan2(dz * 1.5, dy || 0.001);
     const depthAngleDeg = Math.round(depthAngleRad * (180 / Math.PI));
 
-    // 側面と正面の最大値を採用（どの向きからでも正確に出る）
+    // 側面と正面の最大値を採用
     const estimatedHinge = Math.min(90, Math.max(sideAngleDeg, frontAngleFromRatio, depthAngleDeg));
 
     return {
