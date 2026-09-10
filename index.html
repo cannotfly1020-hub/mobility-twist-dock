@@ -18,18 +18,17 @@
 
   <link rel="stylesheet" href="style.css">
 </head>
-<!-- ★重要: iOSのタッチアニメーションを発動させるために ontouchstart="" を追加 -->
-<body class="bg-slate-900 text-white m-0 p-0 overflow-hidden w-screen h-screen select-none" style="width: 100vw; height: 100dvh;" ontouchstart="">
+<body class="bg-slate-900 text-white m-0 p-0 overflow-hidden w-screen h-screen select-none flex flex-col items-stretch" style="width: 100vw; height: 100dvh;" ontouchstart="">
   
   <!-- App Container -->
-  <div class="flex flex-col w-full h-full relative overflow-hidden">
+  <div class="flex flex-col w-full h-full relative overflow-hidden self-stretch">
     
     <!-- Background Layers -->
     <div class="brawl-bg-pattern absolute inset-0 z-0 pointer-events-none opacity-20"></div>
     <div class="sunburst absolute inset-0 z-0 pointer-events-none opacity-30 mix-blend-overlay"></div>
 
     <!-- Header -->
-    <header id="app-header" class="w-full relative z-10 flex flex-col p-2 gap-2 bg-slate-800/90 backdrop-blur-md border-b-4 border-slate-950 shrink-0">
+    <header id="app-header" class="w-full relative z-10 flex flex-col p-2 gap-2 bg-slate-800/90 backdrop-blur-md border-b-4 border-slate-950 shrink-0 self-stretch">
       
       <!-- Row 1: Title & Camera Switch -->
       <div class="flex justify-between items-center w-full">
@@ -80,7 +79,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="brawl-panel w-full relative z-10 flex-1 flex flex-col min-h-0 bg-slate-900 overflow-hidden">
+    <main class="brawl-panel w-full relative z-10 flex-1 flex flex-col min-h-0 bg-slate-900 overflow-hidden self-stretch">
       
       <!-- Guidance Banner -->
       <div id="guidance-banner" class="absolute top-2 left-2 right-2 z-20 flex items-start gap-2 p-2 bg-slate-800/90 backdrop-blur-sm border-2 border-slate-600 rounded-xl shadow-lg transition-all duration-300">
@@ -99,7 +98,8 @@
       </div>
 
       <!-- Camera & Canvas Wrapper -->
-      <div id="camera-screen-wrapper" class="relative flex-1 w-full bg-black overflow-hidden flex items-center justify-center min-h-0">
+      <div id="camera-screen-wrapper" class="relative flex-1 w-full self-stretch bg-black overflow-hidden flex items-center justify-center min-h-0">
+        <!-- ここの object-contain を object-cover に戻しました -->
         <video id="webcam-video" class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1]" playsinline webkit-playsinline muted autoplay></video>
         <canvas id="output-canvas" class="absolute inset-0 w-full h-full object-cover z-10 transform scale-x-[-1]"></canvas>
         
@@ -150,7 +150,7 @@
       </div>
 
       <!-- Test Controls Container -->
-      <div id="test-controls-container" class="w-full relative z-20 shrink-0 bg-slate-800 p-3 pb-[env(safe-area-inset-bottom,1rem)] border-t-4 border-slate-950 flex flex-col gap-2">
+      <div id="test-controls-container" class="w-full relative z-20 shrink-0 bg-slate-800 p-3 pb-[env(safe-area-inset-bottom,1rem)] border-t-4 border-slate-950 flex flex-col gap-2 self-stretch">
         <!-- START ボタン -->
         <button id="btn-start-trigger" class="w-full relative h-16 bg-gradient-to-b from-green-400 to-green-600 border-b-4 border-green-900 rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_6px_0_#14532d] active:shadow-none active:translate-y-[6px] active:border-b-0 transition-all">
           <div class="absolute inset-0 bg-white/20 translate-y-[-50%] rounded-full blur-md"></div>
