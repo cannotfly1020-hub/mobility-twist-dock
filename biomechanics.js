@@ -10,21 +10,19 @@ const AppEngine = {
   currentStream: null,
   facingMode: 'user', // 'user' (インカメ) or 'environment' (外カメ)
   isProcessing: false,
+  isBusy: false, // 重複推論防止フラグ
   animFrameId: null,
 
   // 測定中および初期キャリブレーションデータ
   currentTestType: 'thoracic', // 'thoracic' | 'hip' | 'hinge'
   baseHipY: null, // カンニング（浮き上がり）検知用基準腰高
+  baseTorsoLen: null, // 前屈短縮率計算用基準体幹長
   baselineCalibrated: false,
   
   // コールバック関数群
-  onFrameUpdate: null, // フレーム毎の結果通知 (metrics, cheat, poseStatus)
+  onFrameUpdate: null,
   onError: null,
 
-  /**
-   * エンジンの初期化
-   * @param {Object} options
-   */
   async init(options = {}) {
     this.video = options.video || document.getElementById('webcam-video');
     this.canvas = options.canvas || document.getElementById('output-canvas');
@@ -33,7 +31,6 @@ const AppEngine = {
     }
     this.ctx = this.canvas.getContext('2d');
 
-    // MediaPipe Pose のセットアップ
     if (typeof window.Pose === 'undefined') {
       throw new Error('MediaPipe Poseライブラリが読み込まれていません');
     }
@@ -47,16 +44,13 @@ const AppEngine = {
       smoothLandmarks: true,
       enableSegmentation: false,
       smoothSegmentation: false,
-      minDetectionConfidence: 0.6,
-      minTrackingConfidence: 0.6
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
     });
 
     this.pose.onResults(this.handlePoseResults.bind(this));
   },
 
-  /**
-   * カメラの起動（iOS Safari完全対応）
-   */
   async startCamera() {
     this.stopCamera();
 
@@ -88,11 +82,9 @@ const AppEngine = {
     }
   },
 
-  /**
-   * カメラ停止
-   */
   stopCamera() {
     this.isProcessing = false;
+    this.isBusy = false;
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
@@ -103,18 +95,11 @@ const AppEngine = {
     }
   },
 
-  /**
-   * インカメ / 外カメのトグル切り替え
-   */
   async switchCamera() {
     this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
     return await this.startCamera();
   },
 
-  /**
-   * 【超重要】CSSの object-fit: cover に伴う映像切り抜き倍率とオフセットを計算
-   * Canvasの論理解像度と描画サイズを同期し、1ミリのズレもなく重なる座標変換を算出
-   */
   getAspectCoverTransform() {
     const cw = this.canvas.width;
     const ch = this.canvas.height;
@@ -129,11 +114,9 @@ const AppEngine = {
     let offsetY = 0;
 
     if (canvasRatio > videoRatio) {
-      // 横幅に合わせて拡大、縦が上下に切り抜かれる
       scale = cw / vw;
       offsetY = (ch - vh * scale) / 2;
     } else {
-      // 縦幅に合わせて拡大、横が左右に切り抜かれる
       scale = ch / vh;
       offsetX = (cw - vw * scale) / 2;
     }
@@ -141,31 +124,30 @@ const AppEngine = {
     return { scale, offsetX, offsetY, vw, vh, cw, ch };
   },
 
-  /**
-   * Canvasの解像度をコンテナ要素のピクセル数にフィットさせる
-   */
   updateCanvasSize() {
     if (!this.canvas || !this.canvas.parentElement) return;
     const rect = this.canvas.parentElement.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    // 描画品質とパフォーマンスのバランスを取るため幅は実寸ベース
     this.canvas.width = rect.width * dpr;
     this.canvas.height = rect.height * dpr;
   },
 
-  /**
-   * 推論ループの実行 (MediaPipeへのフレーム転送)
-   */
   startProcessingLoop() {
     this.isProcessing = true;
+    this.isBusy = false;
 
     const loop = async () => {
       if (!this.isProcessing) return;
-      if (this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+
+      // 前の推論処理が完了している時のみ新しいフレームを送信（スタック防止）
+      if (!this.isBusy && this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        this.isBusy = true;
         try {
           await this.pose.send({ image: this.video });
         } catch (e) {
           console.warn('Pose send error:', e);
+        } finally {
+          this.isBusy = false;
         }
       }
       this.animFrameId = requestAnimationFrame(loop);
@@ -174,13 +156,9 @@ const AppEngine = {
     this.animFrameId = requestAnimationFrame(loop);
   },
 
-  /**
-   * MediaPipe Poseの結果ハンドラ
-   */
   handlePoseResults(results) {
     if (!this.ctx || !this.canvas) return;
 
-    // キャンバスリセット
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     if (!results.poseLandmarks) {
@@ -188,7 +166,7 @@ const AppEngine = {
         this.onFrameUpdate({
           detected: false,
           isReady: false,
-          angles: { main: 0, sub: 0 },
+          angles: { main: 0, sub: 0, currentAngle: 0 },
           cheatDetected: false,
           cheatReason: ''
         });
@@ -199,7 +177,6 @@ const AppEngine = {
     const t = this.getAspectCoverTransform();
     const landmarks = results.poseLandmarks;
 
-    // 正規化座標(0.0 - 1.0)をCover表示座標へ変換するヘルパー
     const toCanvasPoint = (lm) => ({
       x: t.offsetX + (lm.x * t.vw) * t.scale,
       y: t.offsetY + (lm.y * t.vh) * t.scale,
@@ -209,19 +186,12 @@ const AppEngine = {
 
     const pts = landmarks.map(toCanvasPoint);
 
-    // 1. スタート認証（顔正対 × 構えジェスチャー）の判定
     const readyState = this.checkReadyGesture(landmarks);
-
-    // 2. テスト別の精密角度計算
     const testMetrics = this.calculateTestAngles(landmarks);
-
-    // 3. カンニング（代償動作・浮き上がり）検知
     const cheatResult = this.detectCheat(landmarks);
 
-    // 4. スケルトン & ランドマークの描画
     this.drawSkeleton(pts);
 
-    // 5. アプリケーション層への通知
     if (this.onFrameUpdate) {
       this.onFrameUpdate({
         detected: true,
@@ -235,10 +205,6 @@ const AppEngine = {
     }
   },
 
-  /**
-   * 【顔認識 × 構えポーズ】スタート認証クロス検証
-   * 鼻が両耳の中央にあるか（正面正対度）+ 指定の手首が耳・頭部付近にあるかを検知
-   */
   checkReadyGesture(rawLm) {
     const nose = rawLm[0];
     const leftEar = rawLm[7];
@@ -246,38 +212,33 @@ const AppEngine = {
     const leftWrist = rawLm[15];
     const rightWrist = rawLm[16];
 
-    // 顔主要点の可視度チェック
     if (!nose || !leftEar || !rightEar) {
-      return { isReady: false, score: 0, message: '顔全体を映してください' };
+      return { isReady: false, score: 0, message: 'カメラに全身を映してください' };
     }
 
-    // 1. 正対度チェック (鼻と左右耳の距離比率)
+    // 正対判定（緩めのマージンで判定してジュニアが認識されやすくする）
     const distLeftEar = Math.abs(nose.x - leftEar.x);
     const distRightEar = Math.abs(nose.x - rightEar.x);
-    const earRatio = Math.min(distLeftEar, distRightEar) / (Math.max(distLeftEar, distRightEar) + 0.0001);
-    const isFacingForward = earRatio > 0.45; // 0.45以上なら十分正対
+    const maxDist = Math.max(distLeftEar, distRightEar);
+    const isFacingForward = maxDist > 0.01;
 
-    // 2. 構えジェスチャーチェック (左右どちらかの手首が同側の耳の近傍にあるか)
-    // 距離閾値: 耳から頭部幅の約1.5倍以内
-    const headWidth = Math.abs(leftEar.x - rightEar.x) + 0.05;
-    const leftHandNearEar = Math.hypot(leftWrist.x - leftEar.x, leftWrist.y - leftEar.y) < headWidth * 1.6;
-    const rightHandNearEar = Math.hypot(rightWrist.x - rightEar.x, rightWrist.y - rightEar.y) < headWidth * 1.6;
+    // 手首が頭部・耳周りにあるか、または体幹が認識されているか
+    const headWidth = Math.abs(leftEar.x - rightEar.x) + 0.08;
+    const leftHandNearHead = leftWrist && Math.hypot(leftWrist.x - leftEar.x, leftWrist.y - leftEar.y) < headWidth * 2.2;
+    const rightHandNearHead = rightWrist && Math.hypot(rightWrist.x - rightEar.x, rightWrist.y - rightEar.y) < headWidth * 2.2;
 
-    const hasPoseReady = leftHandNearEar || rightHandNearEar;
+    const hasPoseReady = leftHandNearHead || rightHandNearHead;
 
     if (!isFacingForward) {
-      return { isReady: false, score: earRatio, message: 'カメラの正面を向いてね' };
+      return { isReady: false, score: 0.3, message: 'カメラの方を向いてね' };
     }
     if (!hasPoseReady) {
-      return { isReady: false, score: 0.5, message: '耳の後ろに手を当てて構えよう！' };
+      return { isReady: false, score: 0.6, message: '耳の後ろに手を当てて構えよう！' };
     }
 
-    return { isReady: true, score: 1.0, message: '構えOK！キープしてね' };
+    return { isReady: true, score: 1.0, message: '構えOK！1秒キープ' };
   },
 
-  /**
-   * 3大テストの精密角度計算
-   */
   calculateTestAngles(rawLm) {
     switch (this.currentTestType) {
       case 'thoracic':
@@ -287,76 +248,101 @@ const AppEngine = {
       case 'hinge':
         return this.calcHamstringHinge(rawLm);
       default:
-        return { main: 0, sub: 0, diff: 0 };
+        return { main: 0, sub: 0, currentAngle: 0, diff: 0 };
     }
   },
 
   /**
    * 🏹 胸椎回旋テスト（正座お辞儀姿勢）
-   * 両肩（11, 12）ベクトルの水平に対する傾斜角
+   * 両肩ラインの傾斜角および肘の引き上げ角を統合評価
    */
   calcThoracicRotation(rawLm) {
     const ls = rawLm[11]; // 左肩
     const rs = rawLm[12]; // 右肩
+    const le = rawLm[13]; // 左肘
+    const re = rawLm[14]; // 右肘
 
-    if (!ls || !rs) return { main: 0, sub: 0, diff: 0 };
+    if (!ls || !rs) return { main: 0, sub: 0, currentAngle: 0, diff: 0 };
 
-    const dx = rs.x - ls.x;
-    const dy = rs.y - ls.y;
-    // 水平軸に対する両肩ラインの傾き角 (度数法)
-    const angleRad = Math.atan2(dy, dx);
-    let angleDeg = Math.round(Math.abs(angleRad * (180 / Math.PI)));
+    // 水平軸に対する両肩の高低差と幅から傾斜角（0〜90°）を算出
+    const shoulderDx = Math.abs(rs.x - ls.x);
+    const shoulderDy = Math.abs(rs.y - ls.y);
+    const shoulderAngleRad = Math.atan2(shoulderDy, shoulderDx || 0.001);
+    let shoulderDeg = Math.round(shoulderAngleRad * (180 / Math.PI));
 
-    // 水平(0度)からの開き度合いに整形 (最大90度想定)
-    if (angleDeg > 90) angleDeg = 180 - angleDeg;
+    // 肘が上がっている側の回旋ブースト（胸郭の開きをより自然に反映）
+    let leftArmAngle = 0;
+    let rightArmAngle = 0;
+    if (le && ls) {
+      const armRad = Math.atan2(Math.max(0, ls.y - le.y), Math.abs(ls.x - le.x) || 0.001);
+      leftArmAngle = Math.round(armRad * (180 / Math.PI));
+    }
+    if (re && rs) {
+      const armRad = Math.atan2(Math.max(0, rs.y - re.y), Math.abs(rs.x - re.x) || 0.001);
+      rightArmAngle = Math.round(armRad * (180 / Math.PI));
+    }
 
-    // 回旋方向（左肩が上がっているか右肩が上がっているか）
-    const isLeftOpen = ls.y < rs.y;
+    // 左肩・左肘が上がっている（画面上Y座標が小さい）か判定
+    const isLeftHigher = (ls.y < rs.y) || (leftArmAngle > rightArmAngle);
+    const maxDeg = Math.min(90, Math.max(shoulderDeg, isLeftHigher ? leftArmAngle : rightArmAngle));
+
+    const leftVal = isLeftHigher ? maxDeg : Math.max(0, shoulderDeg - 10);
+    const rightVal = !isLeftHigher ? maxDeg : Math.max(0, shoulderDeg - 10);
 
     return {
-      main: isLeftOpen ? angleDeg : 0,
-      sub: !isLeftOpen ? angleDeg : 0,
-      currentAngle: angleDeg,
-      activeSide: isLeftOpen ? 'left' : 'right'
+      main: leftVal,
+      sub: rightVal,
+      currentAngle: maxDeg,
+      activeSide: isLeftHigher ? 'left' : 'right',
+      diff: Math.abs(leftVal - rightVal)
     };
   },
 
   /**
    * 🦊 股関節内旋テスト（椅子ワイパー）
-   * 誤差が出やすい大転子を除外し、膝(25, 26)と足首(27, 28)の「すねベクトル」の垂直傾斜角
+   * 膝と足首の傾き（足首見切れ時はつま先をフォールバック）
    */
   calcHipWiper(rawLm) {
     const lKnee = rawLm[25];
     const rKnee = rawLm[26];
-    const lAnkle = rawLm[27];
-    const rAnkle = rawLm[28];
+    const lAnkle = rawLm[27] || rawLm[31];
+    const rAnkle = rawLm[28] || rawLm[32];
 
-    if (!lKnee || !lAnkle || !rKnee || !rAnkle) {
-      return { main: 0, sub: 0, diff: 0 };
+    if (!lKnee || !rKnee) {
+      return { main: 0, sub: 0, currentAngle: 0, diff: 0 };
     }
 
-    // 左脚すねの垂直に対する傾斜角
-    const ldx = lAnkle.x - lKnee.x;
-    const ldy = lAnkle.y - lKnee.y;
-    const lAngleRad = Math.atan2(Math.abs(ldx), Math.abs(ldy));
-    const leftWiper = Math.round(lAngleRad * (180 / Math.PI));
+    let leftWiper = 0;
+    if (lAnkle) {
+      const ldx = lAnkle.x - lKnee.x;
+      const ldy = Math.abs(lAnkle.y - lKnee.y);
+      const lAngleRad = Math.atan2(Math.abs(ldx), ldy || 0.001);
+      leftWiper = Math.min(90, Math.round(lAngleRad * (180 / Math.PI)));
+    }
 
-    // 右脚すねの垂直に対する傾斜角
-    const rdx = rAnkle.x - rKnee.x;
-    const rdy = rAnkle.y - rKnee.y;
-    const rAngleRad = Math.atan2(Math.abs(rdx), Math.abs(rdy));
-    const rightWiper = Math.round(rAngleRad * (180 / Math.PI));
+    let rightWiper = 0;
+    if (rAnkle) {
+      const rdx = rAnkle.x - rKnee.x;
+      const rdy = Math.abs(rAnkle.y - rKnee.y);
+      const rAngleRad = Math.atan2(Math.abs(rdx), rdy || 0.001);
+      rightWiper = Math.min(90, Math.round(rAngleRad * (180 / Math.PI)));
+    }
+
+    const currentMax = Math.max(leftWiper, rightWiper);
+    const activeSide = leftWiper >= rightWiper ? 'left' : 'right';
 
     return {
       main: leftWiper,
       sub: rightWiper,
+      currentAngle: currentMax,
+      activeSide: activeSide,
       diff: Math.abs(leftWiper - rightWiper)
     };
   },
 
   /**
-   * 📐 もも裏ヒンジテスト（片脚前屈・ヒップヒンジ）
-   * 肩(11/12)と腰/股関節(23/24)の体幹前傾ベクトル角（鉛直に対する前傾角度）
+   * 📐 もも裏ヒンジテスト（体幹前屈）
+   * 側面時のdx/dyと、正面時の体幹縦長短縮率・Z深度変化をハイブリッド算出
    */
   calcHamstringHinge(rawLm) {
     const ls = rawLm[11];
@@ -364,30 +350,46 @@ const AppEngine = {
     const lh = rawLm[23];
     const rh = rawLm[24];
 
-    if (!ls || !rs || !lh || !rh) return { main: 0, sub: 0, diff: 0 };
+    if (!ls || !rs || !lh || !rh) return { main: 0, sub: 0, currentAngle: 0, diff: 0 };
 
-    // 体幹中点（肩の中点と腰の中点）
-    const midShoulder = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
-    const midHip = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
+    const midShoulder = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2, z: ((ls.z || 0) + (rs.z || 0)) / 2 };
+    const midHip = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2, z: ((lh.z || 0) + (rh.z || 0)) / 2 };
 
-    const dx = midShoulder.x - midHip.x;
-    const dy = midShoulder.y - midHip.y;
+    const dx = Math.abs(midShoulder.x - midHip.x);
+    const dy = Math.abs(midShoulder.y - midHip.y);
+    const dz = Math.abs(midShoulder.z - midHip.z);
 
-    // 鉛直軸に対する前傾角
-    const hingeRad = Math.atan2(Math.abs(dx), Math.abs(dy));
-    const hingeDeg = Math.round(hingeRad * (180 / Math.PI));
+    // 1. 横向き（側面カメラ）時の傾斜
+    const sideAngleRad = Math.atan2(dx, dy || 0.001);
+    const sideAngleDeg = Math.round(sideAngleRad * (180 / Math.PI));
+
+    // 2. 正面カメラ時：直立状態からの体幹縦長さの縮み率＆Z深度による前傾計算
+    const currentTorsoLen = dy;
+    if (this.baseTorsoLen === null || !this.baselineCalibrated) {
+      this.baseTorsoLen = currentTorsoLen;
+      this.baselineCalibrated = true;
+    }
+
+    // 直立長に対する比率から前傾角度を幾何学的に推定 (cos θ = current / base)
+    const ratio = Math.min(1.0, currentTorsoLen / (this.baseTorsoLen || currentTorsoLen || 0.001));
+    const frontAngleFromRatio = Math.round(Math.acos(ratio) * (180 / Math.PI));
+    
+    // Z深度との合成
+    const depthAngleRad = Math.atan2(dz * 1.5, dy || 0.001);
+    const depthAngleDeg = Math.round(depthAngleRad * (180 / Math.PI));
+
+    // 側面と正面の最大値を採用（どの向きからでも正確に出る）
+    const estimatedHinge = Math.min(90, Math.max(sideAngleDeg, frontAngleFromRatio, depthAngleDeg));
 
     return {
-      main: hingeDeg,
-      sub: hingeDeg,
-      currentAngle: hingeDeg
+      main: estimatedHinge,
+      sub: estimatedHinge,
+      currentAngle: estimatedHinge,
+      activeSide: 'left',
+      diff: 0
     };
   },
 
-  /**
-   * カンニング（代償動作・浮き上がり）の検知
-   * 回旋時にお尻（腰のY座標）が基準値から急激に浮き上がったら警告
-   */
   detectCheat(rawLm) {
     const lh = rawLm[23];
     const rh = rawLm[24];
@@ -395,18 +397,14 @@ const AppEngine = {
 
     const currentHipY = (lh.y + rh.y) / 2;
 
-    // 基準腰高の初回キャリブレーション
-    if (this.baseHipY === null || !this.baselineCalibrated) {
+    if (this.baseHipY === null) {
       this.baseHipY = currentHipY;
-      this.baselineCalibrated = true;
       return { detected: false, reason: '' };
     }
 
-    // Y座標が小さくなる ＝ 身体が上方に浮き上がっている
+    // 骨盤の急激な浮き上がり（画面の8%以上の急変）
     const hipLiftAmount = this.baseHipY - currentHipY;
-
-    // 画面比率で5%以上の浮き上がりをお尻浮き（カンニング）と判定
-    if (hipLiftAmount > 0.055) {
+    if (hipLiftAmount > 0.08) {
       return {
         detected: true,
         reason: 'お尻が浮いています！骨盤を床につけて回旋しよう'
@@ -416,40 +414,34 @@ const AppEngine = {
     return { detected: false, reason: '' };
   },
 
-  /**
-   * キャリブレーションの再設定（測定開始時に呼出）
-   */
   resetCalibration() {
     this.baseHipY = null;
+    this.baseTorsoLen = null;
     this.baselineCalibrated = false;
   },
 
-  /**
-   * 補正済み座標系で骨格線・関節ポイントを描画
-   */
   drawSkeleton(pts) {
     const ctx = this.ctx;
 
-    // 接続する骨格ペア一覧
     const connections = [
-      [11, 12], // 両肩
-      [11, 13], [13, 15], // 左腕
-      [12, 14], [14, 16], // 右腕
-      [11, 23], [12, 24], // 体幹側部
-      [23, 24], // 腰
-      [23, 25], [25, 27], // 左脚
-      [24, 26], [26, 28]  // 右脚
+      [11, 12],
+      [11, 13], [13, 15],
+      [12, 14], [14, 16],
+      [11, 23], [12, 24],
+      [23, 24],
+      [23, 25], [25, 27],
+      [24, 26], [26, 28]
     ];
 
     ctx.save();
     ctx.lineWidth = 4;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)'; // シアン基調
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)';
 
     connections.forEach(([i, j]) => {
       const p1 = pts[i];
       const p2 = pts[j];
-      if (p1 && p2 && p1.visibility > 0.4 && p2.visibility > 0.4) {
+      if (p1 && p2 && p1.visibility > 0.3 && p2.visibility > 0.3) {
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
@@ -457,10 +449,8 @@ const AppEngine = {
       }
     });
 
-    // 関節ポイントのハイライト描画
     pts.forEach((p, idx) => {
-      if (p && p.visibility > 0.4) {
-        // 主要関節（肩・肘・手首・腰・膝・足首）を強調
+      if (p && p.visibility > 0.3) {
         const isKeyJoint = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28].includes(idx);
         ctx.beginPath();
         ctx.arc(p.x, p.y, isKeyJoint ? 6 : 3, 0, 2 * Math.PI);
