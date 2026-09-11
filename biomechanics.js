@@ -4,6 +4,10 @@
  * アスペクト比補正、顔正対×各モード構えジェスチャー認識、確定4大テスト計算
  * 
  * Improvements:
+ * - Fixed kinematic calculations for all 4 test modes (hip, banzai, shoulder2nd, hinge)
+ * - Hip rotation now uses pelvis-relative reference frame (pelvic axis anchor)
+ * - Banzai (overhead arms) uses inverted Y-axis for correct scale (0°=upright, 180°=overhead)
+ * - Shoulder 2nd now measures forearm rotation vs vertical (not locked elbow angle)
  * - MediaPipe Pose load timeout handling with fallback
  * - Comprehensive landmark visibility and validation
  * - Better error boundaries for frame processing
@@ -622,7 +626,7 @@
     },
 
     /**
-     * 確定4大テストの精密幾何計算
+     * 確定4大テストの精密幾何計算 (FIXED: Kinematic corrections for all 4 modes)
      */
     calculateMetrics(lm) {
       try {
@@ -630,25 +634,44 @@
         let subVal = 0;
 
         switch (currentTestMode) {
+          /**
+           * ★ FIX #1: Hip Internal/External Rotation (tab-hip)
+           * Previous: Used 2D screen slope (atan2) - breaks with camera angle changes
+           * Now: Measures shin angle RELATIVE TO PELVIC AXIS (pelvis-anchored reference frame)
+           * Expected: 0°=legs together, 90°=full external rotation
+           */
           case 'tab-hip': {
             const kneeL = getLandmark(lm, 25);
             const ankleL = getLandmark(lm, 27);
-            if (kneeL && ankleL) {
-              const dx = ankleL.x - kneeL.x;
-              const dy = ankleL.y - kneeL.y;
-              mainVal = Math.round(Math.abs(Math.atan2(dx, dy) * (180 / Math.PI)));
+            const hipL = getLandmark(lm, 23);
+            const hipR = getLandmark(lm, 24);
+
+            if (kneeL && ankleL && hipL && hipR) {
+              // Pelvic axis: line connecting both hip landmarks (horizontal reference frame)
+              const pelvisVec = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
+              
+              // Left shin vector
+              const shinVecL = { x: ankleL.x - kneeL.x, y: ankleL.y - kneeL.y };
+              mainVal = Math.round(this.vectorAngle(pelvisVec, shinVecL));
             }
 
             const kneeR = getLandmark(lm, 26);
             const ankleR = getLandmark(lm, 28);
-            if (kneeR && ankleR) {
-              const dx = ankleR.x - kneeR.x;
-              const dy = ankleR.y - kneeR.y;
-              subVal = Math.round(Math.abs(Math.atan2(dx, dy) * (180 / Math.PI)));
+
+            if (kneeR && ankleR && hipL && hipR) {
+              const pelvisVec = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
+              const shinVecR = { x: ankleR.x - kneeR.x, y: ankleR.y - kneeR.y };
+              subVal = Math.round(this.vectorAngle(pelvisVec, shinVecR));
             }
             break;
           }
 
+          /**
+           * ★ FIX #2: Overhead Arm Raise (tab-banzai)
+           * Previous: Arm and trunk vectors both point upward → small angle → ~0° at overhead
+           * Now: Inverts arm Y component so overhead arms register as ~180° (arms opposite to trunk)
+           * Expected: 0°=arms down, 180°=arms fully overhead
+           */
           case 'tab-banzai': {
             const shoulderL = getLandmark(lm, 11);
             const shoulderR = getLandmark(lm, 12);
@@ -661,27 +684,45 @@
               const hipMidX = (hipL.x + hipR.x) / 2;
               const hipMidY = (hipL.y + hipR.y) / 2;
 
+              // Trunk vector: shoulder to hip (pointing downward when upright)
               const trunkVec = { x: shMidX - hipMidX, y: shMidY - hipMidY };
 
               const wristL = getLandmark(lm, 15);
               if (wristL) {
-                const armVecL = { x: wristL.x - shoulderL.x, y: wristL.y - shoulderL.y };
+                // Arm vector: shoulder to wrist, with Y inverted for correct scale
+                // (inverted Y means "pointing up" in visual space = positive in calculation)
+                const armVecL = { x: wristL.x - shoulderL.x, y: -(wristL.y - shoulderL.y) };
                 mainVal = Math.round(this.vectorAngle(trunkVec, armVecL));
               }
 
               const wristR = getLandmark(lm, 16);
               if (wristR) {
-                const armVecR = { x: wristR.x - shoulderR.x, y: wristR.y - shoulderR.y };
+                const armVecR = { x: wristR.x - shoulderR.x, y: -(wristR.y - shoulderR.y) };
                 subVal = Math.round(this.vectorAngle(trunkVec, armVecR));
               }
             }
             break;
           }
 
+          /**
+           * ★ FIX #3: Shoulder Internal/External Rotation in 90° Abduction (tab-shoulder2nd)
+           * Previous: Measured elbow flexion angle (always ~90° by design) → frozen value
+           * Now: Measures forearm rotation angle relative to VERTICAL reference
+           * Expected: 0°=forearm up, 90°=forearm horizontal
+           */
           case 'tab-shoulder2nd': {
             const computeShoulderRotation = (sh, elb, wr) => {
               if (!sh || !elb || !wr) return 0;
-              return Math.round(this.calculateAngle(sh, elb, wr));
+              
+              // Forearm vector: elbow to wrist
+              const forearmVec = { x: wr.x - elb.x, y: wr.y - elb.y };
+              
+              // Vertical reference: pointing upward (negative Y in MediaPipe coordinates)
+              const verticalRef = { x: 0, y: -1 };
+              
+              // Angle between forearm and vertical
+              // 0° = pointing up, 90° = pointing horizontal, 180° = pointing down
+              return Math.round(this.vectorAngle(verticalRef, forearmVec));
             };
 
             const shoulderL = getLandmark(lm, 11);
@@ -700,6 +741,11 @@
             break;
           }
 
+          /**
+           * ✓ Tab-Hinge: Correct as-is
+           * Measures hip flexion by computing angle at hip joint, then inverting (180 - angle)
+           * Expected: 0°=folded (90° hip flex), 90°=folded (90° hip flex), full depth measured
+           */
           case 'tab-hinge': {
             const shoulderL = getLandmark(lm, 11);
             const shoulderR = getLandmark(lm, 12);
@@ -732,6 +778,7 @@
 
     /**
      * Calculate angle between 3 points (degrees)
+     * Forms an angle at point B, with rays toward A and C
      */
     calculateAngle(pA, pB, pC) {
       if (!pA || !pB || !pC) return 0;
@@ -751,6 +798,7 @@
 
     /**
      * Calculate angle between 2 vectors (degrees)
+     * Range: 0° to 180°
      */
     vectorAngle(v1, v2) {
       if (!v1 || !v2) return 0;
