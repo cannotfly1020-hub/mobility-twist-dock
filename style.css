@@ -125,12 +125,6 @@ transform: translateY(4px) scale(0.985);
 box-shadow: 0 1px 0 rgba(0,0,0,0.3) !important;
 }
 
-.btn-3d:disabled {
-filter: grayscale(100%) opacity(50%);
-pointer-events: none;
-transform: none;
-}
-
 /* STREAMING_CHUNK:Adding color variants for 3D buttons... /
 / 各種カラーボタン */
 .btn-emerald {
