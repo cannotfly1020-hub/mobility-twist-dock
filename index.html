@@ -68,16 +68,16 @@
       
       <!-- 確定4大テスト切替タブ（4分割グリッド） -->
       <nav class="grid grid-cols-4 gap-1">
-        <button id="tab-hip" class="p-1 text-[10px] sm:text-xs font-bold bg-slate-700 rounded-t-lg border-b-2 border-yellow-400 text-yellow-400 focus:outline-none flex flex-col items-center justify-center transition-colors">
+        <button id="tab-hip" class="p-1 text-[10px] sm:text-xs font-bold bg-slate-700 rounded-t-lg border-b-2 border-yellow-400 text-yellow-400 focus:outline-none flex flex-col items-center justify-center transition-all active:scale-95 duration-100">
           <span class="text-base sm:text-lg mb-0.5 drop-shadow">🦊</span>①股関節
         </button>
-        <button id="tab-banzai" class="p-1 text-[10px] sm:text-xs font-bold bg-slate-700 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:bg-slate-600 hover:text-white focus:outline-none flex flex-col items-center justify-center transition-colors">
+        <button id="tab-banzai" class="p-1 text-[10px] sm:text-xs font-bold bg-slate-700 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:bg-slate-600 hover:text-white focus:outline-none flex flex-col items-center justify-center transition-all active:scale-95 duration-100">
           <span class="text-base sm:text-lg mb-0.5 drop-shadow opacity-50">🦅</span>②バンザイ
         </button>
-        <button id="tab-shoulder2nd" class="p-1 text-[10px] sm:text-xs font-bold bg-slate-700 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:bg-slate-600 hover:text-white focus:outline-none flex flex-col items-center justify-center transition-colors">
+        <button id="tab-shoulder2nd" class="p-1 text-[10px] sm:text-xs font-bold bg-slate-700 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:bg-slate-600 hover:text-white focus:outline-none flex flex-col items-center justify-center transition-all active:scale-95 duration-100">
           <span class="text-base sm:text-lg mb-0.5 drop-shadow opacity-50">⚾</span>③肩2nd
         </button>
-        <button id="tab-hinge" class="p-1 text-[10px] sm:text-xs font-bold bg-slate-700 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:bg-slate-600 hover:text-white focus:outline-none flex flex-col items-center justify-center transition-colors">
+        <button id="tab-hinge" class="p-1 text-[10px] sm:text-xs font-bold bg-slate-700 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:bg-slate-600 hover:text-white focus:outline-none flex flex-col items-center justify-center transition-all active:scale-95 duration-100">
           <span class="text-base sm:text-lg mb-0.5 drop-shadow opacity-50">📐</span>④ヒンジ
         </button>
       </nav>
@@ -267,6 +267,51 @@
       <span class="toast-message text-xs sm:text-sm">通知メッセージ</span>
     </div>
   </div>
+
+  <!-- UIインタラクション用インラインスクリプト (タブ切替機能など) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tabIds = ['tab-hip', 'tab-banzai', 'tab-shoulder2nd', 'tab-hinge'];
+      const activeClasses = ['border-yellow-400', 'text-yellow-400'];
+      const inactiveClasses = ['border-transparent', 'text-slate-400', 'hover:bg-slate-600', 'hover:text-white'];
+
+      // ガイダンス用のデータ連動
+      const guideData = {
+        'tab-hip': { icon: '🦊', title: '① 股関節ワイパー', desc: '仰向けで膝を立て、片足ずつ外に倒す' },
+        'tab-banzai': { icon: '🦅', title: '② 両腕バンザイ', desc: '壁を背にして立ち、両腕を上げる' },
+        'tab-shoulder2nd': { icon: '⚾', title: '③ 肩2nd内外旋', desc: '仰向けで肩と肘を90度に曲げて腕を倒す' },
+        'tab-hinge': { icon: '📐', title: '④ もも裏ヒンジ', desc: 'お尻を後ろに突き出して前屈する' }
+      };
+
+      tabIds.forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        
+        btn.addEventListener('click', () => {
+          // タブの見た目更新
+          tabIds.forEach(otherId => {
+            const otherBtn = document.getElementById(otherId);
+            const iconSpan = otherBtn.querySelector('span');
+            if (otherId === id) {
+              otherBtn.classList.remove(...inactiveClasses);
+              otherBtn.classList.add(...activeClasses);
+              iconSpan.classList.remove('opacity-50');
+            } else {
+              otherBtn.classList.remove(...activeClasses);
+              otherBtn.classList.add(...inactiveClasses);
+              iconSpan.classList.add('opacity-50');
+            }
+          });
+
+          // ガイダンスバナーのテキスト更新
+          const guide = guideData[id];
+          document.getElementById('guide-icon').innerText = guide.icon;
+          document.getElementById('guide-title').innerText = guide.title;
+          document.getElementById('guide-desc').innerText = guide.desc;
+        });
+      });
+    });
+  </script>
 
   <!-- 外部スクリプト読み込み (Step 3以降で実装予定) -->
   <script src="voice.js"></script>
