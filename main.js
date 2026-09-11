@@ -25,7 +25,7 @@
       icon: '🦊',
       title: '① 股関節ワイパー',
       desc: 'イスに浅く座って背筋を伸ばし、膝の位置をキープして足を左右に動かす',
-      voice: 'こかんせつワイパー！イスに浅く腰かけて、背筋をピンと伸ばそう！両手でイスを支えたら、膝を動かさずに足を左右にパタパタ動かしてね！準備ができたらキープ！'
+      voice: 'こかんせつワイパー！イスに浅く腰かけて、背筋をピンと伸ばそう！両手でイスを支えたら、膝を動かさずに足を左右にパタパタ動かして[...]'
     },
     [TEST_MODES.BANZAI]: {
       icon: '🦅',
@@ -37,13 +37,13 @@
       icon: '⚾',
       title: '③ 肩2nd内外旋',
       desc: '肩と肘を90度に開き、前腕を倒す',
-      voice: '肩のしなりテスト！カメラに対して横向きに立とう！肩と肘を90度に開いて前うでを水平にしたらスタート！うでを天井側と床側へ倒してね！'
+      voice: '肩のしなりテスト！カメラに対して横向きに立とう！肩と肘を90度に開いて前うでを水平にしたらスタート！うでを天井側と床側へ倒して[...]'
     },
     [TEST_MODES.HINGE]: {
       icon: '📐',
       title: '④ もも裏ヒンジ',
       desc: '胸を張ってお尻を後ろに引いて前屈',
-      voice: 'もも裏ヒンジテスト！カメラに対して横向きに直立しよう！背筋をピンと伸ばしてスタンバイ！胸を張ったまま、お尻を後ろに引いて前屈しよう！'
+      voice: 'もも裏ヒンジテスト！カメラに対して横向きに直立しよう！背筋をピンと伸ばしてスタンバイ！胸を張ったまま、お尻を後ろに引いて前屈[...]'
     }
   };
 
@@ -361,19 +361,19 @@
     },
 
     startMeasurementSequence() {
-  if (
-    AppState.currentStatus === APP_STATES.COUNTDOWN ||
-    AppState.currentStatus === APP_STATES.MEASURING ||
-    AppState.currentStatus === APP_STATES.DRILL_ACTIVE ||
-    AppState.currentStatus === APP_STATES.REPORT_OPEN
-  ) return;
+      if (
+        AppState.currentStatus === APP_STATES.COUNTDOWN ||
+        AppState.currentStatus === APP_STATES.MEASURING ||
+        AppState.currentStatus === APP_STATES.DRILL_ACTIVE ||
+        AppState.currentStatus === APP_STATES.REPORT_OPEN
+      ) return;
 
-  AppState.isStanceHolding = false;
-  AppState.hasAnnouncedStanceReady = false;
-  AppState.currentStatus = APP_STATES.COUNTDOWN;
-  if (window.AppAudio) {
-    window.AppAudio.playLockSound();
-  }
+      AppState.isStanceHolding = false;
+      AppState.hasAnnouncedStanceReady = false;
+      AppState.currentStatus = APP_STATES.COUNTDOWN;
+      if (window.AppAudio) {
+        window.AppAudio.playLockSound();
+      }
       let count = 3;
       AppUI.showCountdown(count, COACH_LINES.countdown);
       if (window.AppAudio) {
@@ -434,49 +434,18 @@
       }, 100);
     },
 
-   finishMeasurement() {
-  AppState.currentStatus = APP_STATES.IDLE;
-  AppUI.showMeasuringBadge(false);
+    finishMeasurement() {
+      AppState.currentStatus = APP_STATES.IDLE;
+      AppUI.showMeasuringBadge(false);
 
-  if (window.AppAudio) {
-    window.AppAudio.playWhistle();
-  }
-
-  const lVal = AppState.peakMetricLeft;
-  const rVal = AppState.peakMetricRight;
-  const evalResult = AppStorage.evaluateScore(AppState.currentTestMode, lVal, rVal);
-
-  const record = {
-    id: 'rec_' + Date.now(),
-    playerId: AppState.activePlayerId,
-    playerName: AppState.activePlayerName,
-    testMode: AppState.currentTestMode,
-    timestamp: Date.now(),
-    leftVal: lVal,
-    rightVal: rVal,
-    rank: evalResult.rank,
-    title: evalResult.title
-  };
-  AppStorage.addRecord(record);
-
-  AppUI.updateDiffBadge(evalResult.diff);
-
-  if (window.AppAudio) {
-    window.AppAudio.speak(`測定完了！ピーク角度は、左${lVal}度、右${rVal}度！${evalResult.title}！`);
-  }
-
-  setTimeout(() => {
-    AppUI.renderReport(record, evalResult);
-    AppState.currentStatus = APP_STATES.REPORT_OPEN;
-    AppUI.openModal('report-modal');
-  }, 800);
-}
+      if (window.AppAudio) {
+        window.AppAudio.playWhistle();
+      }
 
       const lVal = AppState.peakMetricLeft;
       const rVal = AppState.peakMetricRight;
       const evalResult = AppStorage.evaluateScore(AppState.currentTestMode, lVal, rVal);
 
-      // 記録保存
       const record = {
         id: 'rec_' + Date.now(),
         playerId: AppState.activePlayerId,
@@ -490,16 +459,15 @@
       };
       AppStorage.addRecord(record);
 
-      // 左右差バッジの更新
       AppUI.updateDiffBadge(evalResult.diff);
 
       if (window.AppAudio) {
         window.AppAudio.speak(`測定完了！ピーク角度は、左${lVal}度、右${rVal}度！${evalResult.title}！`);
       }
 
-      // レポートモーダルの更新＆表示
       setTimeout(() => {
         AppUI.renderReport(record, evalResult);
+        AppState.currentStatus = APP_STATES.REPORT_OPEN;
         AppUI.openModal('report-modal');
       }, 800);
     }
@@ -629,17 +597,18 @@
 
       // モーダル閉じるボタンのバインド
       document.querySelectorAll('.modal-close').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    const modal = e.target.closest('.fixed');
-    if (modal) {
-      modal.classList.add('hidden');
-      if (modal.id === 'report-modal') {
-        AppState.currentStatus = APP_STATES.IDLE;
-      }
-    }
-    if (window.AppAudio) window.AppAudio.playTap();
-  });
-});
+        btn.addEventListener('click', (e) => {
+          const modal = e.target.closest('.fixed');
+          if (modal) {
+            modal.classList.add('hidden');
+            // レポートモーダルを閉じるときだけ、REPORT_OPEN状態をIDLEに戻す
+            if (modal.id === 'report-modal' && AppState.currentStatus === APP_STATES.REPORT_OPEN) {
+              AppState.currentStatus = APP_STATES.IDLE;
+            }
+          }
+          if (window.AppAudio) window.AppAudio.playTap();
+        });
+      });
 
       Object.entries(this.elements.tabs).forEach(([modeKey, tabBtn]) => {
         if (!tabBtn) return;
@@ -839,7 +808,7 @@
       players.forEach(p => {
         const row = document.createElement('div');
         const isActive = p.id === AppState.activePlayerId;
-        row.className = `p-3 rounded-xl border flex justify-between items-center cursor-pointer transition-all ${isActive ? 'bg-blue-600/30 border-blue-400' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'}`;
+        row.className = `p-3 rounded-xl border flex justify-between items-center cursor-pointer transition-all ${isActive ? 'bg-blue-600/30 border-blue-400' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-600/80'}`;
         row.innerHTML = `
           <div class="flex items-center gap-2">
             <span class="text-lg">${isActive ? '⭐' : '👤'}</span>
@@ -944,7 +913,7 @@
         return;
       }
       const last = records[0];
-      const text = `【🦴 柔軟性・しなりドック 測定結果】\n選手: ${last.playerName}\n評価: ${last.rank}ランク (${last.title})\n数値: 左 ${last.leftVal}° / 右 ${last.rightVal}°\n#野球可動域 #しなりドック`;
+      const text = `【🦴 柔軟性・しなりドック 測定結果】\n選手: ${last.playerName}\n評価: ${last.rank}ランク (${last.title})\n数値: 左 ${last.leftVal}° / 右 ${last.rightVal}°`;
       const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
       window.open(lineUrl, '_blank');
     },
