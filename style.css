@@ -1,245 +1,121 @@
-/* STREAMING_CHUNK:Defining design tokens and CSS custom properties /
+/* Base settings and utilities complementing Tailwind */
 :root {
-/ ブロスタ風カラーパレット */
---color-bg-deep: #0b1021;
---color-bg-card: rgba(15, 23, 42, 0.92);
---color-panel-border: rgba(99, 102, 241, 0.4);
-
---color-gold: #fbbf24;
---color-amber: #f59e0b;
---color-amber-dark: #b45309;
---color-emerald: #10b981;
---color-emerald-dark: #047857;
---color-sky: #0284c7;
---color-sky-dark: #0369a1;
---color-rose: #f43f5e;
---color-cyan: #06b6d4;
---color-pink: #ec4899;
-
-/* セーフエリア余白 */
---safe-top: env(safe-area-inset-top, 0px);
---safe-bottom: env(safe-area-inset-bottom, 0px);
---safe-left: env(safe-area-inset-left, 0px);
---safe-right: env(safe-area-inset-right, 0px);
-
-/* 共通装飾 */
---border-radius-sm: 8px;
---border-radius-md: 14px;
---border-radius-lg: 20px;
+--brawl-shadow: #000000;
 }
 
-/* STREAMING_CHUNK:Resetting core elements and mobile viewport layout */
-*, *::before, *::after {
-box-sizing: border-box;
-margin: 0;
-padding: 0;
+body {
+overscroll-behavior-y: none;
 -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
-width: 100%;
-height: 100dvh;
-min-height: 100dvh;
-max-height: 100dvh;
-overflow: hidden;
-position: fixed;
-background-color: var(--color-bg-deep);
-color: #ffffff;
+/* Typography */
+.font-rounded {
 font-family: 'M PLUS Rounded 1c', sans-serif;
-user-select: none;
--webkit-user-select: none;
-touch-action: manipulation;
 }
 
-.pb-safe {
-padding-bottom: calc(var(--safe-bottom) + 0.25rem);
+.double-shadow {
+text-shadow: 0 2px 0 var(--brawl-shadow), 0 4px 6px rgba(0, 0, 0, 0.85);
 }
 
-/* STREAMING_CHUNK:Styling animated background patterns and sunburst */
-.brawl-bg-pattern {
-position: absolute;
-inset: 0;
-background-image:
-radial-gradient(rgba(255, 255, 255, 0.08) 1.5px, transparent 1.5px),
-radial-gradient(rgba(99, 102, 241, 0.12) 1.5px, transparent 1.5px);
-background-size: 24px 24px, 48px 48px;
-background-position: 0 0, 12px 12px;
-pointer-events: none;
+/* Brawl Stars Style UI Components */
+.brawl-panel {
+background: rgba(15, 23, 42, 0.95);
+border: 4px solid #1e293b;
+border-radius: 1.5rem;
+box-shadow: 0 8px 0 #0f172a, inset 0 2px 0 rgba(255, 255, 255, 0.1);
+}
+
+.brawl-btn-primary {
+background: linear-gradient(to bottom, #34d399, #10b981);
+border: 4px solid #064e3b;
+border-radius: 1rem;
+color: white;
+font-weight: 900;
+text-transform: uppercase;
+letter-spacing: 0.05em;
+box-shadow: 0 6px 0 #064e3b, 0 10px 15px rgba(16, 185, 129, 0.3);
+transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+text-shadow: 0 2px 0 rgba(0,0,0,0.5);
+}
+
+.brawl-btn-primary:active {
+transform: translateY(4px) scale(0.98);
+box-shadow: 0 2px 0 #064e3b, 0 4px 6px rgba(16, 185, 129, 0.3);
+}
+
+.brawl-btn-secondary {
+background: linear-gradient(to bottom, #94a3b8, #64748b);
+border: 4px solid #334155;
+border-radius: 1rem;
+color: white;
+font-weight: 900;
+text-transform: uppercase;
+box-shadow: 0 6px 0 #334155;
+transition: all 0.1s;
+text-shadow: 0 2px 0 rgba(0,0,0,0.5);
+}
+
+.brawl-btn-secondary:active {
+transform: translateY(4px) scale(0.98);
+box-shadow: 0 2px 0 #334155;
+}
+
+.brawl-menu-btn {
+display: flex;
+align-items: center;
+background: linear-gradient(to bottom, #1e293b, #0f172a);
+border: 4px solid #10b981;
+border-radius: 1rem;
+padding: 1rem;
+box-shadow: 0 6px 0 #022c22, 0 8px 15px rgba(0,0,0,0.5);
+transition: all 0.1s;
+width: 100%;
+}
+
+.brawl-menu-btn:active {
+transform: translateY(4px);
+box-shadow: 0 2px 0 #022c22;
+}
+
+/* Animations */
+@keyframes spinRays {
+0% { transform: scale(2) rotate(0deg); }
+100% { transform: scale(2) rotate(360deg); }
 }
 
 .sunburst {
-position: absolute;
-top: -50%;
-left: -50%;
-width: 200%;
-height: 200%;
 background: repeating-conic-gradient(
 from 0deg,
-rgba(251, 191, 36, 0.04) 0deg 15deg,
-transparent 15deg 30deg
+#10b981 0deg 15deg,
+#047857 15deg 30deg
 );
-animation: sunburstRotate 40s linear infinite;
+animation: spinRays 60s linear infinite;
 transform-origin: center center;
-pointer-events: none;
 }
 
-@keyframes sunburstRotate {
-from {
-transform: rotate(0deg);
+@keyframes bounceIn {
+0% { transform: scale(0.8); opacity: 0; }
+60% { transform: scale(1.05); opacity: 1; }
+100% { transform: scale(1); opacity: 1; }
 }
-to {
-transform: rotate(360deg);
-}
-}
-
-/* STREAMING_CHUNK:Configuring camera screen wrapper and mirror rendering */
-#camera-screen-wrapper,
-.screen-wrapper {
-position: relative;
-overflow: hidden;
-flex: 1;
-width: 100%;
-height: 100%;
-min-height: 0;
-border-radius: var(--border-radius-md);
-background-color: #030712;
-box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.4);
+.animate-bounce-in {
+animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-/*
-
-重要: 固定の transform: scaleX(-1) は削除しています。
-
-インカメラ/外カメラに応じた鏡像/正像の切り替えは js/engine.js が動的に制御します。
-*/
-#camera-screen-wrapper video,
-.screen-wrapper video,
-#camera-screen-wrapper canvas,
-.screen-wrapper canvas {
-position: absolute;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-object-fit: cover;
-will-change: transform;
-transition: transform 0.2s ease;
+@keyframes pop {
+0% { transform: scale(0.9); opacity: 0; }
+100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop {
+animation: pop 0.2s ease-out forwards;
 }
 
-#camera-screen-wrapper video {
-z-index: 1;
+/* Beat indicator for drill */
+@keyframes beatPulse {
+0% { border-color: rgba(16, 185, 129, 0.8); transform: scale(1); }
+50% { border-color: rgba(16, 185, 129, 0); transform: scale(1.15); }
+100% { border-color: rgba(16, 185, 129, 0); transform: scale(1); }
 }
-
-#camera-screen-wrapper canvas {
-z-index: 10;
-}
-
-#safe-boundary {
-z-index: 20;
-border-width: 2px;
-border-style: dashed;
-border-color: rgba(6, 182, 212, 0.4);
-}
-
-/* STREAMING_CHUNK:Styling 3D pushable brawl buttons and tactile feedback */
-.btn-3d {
-position: relative;
-display: inline-flex;
-align-items: center;
-justify-content: center;
-cursor: pointer;
-font-weight: 900;
-transition: transform 0.08s ease, filter 0.1s ease, box-shadow 0.08s ease;
-box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), 0 6px 12px rgba(0, 0, 0, 0.25);
-}
-
-.btn-3d:active {
-transform: translateY(3px) !important;
-box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-filter: brightness(0.95);
-}
-
-.tab-btn {
-transition: all 0.15s ease;
-}
-
-.tab-btn.active-tab {
-opacity: 1 !important;
-transform: scale(1.02);
-box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
-}
-
-/* STREAMING_CHUNK:Styling brawl panel containers and badges */
-.brawl-panel {
-background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(11, 16, 33, 0.98) 100%);
-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1);
-}
-
-/* リアルタイム角度バッジ */
-.metric-badge {
-background: rgba(15, 23, 42, 0.88);
-backdrop-filter: blur(8px);
--webkit-backdrop-filter: blur(8px);
-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-/* アラート・計測バッジのアニメーション */
-@keyframes cheatBounce {
-0%, 100% {
-transform: translate(-50%, 0) scale(1);
-}
-50% {
-transform: translate(-50%, -6px) scale(1.05);
-}
-}
-
-#cheat-alert-badge:not(.hidden) {
-animation: cheatBounce 0.6s ease-in-out infinite;
-}
-
-/* STREAMING_CHUNK:Styling dynamic drill HUD elements */
-#drill-hud {
-background: radial-gradient(circle at center, transparent 40%, rgba(11, 16, 33, 0.7) 100%);
-}
-
-#drill-combo-counter {
-text-shadow: 0 0 12px rgba(251, 191, 36, 0.8), 0 2px 4px rgba(0, 0, 0, 0.8);
-}
-
-#drill-progress-count {
-text-shadow: 0 0 12px rgba(6, 182, 212, 0.8), 0 2px 4px rgba(0, 0, 0, 0.8);
-}
-
-/* STREAMING_CHUNK:Configuring modals and carte custom scrollbars */
-.modal-overlay {
-background-color: rgba(3, 7, 18, 0.85);
-backdrop-filter: blur(8px);
--webkit-backdrop-filter: blur(8px);
-}
-
-/* カスタムスクロールバー */
-#carte-list-container::-webkit-scrollbar {
-width: 5px;
-}
-
-#carte-list-container::-webkit-scrollbar-track {
-background: rgba(15, 23, 42, 0.6);
-border-radius: 4px;
-}
-
-#carte-list-container::-webkit-scrollbar-thumb {
-background: rgba(99, 102, 241, 0.5);
-border-radius: 4px;
-}
-
-#carte-list-container::-webkit-scrollbar-thumb:hover {
-background: rgba(99, 102, 241, 0.8);
-}
-
-/* STREAMING_CHUNK:Styling floating toasts and notification feedback */
-#toast-box {
-background: rgba(15, 23, 42, 0.95);
-backdrop-filter: blur(6px);
--webkit-backdrop-filter: blur(6px);
-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+.animate-beat {
+animation: beatPulse 0.5s ease-out;
 }
