@@ -521,12 +521,16 @@
           return;
         }
 
+        const requiresSideProfile = currentTestMode === 'tab-shoulder2nd' || currentTestMode === 'tab-hinge';
+
         // 1. 顔の正対判定 (鼻が左右耳の中央比率にあるか)
         let isFaceAligned = true;
         const earL = getLandmark(lm, 7);
         const earR = getLandmark(lm, 8);
 
-        if (earL && earR) {
+        if (requiresSideProfile) {
+          isFaceAligned = true;
+        } else if (earL && earR) {
           const earLeftX = earL.x;
           const earRightX = earR.x;
           const noseX = nose.x;
@@ -634,12 +638,6 @@
         let subVal = 0;
 
         switch (currentTestMode) {
-          /**
-           * ★ FIX #1: Hip Internal/External Rotation (tab-hip)
-           * Previous: Used 2D screen slope (atan2) - breaks with camera angle changes
-           * Now: Measures shin angle RELATIVE TO PELVIC AXIS (pelvis-anchored reference frame)
-           * Expected: 0°=legs together, 90°=full external rotation
-           */
           case 'tab-hip': {
             const kneeL = getLandmark(lm, 25);
             const ankleL = getLandmark(lm, 27);
@@ -647,10 +645,7 @@
             const hipR = getLandmark(lm, 24);
 
             if (kneeL && ankleL && hipL && hipR) {
-              // Pelvic axis: line connecting both hip landmarks (horizontal reference frame)
               const pelvisVec = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
-              
-              // Left shin vector
               const shinVecL = { x: ankleL.x - kneeL.x, y: ankleL.y - kneeL.y };
               mainVal = Math.round(this.vectorAngle(pelvisVec, shinVecL));
             }
@@ -666,12 +661,6 @@
             break;
           }
 
-          /**
-           * ★ FIX #2: Overhead Arm Raise (tab-banzai)
-           * Previous: Arm and trunk vectors both point upward → small angle → ~0° at overhead
-           * Now: Inverts arm Y component so overhead arms register as ~180° (arms opposite to trunk)
-           * Expected: 0°=arms down, 180°=arms fully overhead
-           */
           case 'tab-banzai': {
             const shoulderL = getLandmark(lm, 11);
             const shoulderR = getLandmark(lm, 12);
@@ -684,13 +673,10 @@
               const hipMidX = (hipL.x + hipR.x) / 2;
               const hipMidY = (hipL.y + hipR.y) / 2;
 
-              // Trunk vector: shoulder to hip (pointing downward when upright)
               const trunkVec = { x: shMidX - hipMidX, y: shMidY - hipMidY };
 
               const wristL = getLandmark(lm, 15);
               if (wristL) {
-                // Arm vector: shoulder to wrist, with Y inverted for correct scale
-                // (inverted Y means "pointing up" in visual space = positive in calculation)
                 const armVecL = { x: wristL.x - shoulderL.x, y: -(wristL.y - shoulderL.y) };
                 mainVal = Math.round(this.vectorAngle(trunkVec, armVecL));
               }
@@ -704,24 +690,11 @@
             break;
           }
 
-          /**
-           * ★ FIX #3: Shoulder Internal/External Rotation in 90° Abduction (tab-shoulder2nd)
-           * Previous: Measured elbow flexion angle (always ~90° by design) → frozen value
-           * Now: Measures forearm rotation angle relative to VERTICAL reference
-           * Expected: 0°=forearm up, 90°=forearm horizontal
-           */
           case 'tab-shoulder2nd': {
             const computeShoulderRotation = (sh, elb, wr) => {
               if (!sh || !elb || !wr) return 0;
-              
-              // Forearm vector: elbow to wrist
               const forearmVec = { x: wr.x - elb.x, y: wr.y - elb.y };
-              
-              // Vertical reference: pointing upward (negative Y in MediaPipe coordinates)
               const verticalRef = { x: 0, y: -1 };
-              
-              // Angle between forearm and vertical
-              // 0° = pointing up, 90° = pointing horizontal, 180° = pointing down
               return Math.round(this.vectorAngle(verticalRef, forearmVec));
             };
 
@@ -741,11 +714,6 @@
             break;
           }
 
-          /**
-           * ✓ Tab-Hinge: Correct as-is
-           * Measures hip flexion by computing angle at hip joint, then inverting (180 - angle)
-           * Expected: 0°=folded (90° hip flex), 90°=folded (90° hip flex), full depth measured
-           */
           case 'tab-hinge': {
             const shoulderL = getLandmark(lm, 11);
             const shoulderR = getLandmark(lm, 12);
