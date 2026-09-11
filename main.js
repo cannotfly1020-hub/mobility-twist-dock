@@ -57,7 +57,8 @@
     IDLE: 'TEST_IDLE',
     COUNTDOWN: 'COUNTDOWN',
     MEASURING: 'MEASURING',
-    DRILL_ACTIVE: 'DRILL_ACTIVE'
+    DRILL_ACTIVE: 'DRILL_ACTIVE',
+    REPORT_OPEN: 'REPORT_OPEN'
   };
 
   const AppState = {
@@ -360,15 +361,19 @@
     },
 
     startMeasurementSequence() {
-      if (AppState.currentStatus === APP_STATES.COUNTDOWN || AppState.currentStatus === APP_STATES.MEASURING) return;
+  if (
+    AppState.currentStatus === APP_STATES.COUNTDOWN ||
+    AppState.currentStatus === APP_STATES.MEASURING ||
+    AppState.currentStatus === APP_STATES.DRILL_ACTIVE ||
+    AppState.currentStatus === APP_STATES.REPORT_OPEN
+  ) return;
 
-      AppState.isStanceHolding = false;
-      AppState.hasAnnouncedStanceReady = false;
-      AppState.currentStatus = APP_STATES.COUNTDOWN;
-      if (window.AppAudio) {
-        window.AppAudio.playLockSound();
-      }
-
+  AppState.isStanceHolding = false;
+  AppState.hasAnnouncedStanceReady = false;
+  AppState.currentStatus = APP_STATES.COUNTDOWN;
+  if (window.AppAudio) {
+    window.AppAudio.playLockSound();
+  }
       let count = 3;
       AppUI.showCountdown(count, COACH_LINES.countdown);
       if (window.AppAudio) {
@@ -429,13 +434,43 @@
       }, 100);
     },
 
-    finishMeasurement() {
-      AppState.currentStatus = APP_STATES.IDLE;
-      AppUI.showMeasuringBadge(false);
+   finishMeasurement() {
+  AppState.currentStatus = APP_STATES.IDLE;
+  AppUI.showMeasuringBadge(false);
 
-      if (window.AppAudio) {
-        window.AppAudio.playWhistle();
-      }
+  if (window.AppAudio) {
+    window.AppAudio.playWhistle();
+  }
+
+  const lVal = AppState.peakMetricLeft;
+  const rVal = AppState.peakMetricRight;
+  const evalResult = AppStorage.evaluateScore(AppState.currentTestMode, lVal, rVal);
+
+  const record = {
+    id: 'rec_' + Date.now(),
+    playerId: AppState.activePlayerId,
+    playerName: AppState.activePlayerName,
+    testMode: AppState.currentTestMode,
+    timestamp: Date.now(),
+    leftVal: lVal,
+    rightVal: rVal,
+    rank: evalResult.rank,
+    title: evalResult.title
+  };
+  AppStorage.addRecord(record);
+
+  AppUI.updateDiffBadge(evalResult.diff);
+
+  if (window.AppAudio) {
+    window.AppAudio.speak(`測定完了！ピーク角度は、左${lVal}度、右${rVal}度！${evalResult.title}！`);
+  }
+
+  setTimeout(() => {
+    AppUI.renderReport(record, evalResult);
+    AppState.currentStatus = APP_STATES.REPORT_OPEN;
+    AppUI.openModal('report-modal');
+  }, 800);
+}
 
       const lVal = AppState.peakMetricLeft;
       const rVal = AppState.peakMetricRight;
@@ -594,12 +629,17 @@
 
       // モーダル閉じるボタンのバインド
       document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const modal = e.target.closest('.fixed');
-          if (modal) modal.classList.add('hidden');
-          if (window.AppAudio) window.AppAudio.playTap();
-        });
-      });
+  btn.addEventListener('click', (e) => {
+    const modal = e.target.closest('.fixed');
+    if (modal) {
+      modal.classList.add('hidden');
+      if (modal.id === 'report-modal') {
+        AppState.currentStatus = APP_STATES.IDLE;
+      }
+    }
+    if (window.AppAudio) window.AppAudio.playTap();
+  });
+});
 
       Object.entries(this.elements.tabs).forEach(([modeKey, tabBtn]) => {
         if (!tabBtn) return;
