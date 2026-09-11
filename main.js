@@ -75,7 +75,8 @@
     isCheatDetected: false,
     activePlayerId: 'guest',
     activePlayerName: 'GUEST',
-    hasAnnouncedStanceReady: false
+    hasAnnouncedStanceReady: false,
+    isReportModalActive: false
   };
 
   const AppStorage = {
@@ -325,11 +326,38 @@
   };
 
   const AppTestOrchestrator = {
+    cancelMeasurementSequence() {
+      AppState.isStanceHolding = false;
+      AppState.hasAnnouncedStanceReady = false;
+
+      if (AppState.countdownTimer) {
+        clearInterval(AppState.countdownTimer);
+        AppState.countdownTimer = null;
+      }
+      if (AppState.measureTimer) {
+        clearInterval(AppState.measureTimer);
+        AppState.measureTimer = null;
+      }
+
+      if (AppState.currentStatus === APP_STATES.COUNTDOWN || AppState.currentStatus === APP_STATES.MEASURING) {
+        AppState.currentStatus = APP_STATES.IDLE;
+      }
+
+      AppUI.hideCountdown();
+      AppUI.showMeasuringBadge(false);
+    },
+
     /**
      * 構え認識コールバック（1.0秒キープで自動トリガー）
      */
     handleTriggerReady(isReady, message) {
       AppUI.updateTriggerBadge(isReady, message);
+
+      if (AppState.isReportModalActive) {
+        AppState.isStanceHolding = false;
+        AppState.hasAnnouncedStanceReady = false;
+        return;
+      }
 
       if (AppState.currentStatus !== APP_STATES.IDLE) {
         if (!isReady) AppState.hasAnnouncedStanceReady = false;
@@ -360,6 +388,7 @@
     },
 
     startMeasurementSequence() {
+      if (AppState.isReportModalActive) return;
       if (AppState.currentStatus === APP_STATES.COUNTDOWN || AppState.currentStatus === APP_STATES.MEASURING) return;
 
       AppState.isStanceHolding = false;
@@ -463,6 +492,7 @@
       }
 
       // レポートモーダルの更新＆表示
+      AppState.isReportModalActive = true;
       setTimeout(() => {
         AppUI.renderReport(record, evalResult);
         AppUI.openModal('report-modal');
@@ -596,7 +626,7 @@
       document.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const modal = e.target.closest('.fixed');
-          if (modal) modal.classList.add('hidden');
+          if (modal) this.closeModal(modal.id);
           if (window.AppAudio) window.AppAudio.playTap();
         });
       });
@@ -780,12 +810,21 @@
 
     openModal(modalId) {
       const modal = document.getElementById(modalId);
-      if (modal) modal.classList.remove('hidden');
+      if (!modal) return;
+      if (modalId === 'report-modal') {
+        AppState.isReportModalActive = true;
+        AppTestOrchestrator.cancelMeasurementSequence();
+      }
+      modal.classList.remove('hidden');
     },
 
     closeModal(modalId) {
       const modal = document.getElementById(modalId);
-      if (modal) modal.classList.add('hidden');
+      if (!modal) return;
+      if (modalId === 'report-modal') {
+        AppState.isReportModalActive = false;
+      }
+      modal.classList.add('hidden');
     },
 
     renderPlayerList() {
