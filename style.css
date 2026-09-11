@@ -1,33 +1,88 @@
-/* STREAMING_CHUNK:Implementing 3D button fundamentals... /
-/ 3D立体ボタンベース */
+/* ============================================
+   Mobility & Twist Dock - Stylesheet
+   3D Button Effects & UI Styling
+   ============================================ */
+
+/* 3D立体ボタンベース */
 .btn-3d {
-position: relative;
-display: inline-flex;
-align-items: center;
-justify-content: center;
-border-radius: 1rem;
-font-weight: 900;
-text-transform: uppercase;
-border: 2px solid rgba(255, 255, 255, 0.2);
-transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-cursor: pointer;
--webkit-appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  /* Remove iOS default styling */
+  -webkit-appearance: none;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
-.btn-3d:active, .btn-3d.active-press {
-transform: translateY(4px) scale(0.985);
-/* 影を薄くして押し込み感を演出 /
-box-shadow: 0 1px 0 rgba(0,0,0,0.3) !important;
-filter: brightness(0.85); / 押し込んだ時の明度ダウンを追加 */
+/* Active/pressed state with 3D push-down effect */
+.btn-3d:active,
+.btn-3d.active-press {
+  transform: translateY(4px) scale(0.985);
+  /* 影を薄くして押し込み感を演出 */
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3) !important;
+  /* 押し込んだ時の明度ダウン */
+  filter: brightness(0.85);
 }
 
-/* アプリ内の全ボタンに対する共通の押し心地（明度ダウン・沈み込み）設定 */
+/* Global button styling for consistent UX */
 button {
-transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), filter 0.1s !important;
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+              filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
 }
 
 button:active {
-filter: brightness(0.85); /* タップ時に少し暗くして物理ボタン感を出す */
+  /* タップ時に少し暗くして物理ボタン感を出す */
+  filter: brightness(0.85);
 }
 
-/* STREAMING_CHUNK:Adding color variants for 3D buttons... */
+/* Accessibility: Focus-visible outline for keyboard navigation */
+button:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+/* Color-variant helpers for consistent button styling */
+.btn-primary {
+  background-color: #2563eb;
+  box-shadow: 0 4px 0 #1d4ed8;
+}
+
+.btn-primary:active {
+  box-shadow: 0 1px 0 #1d4ed8;
+}
+
+.btn-success {
+  background-color: #10b981;
+  box-shadow: 0 4px 0 #059669;
+}
+
+.btn-success:active {
+  box-shadow: 0 1px 0 #059669;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  box-shadow: 0 4px 0 #dc2626;
+}
+
+.btn-danger:active {
+  box-shadow: 0 1px 0 #dc2626;
+}
+
+/* Warning color variant */
+.btn-warning {
+  background-color: #f59e0b;
+  box-shadow: 0 4px 0 #d97706;
+}
+
+.btn-warning:active {
+  box-shadow: 0 1px 0 #d97706;
+}
