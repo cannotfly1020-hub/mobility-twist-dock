@@ -482,10 +482,16 @@
     bindEvents() {
       // カメラ起動＆イン/外切替
       if (this.elements.btnSwitchCamera) {
-        this.elements.btnSwitchCamera.addEventListener('click', () => {
+        this.elements.btnSwitchCamera.addEventListener('click', async () => {
           if (window.AppEngine) {
-            const facing = window.AppEngine.switchCamera();
-            this.adjustCameraMirror(facing === 'user');
+            this.elements.btnSwitchCamera.disabled = true;
+            try {
+              const facing = await window.AppEngine.switchCamera();
+              this.adjustCameraMirror(facing === 'user');
+              this.showToast(facing === 'user' ? '🔄 インカメラに切り替えました' : '🔄 外カメラに切り替えました');
+            } finally {
+              this.elements.btnSwitchCamera.disabled = false;
+            }
           }
         });
       }
