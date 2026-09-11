@@ -20,6 +20,39 @@
     HINGE: 'tab-hinge'
   };
 
+  const TEST_GUIDANCE = {
+    [TEST_MODES.HIP]: {
+      icon: '🦊',
+      title: '① 股関節ワイパー',
+      desc: '仰向けで膝を立て、片足ずつ外に倒す',
+      voice: '股関節ワイパー！仰向けに寝て膝を立てたら、手首を耳元につけて構えてね！準備ができたら片足ずつ外側にパタッと倒そう！'
+    },
+    [TEST_MODES.BANZAI]: {
+      icon: '🦅',
+      title: '② 両腕バンザイ',
+      desc: '両腕を限界まで高く挙げてキープ！',
+      voice: '両腕バンザイテスト！カメラに正面を向いて立とう！手首を耳元に合わせて構えたら、限界まで高く腕をバンザイしよう！'
+    },
+    [TEST_MODES.SHOULDER2ND]: {
+      icon: '⚾',
+      title: '③ 肩2nd内外旋',
+      desc: '肩と肘を90度に開き、前腕を倒す',
+      voice: '肩のしなりテスト！カメラに対して横向きに立とう！肩と肘を90度に開いて前腕を水平にしたらスタート！腕を天井側と床側へ倒してね！'
+    },
+    [TEST_MODES.HINGE]: {
+      icon: '📐',
+      title: '④ もも裏ヒンジ',
+      desc: '胸を張ってお尻を後ろに引いて前屈',
+      voice: 'もも裏ヒンジテスト！カメラに対して横向きに直立しよう！背筋をピンと伸ばしてスタンバイ！胸を張ったまま、お尻を後ろに引いて前屈しよう！'
+    }
+  };
+
+  const COACH_LINES = {
+    stanceReady: 'いいね！その姿勢をキープ！',
+    countdown: '息を吐きながら、限界まで大きく動かしてキープ！',
+    measuring: 'ナイスしなり！そのままキープ！あと少し！'
+  };
+
   const APP_STATES = {
     IDLE: 'TEST_IDLE',
     COUNTDOWN: 'COUNTDOWN',
@@ -41,7 +74,8 @@
     peakMetricBoth: 0,
     isCheatDetected: false,
     activePlayerId: 'guest',
-    activePlayerName: 'GUEST'
+    activePlayerName: 'GUEST',
+    hasAnnouncedStanceReady: false
   };
 
   const AppStorage = {
@@ -297,9 +331,17 @@
     handleTriggerReady(isReady, message) {
       AppUI.updateTriggerBadge(isReady, message);
 
-      if (AppState.currentStatus !== APP_STATES.IDLE) return;
+      if (AppState.currentStatus !== APP_STATES.IDLE) {
+        if (!isReady) AppState.hasAnnouncedStanceReady = false;
+        return;
+      }
 
       if (isReady) {
+        if (!AppState.hasAnnouncedStanceReady && window.AppAudio) {
+          window.AppAudio.speak(COACH_LINES.stanceReady);
+        }
+        AppState.hasAnnouncedStanceReady = true;
+
         if (!AppState.isStanceHolding) {
           AppState.isStanceHolding = true;
           AppState.stanceHoldStartTime = Date.now();
@@ -313,30 +355,32 @@
         }
       } else {
         AppState.isStanceHolding = false;
+        AppState.hasAnnouncedStanceReady = false;
       }
     },
 
     startMeasurementSequence() {
       if (AppState.currentStatus === APP_STATES.COUNTDOWN || AppState.currentStatus === APP_STATES.MEASURING) return;
 
+      AppState.isStanceHolding = false;
+      AppState.hasAnnouncedStanceReady = false;
       AppState.currentStatus = APP_STATES.COUNTDOWN;
       if (window.AppAudio) {
         window.AppAudio.playLockSound();
       }
 
       let count = 3;
-      AppUI.showCountdown(count, '姿勢をキープして最大まで動かそう！');
+      AppUI.showCountdown(count, COACH_LINES.countdown);
       if (window.AppAudio) {
-        window.AppAudio.speak('スリー！');
+        window.AppAudio.speak(COACH_LINES.countdown);
       }
 
       if (AppState.countdownTimer) clearInterval(AppState.countdownTimer);
       AppState.countdownTimer = setInterval(() => {
         count--;
         if (count > 0) {
-          AppUI.showCountdown(count, '限界までしならせてキープ！');
+          AppUI.showCountdown(count, COACH_LINES.countdown);
           if (window.AppAudio) {
-            window.AppAudio.speak(count === 2 ? 'ツー！' : 'ワン！');
             window.AppAudio.playTone(880, 0.08, 'triangle', 0.1);
           }
         } else if (count === 0) {
@@ -359,7 +403,7 @@
 
       if (window.AppAudio) {
         window.AppAudio.playTone(1200, 0.2, 'sine', 0.15);
-        window.AppAudio.speak('測定スタート！キープ！');
+        window.AppAudio.speak(COACH_LINES.measuring);
       }
 
       let duration = 4000; // 4秒間のピークホールド測定
@@ -608,13 +652,6 @@
       const activeClasses = ['border-yellow-400', 'text-yellow-400'];
       const inactiveClasses = ['border-transparent', 'text-slate-400', 'hover:bg-slate-600', 'hover:text-white'];
 
-      const guideData = {
-        [TEST_MODES.HIP]: { icon: '🦊', title: '① 股関節ワイパー', desc: '仰向けで膝を立て、片足ずつ外に倒す' },
-        [TEST_MODES.BANZAI]: { icon: '🦅', title: '② 両腕バンザイ', desc: '両腕を限界まで高く挙げてキープ！' },
-        [TEST_MODES.SHOULDER2ND]: { icon: '⚾', title: '③ 肩2nd内外旋', desc: '肩と肘を90度に開き、前腕を倒す' },
-        [TEST_MODES.HINGE]: { icon: '📐', title: '④ もも裏ヒンジ', desc: '胸を張ってお尻を後ろに引いて前屈' }
-      };
-
       Object.entries(this.elements.tabs).forEach(([id, btn]) => {
         if (!btn) return;
         const iconSpan = btn.querySelector('span');
@@ -629,13 +666,13 @@
         }
       });
 
-      const guide = guideData[tabId];
+      const guide = TEST_GUIDANCE[tabId];
       if (guide) {
         if (this.elements.guideIcon) this.elements.guideIcon.innerText = guide.icon;
         if (this.elements.guideTitle) this.elements.guideTitle.innerText = guide.title;
         if (this.elements.guideDesc) this.elements.guideDesc.innerText = guide.desc;
         if (window.AppAudio) {
-          window.AppAudio.speak(guide.title);
+          window.AppAudio.speak(guide.voice);
         }
       }
     },
