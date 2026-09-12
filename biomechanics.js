@@ -547,42 +547,67 @@
     let stanceMessage = '構え検知待機';
 
     switch (currentTestMode) {
-      case 'tab-hip':
-      case 'tab-banzai': {
-        const wristL = getLandmark(lm, 15);
-        const wristR = getLandmark(lm, 16);
-        if (wristL && wristR && earL && earR) {
-          const distL = Math.hypot(wristL.x - earL.x, wristL.y - earL.y);
-          const distR = Math.hypot(wristR.x - earR.x, wristR.y - earR.y);
-          const nearEars =
-            (distL < CONFIG.WRIST_DISTANCE_THRESHOLD && distR < CONFIG.WRIST_DISTANCE_THRESHOLD) ||
-            (wristL.y < shoulderL.y && wristR.y < shoulderR.y);
-          isStanceReady = nearEars;
-          stanceMessage = nearEars ? '構え完了！キープ！' : '手首を耳元に合わせて構えてください';
-        }
-        break;
-      }
+  case 'tab-hip':
+  case 'tab-banzai': {
+    const wristL = getLandmark(lm, 15);
+    const wristR = getLandmark(lm, 16);
 
-      case 'tab-shoulder2nd': {
-        const sL = getLandmark(lm, 11);
-        const sR = getLandmark(lm, 12);
-        const useLeft =
-          (sL?.visibility || 0) + (lm[13]?.visibility || 0) + (lm[15]?.visibility || 0) >=
-          (sR?.visibility || 0) + (lm[14]?.visibility || 0) + (lm[16]?.visibility || 0);
+    if (wristL && wristR && earL && earR) {
+      const distL = Math.hypot(wristL.x - earL.x, wristL.y - earL.y);
+      const distR = Math.hypot(wristR.x - earR.x, wristR.y - earR.y);
+      const nearEars =
+        (distL < CONFIG.WRIST_DISTANCE_THRESHOLD && distR < CONFIG.WRIST_DISTANCE_THRESHOLD) ||
+        (wristL.y < shoulderL.y && wristR.y < shoulderR.y);
 
-        const shoulder = useLeft ? sL : sR;
-        const elbow = getLandmark(lm, useLeft ? 13 : 14);
-        const wrist = getLandmark(lm, useLeft ? 15 : 16);
+      isStanceReady = nearEars;
+      stanceMessage = nearEars ? '構え完了！キープ！' : '手首を耳元に合わせて構えてください';
+    }
+    break;
+  }
 
-        if (shoulder && elbow && wrist) {
-          const elbowDistY = Math.abs(elbow.y - shoulder.y);
-          const elbowAngle = this.calculateAngle(shoulder, elbow, wrist);
-          const wristLevel = Math.abs(wrist.y - elbow.y);
-          isStanceReady = (elbowDistY < 0.18) && (elbowAngle >= 60 && elbowAngle <= 120) && (wristLevel < 0.20);
-          stanceMessage = isStanceReady ? '肩2ndスタンバイOK！' : '肩と肘を90度に開き前腕を水平に構えてください';
-        }
-        break;
-      }
+  case 'tab-shoulder2nd': {
+    const sL = getLandmark(lm, 11);
+    const sR = getLandmark(lm, 12);
+    const useLeft =
+      (sL?.visibility || 0) + (lm[13]?.visibility || 0) + (lm[15]?.visibility || 0) >=
+      (sR?.visibility || 0) + (lm[14]?.visibility || 0) + (lm[16]?.visibility || 0);
+
+    const shoulder = useLeft ? sL : sR;
+    const elbow = getLandmark(lm, useLeft ? 13 : 14);
+    const wrist = getLandmark(lm, useLeft ? 15 : 16);
+
+    if (shoulder && elbow && wrist) {
+      const elbowDistY = Math.abs(elbow.y - shoulder.y);
+      const elbowAngle = this.calculateAngle(shoulder, elbow, wrist);
+      const wristLevel = Math.abs(wrist.y - elbow.y);
+
+      isStanceReady = (elbowDistY < 0.18) && (elbowAngle >= 60 && elbowAngle <= 120) && (wristLevel < 0.20);
+      stanceMessage = isStanceReady ? '肩2ndスタンバイOK！' : '肩と肘を90度に開き前腕を水平に構えてください';
+    }
+    break;
+  }
+
+  case 'tab-hinge': {
+    const useLeft =
+      (shoulderL?.visibility || 0) + (lm[23]?.visibility || 0) + (lm[25]?.visibility || 0) >=
+      (shoulderR?.visibility || 0) + (lm[24]?.visibility || 0) + (lm[26]?.visibility || 0);
+
+    const shoulder = useLeft ? shoulderL : shoulderR;
+    const hip = getLandmark(lm, useLeft ? 23 : 24);
+    const knee = getLandmark(lm, useLeft ? 25 : 26);
+
+    if (shoulder && hip && knee) {
+      const trunkVertical = Math.abs(shoulder.x - hip.x) < 0.15;
+      const legStraight = this.calculateAngle(shoulder, hip, knee) >= 150;
+      isStanceReady = trunkVertical && legStraight;
+      stanceMessage = isStanceReady ? '直立スタンバイOK！' : '横を向いて背筋を伸ばし直立してください';
+    }
+    break;
+  }
+
+  default:
+    break;
+}
 
       case 'tab-hinge': {
         const useLeft =
