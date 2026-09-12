@@ -187,11 +187,10 @@
       try {
         if (typeof window.Pose === 'undefined') {
           console.log('MediaPipe Pose not yet loaded. Waiting...');
-          // Set up global listener for when Pose loads
           const checkInterval = setInterval(() => {
             if (typeof window.Pose !== 'undefined') {
               clearInterval(checkInterval);
-              this.initPoseModel(); // Retry initialization
+              this.initPoseModel();
             }
           }, 200);
 
@@ -238,13 +237,9 @@
       if (!videoElement || currentState === STATE.MODEL_FAILED) return;
 
       try {
-        // 既存のストリームを完全に停止・破棄
         this.stopCameraStream();
-
-        // スマホでのカメラ切り替えの安定化のため微小待機
         await new Promise(resolve => setTimeout(resolve, 80));
 
-        // exact -> ideal の順でフォールバックしてカメラを取得
         let stream = null;
         try {
           stream = await navigator.mediaDevices.getUserMedia({
@@ -256,7 +251,6 @@
             }
           });
         } catch (exactErr) {
-          // exactが使えない端末（PCブラウザ等）用のフォールバック
           stream = await navigator.mediaDevices.getUserMedia({
             audio: false,
             video: {
@@ -306,7 +300,6 @@
           try {
             await poseInstance.send({ image: videoElement });
           } catch (err) {
-            // フレームスキップ - log only in development
             if (process.env.NODE_ENV === 'development') {
               console.debug('Frame processing skipped:', err);
             }
@@ -432,11 +425,10 @@
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, cWidth, cHeight);
 
-        // ★ ポーズが検出されない場合、メトリクスをリセット
         if (!results.poseLandmarks || results.poseLandmarks.length === 0) {
           canvasCtx.restore();
           invokeCallback(onTriggerReadyCallback, false, '全身をフレームに入れてください');
-          invokeCallback(onMetricUpdateCallback, 0, 0); // ← メトリクスをリセット
+          invokeCallback(onMetricUpdateCallback, 0, 0);
           invokeCallback(onCheatAlertCallback, false, '');
           return;
         }
@@ -444,19 +436,14 @@
         const landmarks = results.poseLandmarks;
         const bounds = this.getAspectFitBounds(videoElement, canvasElement);
 
-        // Draw skeleton
         this.drawSkeleton(canvasCtx, landmarks, bounds);
-
-        // Evaluate pose and calculate metrics
         this.evaluatePose(landmarks);
-
         invokeCallback(onResultsCallback, landmarks, bounds);
 
         canvasCtx.restore();
       } catch (err) {
         console.error('Error handling pose results:', err);
         canvasCtx.restore();
-        // エラー時もメトリクスをリセット
         invokeCallback(onMetricUpdateCallback, 0, 0);
       }
     },
@@ -466,15 +453,15 @@
      */
     drawSkeleton(ctx, landmarks, bounds) {
       const CONNECTIONS = [
-        [11, 12], [11, 23], [12, 24], [23, 24], // 胴体
-        [11, 13], [13, 15],                     // 左腕
-        [12, 14], [14, 16],                     // 右腕
-        [23, 25], [25, 27],                     // 左脚
-        [24, 26], [26, 28]                      // 右脚
+        [11, 12], [11, 23], [12, 24], [23, 24],
+        [11, 13], [13, 15],
+        [12, 14], [14, 16],
+        [23, 25], [25, 27],
+        [24, 26], [26, 28]
       ];
 
       ctx.lineWidth = 4;
-      ctx.strokeStyle = '#10b981'; // エメラルドグリーン
+      ctx.strokeStyle = '#10b981';
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -517,257 +504,199 @@
     /**
      * 【顔正対 × 構えジェスチャー】スタート判定 ＆ カンニング検知
      */
-   evaluatePose(lm) {
-  try {
-    const nose = getLandmark(lm, 0);
-    const shoulderL = getLandmark(lm, 11);
-    const shoulderR = getLandmark(lm, 12);
+    evaluatePose(lm) {
+      try {
+        const nose = getLandmark(lm, 0);
+        const shoulderL = getLandmark(lm, 11);
+        const shoulderR = getLandmark(lm, 12);
 
-    if (!nose || !shoulderL || !shoulderR) {
-      invokeCallback(onTriggerReadyCallback, false, '全身をフレームに入れてください');
-      invokeCallback(onMetricUpdateCallback, null, null);
-      return;
-    }
-
-    let isFaceAligned = true;
-    const earL = getLandmark(lm, 7);
-    const earR = getLandmark(lm, 8);
-
-    if (earL && earR) {
-      const minEar = Math.min(earL.x, earR.x);
-      const maxEar = Math.max(earL.x, earR.x);
-      const earSpan = maxEar - minEar;
-      if (earSpan > 0.015) {
-        const noseRatio = (nose.x - minEar) / earSpan;
-        isFaceAligned = (noseRatio >= CONFIG.FACE_ALIGN_RATIO_MIN && noseRatio <= CONFIG.FACE_ALIGN_RATIO_MAX);
-      }
-    }
-
-    let isStanceReady = false;
-    let stanceMessage = '構え検知待機';
-
-    switch (currentTestMode) {
-  case 'tab-hip':
-  case 'tab-banzai': {
-    const wristL = getLandmark(lm, 15);
-    const wristR = getLandmark(lm, 16);
-
-    if (wristL && wristR && earL && earR) {
-      const distL = Math.hypot(wristL.x - earL.x, wristL.y - earL.y);
-      const distR = Math.hypot(wristR.x - earR.x, wristR.y - earR.y);
-      const nearEars =
-        (distL < CONFIG.WRIST_DISTANCE_THRESHOLD && distR < CONFIG.WRIST_DISTANCE_THRESHOLD) ||
-        (wristL.y < shoulderL.y && wristR.y < shoulderR.y);
-
-      isStanceReady = nearEars;
-      stanceMessage = nearEars ? '構え完了！キープ！' : '手首を耳元に合わせて構えてください';
-    }
-    break;
-  }
-
-  case 'tab-shoulder2nd': {
-    const sL = getLandmark(lm, 11);
-    const sR = getLandmark(lm, 12);
-    const useLeft =
-      (sL?.visibility || 0) + (lm[13]?.visibility || 0) + (lm[15]?.visibility || 0) >=
-      (sR?.visibility || 0) + (lm[14]?.visibility || 0) + (lm[16]?.visibility || 0);
-
-    const shoulder = useLeft ? sL : sR;
-    const elbow = getLandmark(lm, useLeft ? 13 : 14);
-    const wrist = getLandmark(lm, useLeft ? 15 : 16);
-
-    if (shoulder && elbow && wrist) {
-      const elbowDistY = Math.abs(elbow.y - shoulder.y);
-      const elbowAngle = this.calculateAngle(shoulder, elbow, wrist);
-      const wristLevel = Math.abs(wrist.y - elbow.y);
-
-      isStanceReady = (elbowDistY < 0.18) && (elbowAngle >= 60 && elbowAngle <= 120) && (wristLevel < 0.20);
-      stanceMessage = isStanceReady ? '肩2ndスタンバイOK！' : '肩と肘を90度に開き前腕を水平に構えてください';
-    }
-    break;
-  }
-
-  case 'tab-hinge': {
-    const useLeft =
-      (shoulderL?.visibility || 0) + (lm[23]?.visibility || 0) + (lm[25]?.visibility || 0) >=
-      (shoulderR?.visibility || 0) + (lm[24]?.visibility || 0) + (lm[26]?.visibility || 0);
-
-    const shoulder = useLeft ? shoulderL : shoulderR;
-    const hip = getLandmark(lm, useLeft ? 23 : 24);
-    const knee = getLandmark(lm, useLeft ? 25 : 26);
-
-    if (shoulder && hip && knee) {
-      const trunkVertical = Math.abs(shoulder.x - hip.x) < 0.15;
-      const legStraight = this.calculateAngle(shoulder, hip, knee) >= 150;
-      isStanceReady = trunkVertical && legStraight;
-      stanceMessage = isStanceReady ? '直立スタンバイOK！' : '横を向いて背筋を伸ばし直立してください';
-    }
-    break;
-  }
-
-  default:
-    break;
-}
-
-      case 'tab-hinge': {
-        const useLeft =
-          (shoulderL?.visibility || 0) + (lm[23]?.visibility || 0) + (lm[25]?.visibility || 0) >=
-          (shoulderR?.visibility || 0) + (lm[24]?.visibility || 0) + (lm[26]?.visibility || 0);
-
-        const shoulder = useLeft ? shoulderL : shoulderR;
-        const hip = getLandmark(lm, useLeft ? 23 : 24);
-        const knee = getLandmark(lm, useLeft ? 25 : 26);
-
-        if (shoulder && hip && knee) {
-          const trunkVertical = Math.abs(shoulder.x - hip.x) < 0.15;
-          const legStraight = this.calculateAngle(shoulder, hip, knee) >= 150;
-          isStanceReady = trunkVertical && legStraight;
-          stanceMessage = isStanceReady ? '直立スタンバイOK！' : '横を向いて背筋を伸ばし直立してください';
+        if (!nose || !shoulderL || !shoulderR) {
+          invokeCallback(onTriggerReadyCallback, false, '全身をフレームに入れてください');
+          invokeCallback(onMetricUpdateCallback, null, null);
+          return;
         }
-        break;
+
+        let isFaceAligned = true;
+        const earL = getLandmark(lm, 7);
+        const earR = getLandmark(lm, 8);
+
+        if (earL && earR) {
+          const minEar = Math.min(earL.x, earR.x);
+          const maxEar = Math.max(earL.x, earR.x);
+          const earSpan = maxEar - minEar;
+          if (earSpan > 0.015) {
+            const noseRatio = (nose.x - minEar) / earSpan;
+            isFaceAligned = (noseRatio >= CONFIG.FACE_ALIGN_RATIO_MIN && noseRatio <= CONFIG.FACE_ALIGN_RATIO_MAX);
+          }
+        }
+
+        let isStanceReady = false;
+        let stanceMessage = '構え検知待機';
+
+        switch (currentTestMode) {
+          case 'tab-hip':
+          case 'tab-banzai': {
+            const wristL = getLandmark(lm, 15);
+            const wristR = getLandmark(lm, 16);
+
+            if (wristL && wristR && earL && earR) {
+              const distL = Math.hypot(wristL.x - earL.x, wristL.y - earL.y);
+              const distR = Math.hypot(wristR.x - earR.x, wristR.y - earR.y);
+              const nearEars =
+                (distL < CONFIG.WRIST_DISTANCE_THRESHOLD && distR < CONFIG.WRIST_DISTANCE_THRESHOLD) ||
+                (wristL.y < shoulderL.y && wristR.y < shoulderR.y);
+
+              isStanceReady = nearEars;
+              stanceMessage = nearEars ? '構え完了！キープ！' : '手首を耳元に合わせて構えてください';
+            }
+            break;
+          }
+
+          case 'tab-shoulder2nd': {
+            const sL = getLandmark(lm, 11);
+            const sR = getLandmark(lm, 12);
+            const useLeft =
+              (sL?.visibility || 0) + (lm[13]?.visibility || 0) + (lm[15]?.visibility || 0) >=
+              (sR?.visibility || 0) + (lm[14]?.visibility || 0) + (lm[16]?.visibility || 0);
+
+            const shoulder = useLeft ? sL : sR;
+            const elbow = getLandmark(lm, useLeft ? 13 : 14);
+            const wrist = getLandmark(lm, useLeft ? 15 : 16);
+
+            if (shoulder && elbow && wrist) {
+              const elbowDistY = Math.abs(elbow.y - shoulder.y);
+              const elbowAngle = this.calculateAngle(shoulder, elbow, wrist);
+              const wristLevel = Math.abs(wrist.y - elbow.y);
+
+              isStanceReady = (elbowDistY < 0.18) && (elbowAngle >= 60 && elbowAngle <= 120) && (wristLevel < 0.20);
+              stanceMessage = isStanceReady ? '肩2ndスタンバイOK！' : '肩と肘を90度に開き前腕を水平に構えてください';
+            }
+            break;
+          }
+
+          case 'tab-hinge': {
+            const useLeft =
+              (shoulderL?.visibility || 0) + (lm[23]?.visibility || 0) + (lm[25]?.visibility || 0) >=
+              (shoulderR?.visibility || 0) + (lm[24]?.visibility || 0) + (lm[26]?.visibility || 0);
+
+            const shoulder = useLeft ? shoulderL : shoulderR;
+            const hip = getLandmark(lm, useLeft ? 23 : 24);
+            const knee = getLandmark(lm, useLeft ? 25 : 26);
+
+            if (shoulder && hip && knee) {
+              const trunkVertical = Math.abs(shoulder.x - hip.x) < 0.15;
+              const legStraight = this.calculateAngle(shoulder, hip, knee) >= 150;
+              isStanceReady = trunkVertical && legStraight;
+              stanceMessage = isStanceReady ? '直立スタンバイOK！' : '横を向いて背筋を伸ばし直立してください';
+            }
+            break;
+          }
+
+          default:
+            break;
+        }
+
+        const overallReady = isFaceAligned && isStanceReady;
+        invokeCallback(onTriggerReadyCallback, overallReady, overallReady ? '発動スタンバイOK！' : stanceMessage);
+
+        const hipL = getLandmark(lm, 23);
+        const hipR = getLandmark(lm, 24);
+        if (hipL && hipR) {
+          const hipDiffY = Math.abs(hipL.y - hipR.y);
+          if (hipDiffY > CONFIG.HIP_DIFF_CHEAT_THRESHOLD) {
+            invokeCallback(onCheatAlertCallback, true, '⚠️ 骨盤が浮いています！床につけよう！');
+          } else {
+            invokeCallback(onCheatAlertCallback, false, '');
+          }
+        }
+
+        const metricResult = this.calculateMetrics(lm);
+        if (!metricResult) {
+          invokeCallback(onMetricUpdateCallback, null, null);
+        }
+      } catch (err) {
+        console.error('Error evaluating pose:', err);
       }
-    }
+    },
 
-    const overallReady = isFaceAligned && isStanceReady;
-    invokeCallback(onTriggerReadyCallback, overallReady, overallReady ? '発動スタンバイOK！' : stanceMessage);
-
-    const hipL = getLandmark(lm, 23);
-    const hipR = getLandmark(lm, 24);
-    if (hipL && hipR) {
-      const hipDiffY = Math.abs(hipL.y - hipR.y);
-      if (hipDiffY > CONFIG.HIP_DIFF_CHEAT_THRESHOLD) {
-        invokeCallback(onCheatAlertCallback, true, '⚠️ 骨盤が浮いています！床につけよう！');
-      } else {
-        invokeCallback(onCheatAlertCallback, false, '');
-      }
-    }
-
-    const metricResult = this.calculateMetrics(lm);
-    if (!metricResult) {
-      invokeCallback(onMetricUpdateCallback, null, null);
-    }
-  } catch (err) {
-    console.error('Error evaluating pose:', err);
-  }
-},
     /**
      * 確定4大テストの精密幾何計算 (FIXED: Kinematic corrections for all 4 modes)
      */
     calculateMetrics(lm) {
-  try {
-    if (!lm || lm.length === 0) return null;
-    let mainVal = 0;
-    let subVal = 0;
-    let isValidFrame = false;
+      try {
+        if (!lm || lm.length === 0) return null;
+        let mainVal = 0;
+        let subVal = 0;
+        let isValidFrame = false;
 
-    switch (currentTestMode) {
-      case 'tab-hip': {
-        const kneeL = getLandmark(lm, 25);
-        const ankleL = getLandmark(lm, 27);
-        const hipL = getLandmark(lm, 23);
-        const hipR = getLandmark(lm, 24);
-        const kneeR = getLandmark(lm, 26);
-        const ankleR = getLandmark(lm, 28);
+        switch (currentTestMode) {
+          case 'tab-hip': {
+            const kneeL = getLandmark(lm, 25);
+            const ankleL = getLandmark(lm, 27);
+            const hipL = getLandmark(lm, 23);
+            const hipR = getLandmark(lm, 24);
+            const kneeR = getLandmark(lm, 26);
+            const ankleR = getLandmark(lm, 28);
 
-        if (!(kneeL && ankleL && hipL && hipR && kneeR && ankleR)) return null;
+            if (!(kneeL && ankleL && hipL && hipR && kneeR && ankleR)) return null;
 
-        const pelvisVec = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
-        const shinVecL = { x: ankleL.x - kneeL.x, y: ankleL.y - kneeL.y };
-        const shinVecR = { x: ankleR.x - kneeR.x, y: ankleR.y - kneeR.y };
+            const pelvisVec = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
+            const shinVecL = { x: ankleL.x - kneeL.x, y: ankleL.y - kneeL.y };
+            const shinVecR = { x: ankleR.x - kneeR.x, y: ankleR.y - kneeR.y };
 
-        mainVal = Math.round(this.vectorAngle(pelvisVec, shinVecL));
-        subVal = Math.round(this.vectorAngle(pelvisVec, shinVecR));
-        isValidFrame = true;
-        break;
-      }
+            mainVal = Math.round(this.vectorAngle(pelvisVec, shinVecL));
+            subVal = Math.round(this.vectorAngle(pelvisVec, shinVecR));
+            isValidFrame = true;
+            break;
+          }
 
-      case 'tab-banzai': {
-        const shoulderL = getLandmark(lm, 11);
-        const shoulderR = getLandmark(lm, 12);
-        const hipL = getLandmark(lm, 23);
-        const hipR = getLandmark(lm, 24);
-        const wristL = getLandmark(lm, 15);
-        const wristR = getLandmark(lm, 16);
+          case 'tab-banzai': {
+            const shoulderL = getLandmark(lm, 11);
+            const shoulderR = getLandmark(lm, 12);
+            const hipL = getLandmark(lm, 23);
+            const hipR = getLandmark(lm, 24);
+            const wristL = getLandmark(lm, 15);
+            const wristR = getLandmark(lm, 16);
 
-        if (!(shoulderL && shoulderR && hipL && hipR && wristL && wristR)) return null;
+            if (!(shoulderL && shoulderR && hipL && hipR && wristL && wristR)) return null;
 
-        const shMidX = (shoulderL.x + shoulderR.x) / 2;
-        const shMidY = (shoulderL.y + shoulderR.y) / 2;
-        const hipMidX = (hipL.x + hipR.x) / 2;
-        const hipMidY = (hipL.y + hipR.y) / 2;
-        const trunkVec = { x: shMidX - hipMidX, y: shMidY - hipMidY };
+            const shMidX = (shoulderL.x + shoulderR.x) / 2;
+            const shMidY = (shoulderL.y + shoulderR.y) / 2;
+            const hipMidX = (hipL.x + hipR.x) / 2;
+            const hipMidY = (hipL.y + hipR.y) / 2;
+            const trunkVec = { x: shMidX - hipMidX, y: shMidY - hipMidY };
 
-        const armVecL = { x: wristL.x - shoulderL.x, y: -(wristL.y - shoulderL.y) };
-        const armVecR = { x: wristR.x - shoulderR.x, y: -(wristR.y - shoulderR.y) };
+            const armVecL = { x: wristL.x - shoulderL.x, y: -(wristL.y - shoulderL.y) };
+            const armVecR = { x: wristR.x - shoulderR.x, y: -(wristR.y - shoulderR.y) };
 
-        mainVal = Math.round(this.vectorAngle(trunkVec, armVecL));
-        subVal = Math.round(this.vectorAngle(trunkVec, armVecR));
-        isValidFrame = true;
-        break;
-      }
+            mainVal = Math.round(this.vectorAngle(trunkVec, armVecL));
+            subVal = Math.round(this.vectorAngle(trunkVec, armVecR));
+            isValidFrame = true;
+            break;
+          }
 
-      case 'tab-shoulder2nd': {
-        const computeShoulderRotation = (sh, elb, wr) => {
-          const forearmVec = { x: wr.x - elb.x, y: wr.y - elb.y };
-          const verticalRef = { x: 0, y: -1 };
-          return Math.round(this.vectorAngle(verticalRef, forearmVec));
-        };
+          case 'tab-shoulder2nd': {
+            const computeShoulderRotation = (sh, elb, wr) => {
+              const forearmVec = { x: wr.x - elb.x, y: wr.y - elb.y };
+              const verticalRef = { x: 0, y: -1 };
+              return Math.round(this.vectorAngle(verticalRef, forearmVec));
+            };
 
-        const shoulderL = getLandmark(lm, 11);
-        const elbowL = getLandmark(lm, 13);
-        const wristL = getLandmark(lm, 15);
-        const shoulderR = getLandmark(lm, 12);
-        const elbowR = getLandmark(lm, 14);
-        const wristR = getLandmark(lm, 16);
+            const shoulderL = getLandmark(lm, 11);
+            const elbowL = getLandmark(lm, 13);
+            const wristL = getLandmark(lm, 15);
+            const shoulderR = getLandmark(lm, 12);
+            const elbowR = getLandmark(lm, 14);
+            const wristR = getLandmark(lm, 16);
 
-        if (!(shoulderL && elbowL && wristL && shoulderR && elbowR && wristR)) return null;
+            if (!(shoulderL && elbowL && wristL && shoulderR && elbowR && wristR)) return null;
 
-        mainVal = computeShoulderRotation(shoulderL, elbowL, wristL);
-        subVal = computeShoulderRotation(shoulderR, elbowR, wristR);
-        isValidFrame = true;
-        break;
-      }
+            mainVal = computeShoulderRotation(shoulderL, elbowL, wristL);
+            subVal = computeShoulderRotation(shoulderR, elbowR, wristR);
+            isValidFrame = true;
+            break;
+          }
 
-      case 'tab-hinge': {
-        const shoulderL = getLandmark(lm, 11);
-        const shoulderR = getLandmark(lm, 12);
-        const hipL = getLandmark(lm, 23);
-        const hipR = getLandmark(lm, 24);
-        const kneeL = getLandmark(lm, 25);
-        const kneeR = getLandmark(lm, 26);
-
-        const useLeft =
-          (shoulderL?.visibility || 0) + (hipL?.visibility || 0) + (kneeL?.visibility || 0) >=
-          (shoulderR?.visibility || 0) + (hipR?.visibility || 0) + (kneeR?.visibility || 0);
-
-        const shoulder = useLeft ? shoulderL : shoulderR;
-        const hip = useLeft ? hipL : hipR;
-        const knee = useLeft ? kneeL : kneeR;
-
-        if (!(shoulder && hip && knee)) return null;
-
-        const rawAngle = this.calculateAngle(shoulder, hip, knee);
-        mainVal = Math.round(Math.max(0, 180 - rawAngle));
-        subVal = Math.round(rawAngle);
-        isValidFrame = true;
-        break;
-      }
-    }
-
-    if (!isValidFrame) return null;
-    invokeCallback(onMetricUpdateCallback, mainVal, subVal);
-    return { mainVal, subVal };
-  } catch (err) {
-    console.error('Error calculating metrics:', err);
-    return null;
-  }
-},
-
-          /**
-           * ✓ Tab-Hinge: Correct as-is
-           * Measures hip flexion by computing angle at hip joint, then inverting (180 - angle)
-           * Expected: 0°=folded (90° hip flex), 90°=folded (90° hip flex), full depth measured
-           */
           case 'tab-hinge': {
             const shoulderL = getLandmark(lm, 11);
             const shoulderR = getLandmark(lm, 12);
@@ -776,30 +705,31 @@
             const kneeL = getLandmark(lm, 25);
             const kneeR = getLandmark(lm, 26);
 
-            const useLeft = (shoulderL?.visibility || 0) + (hipL?.visibility || 0) + (kneeL?.visibility || 0) >=
-                           (shoulderR?.visibility || 0) + (hipR?.visibility || 0) + (kneeR?.visibility || 0);
+            const useLeft =
+              (shoulderL?.visibility || 0) + (hipL?.visibility || 0) + (kneeL?.visibility || 0) >=
+              (shoulderR?.visibility || 0) + (hipR?.visibility || 0) + (kneeR?.visibility || 0);
+
             const shoulder = useLeft ? shoulderL : shoulderR;
             const hip = useLeft ? hipL : hipR;
             const knee = useLeft ? kneeL : kneeR;
 
-            if (shoulder && hip && knee) {
-              const rawAngle = this.calculateAngle(shoulder, hip, knee);
-              const hingeAngle = Math.round(Math.max(0, 180 - rawAngle));
-              mainVal = hingeAngle;
-              subVal = Math.round(rawAngle);
-            }
+            if (!(shoulder && hip && knee)) return null;
+
+            const rawAngle = this.calculateAngle(shoulder, hip, knee);
+            mainVal = Math.round(Math.max(0, 180 - rawAngle));
+            subVal = Math.round(rawAngle);
+            isValidFrame = true;
             break;
           }
         }
 
         if (!isValidFrame) return null;
-
-invokeCallback(onMetricUpdateCallback, mainVal, subVal);
-return { mainVal, subVal };
-     } catch (err) {
-  console.error('Error calculating metrics:', err);
-  return null;
-}
+        invokeCallback(onMetricUpdateCallback, mainVal, subVal);
+        return { mainVal, subVal };
+      } catch (err) {
+        console.error('Error calculating metrics:', err);
+        return null;
+      }
     },
 
     /**
