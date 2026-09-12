@@ -433,14 +433,34 @@
           return;
         }
 
-        const landmarks = results.poseLandmarks;
-        const bounds = this.getAspectFitBounds(videoElement, canvasElement);
+       const landmarks = results.poseLandmarks;
 
-        this.drawSkeleton(canvasCtx, landmarks, bounds);
-        this.evaluatePose(landmarks);
-        invokeCallback(onResultsCallback, landmarks, bounds);
+// 全身判定に必要な主要ポイント
+const requiredPoints = [
+  getLandmark(landmarks, 0),   // 鼻
+  getLandmark(landmarks, 11),  // 左肩
+  getLandmark(landmarks, 12),  // 右肩
+  getLandmark(landmarks, 23),  // 左腰
+  getLandmark(landmarks, 24)   // 右腰
+];
 
-        canvasCtx.restore();
+const hasEnoughBody = requiredPoints.every(Boolean);
+
+if (!landmarks || landmarks.length === 0 || !hasEnoughBody) {
+  canvasCtx.restore();
+  invokeCallback(onTriggerReadyCallback, false, '全身をフレームに入れてください');
+  invokeCallback(onMetricUpdateCallback, 0, 0);
+  invokeCallback(onCheatAlertCallback, false, '');
+  return;
+}
+
+const bounds = this.getAspectFitBounds(videoElement, canvasElement);
+
+this.drawSkeleton(canvasCtx, landmarks, bounds);
+this.evaluatePose(landmarks);
+invokeCallback(onResultsCallback, landmarks, bounds);
+
+canvasCtx.restore();
       } catch (err) {
         console.error('Error handling pose results:', err);
         canvasCtx.restore();
