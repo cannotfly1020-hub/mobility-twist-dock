@@ -638,7 +638,6 @@ if (!metricResult) {
     calculateMetrics(lm) {
   try {
     if (!lm || lm.length === 0) return null;
-
     let mainVal = 0;
     let subVal = 0;
     let isValidFrame = false;
@@ -738,7 +737,6 @@ if (!metricResult) {
     }
 
     if (!isValidFrame) return null;
-
     invokeCallback(onMetricUpdateCallback, mainVal, subVal);
     return { mainVal, subVal };
   } catch (err) {
