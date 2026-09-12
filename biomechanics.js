@@ -694,27 +694,31 @@
             break;
           }
 
-          case 'tab-shoulder2nd': {
-            const computeShoulderRotation = (sh, elb, wr) => {
-              const forearmVec = { x: wr.x - elb.x, y: wr.y - elb.y };
-              const verticalRef = { x: 0, y: -1 };
-              return Math.round(this.vectorAngle(verticalRef, forearmVec));
-            };
+         case 'tab-shoulder2nd': {
+  const computeShoulderRotation = (elb, wr) => {
+    const forearmVec = { x: wr.x - elb.x, y: wr.y - elb.y };
 
-            const shoulderL = getLandmark(lm, 11);
-            const elbowL = getLandmark(lm, 13);
-            const wristL = getLandmark(lm, 15);
-            const shoulderR = getLandmark(lm, 12);
-            const elbowR = getLandmark(lm, 14);
-            const wristR = getLandmark(lm, 16);
+    // 水平基準で前腕の向きを見る
+    const horizontalRef = { x: 1, y: 0 };
 
-            if (!(shoulderL && elbowL && wristL && shoulderR && elbowR && wristR)) return null;
+    return Math.round(this.vectorAngle(horizontalRef, forearmVec));
+  };
 
-            mainVal = computeShoulderRotation(shoulderL, elbowL, wristL);
-            subVal = computeShoulderRotation(shoulderR, elbowR, wristR);
-            isValidFrame = true;
-            break;
-          }
+  const shoulderL = getLandmark(lm, 11);
+  const elbowL = getLandmark(lm, 13);
+  const wristL = getLandmark(lm, 15);
+  const shoulderR = getLandmark(lm, 12);
+  const elbowR = getLandmark(lm, 14);
+  const wristR = getLandmark(lm, 16);
+
+  if (!(shoulderL && elbowL && wristL && shoulderR && elbowR && wristR)) return null;
+
+  // どちらの腕も計算する
+  mainVal = computeShoulderRotation(elbowL, wristL);
+  subVal = computeShoulderRotation(elbowR, wristR);
+  isValidFrame = true;
+  break;
+}
 
           case 'tab-hinge': {
             const shoulderL = getLandmark(lm, 11);
