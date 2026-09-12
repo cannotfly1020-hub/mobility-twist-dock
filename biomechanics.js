@@ -625,11 +625,14 @@
           }
         }
 
-        // 4. 幾何計算
+     // 4. 幾何計算
 const metricResult = this.calculateMetrics(lm);
 if (!metricResult) {
   invokeCallback(onMetricUpdateCallback, null, null);
 }
+      } catch (err) {
+        console.error('Error evaluating pose:', err);
+      }
     },
 
     /**
