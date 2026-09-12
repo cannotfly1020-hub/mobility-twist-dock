@@ -625,11 +625,9 @@
           }
         }
 
-        // 4. 幾何計算（必須ランドマーク不足時は null）
+        // 4. 幾何計算
 const metricResult = this.calculateMetrics(lm);
-const measurementValid = !!metricResult;
-invokeCallback(onMeasurementValidityCallback, measurementValid);
-if (!measurementValid) {
+if (!metricResult) {
   invokeCallback(onMetricUpdateCallback, null, null);
 }
     },
@@ -638,122 +636,116 @@ if (!measurementValid) {
      * 確定4大テストの精密幾何計算 (FIXED: Kinematic corrections for all 4 modes)
      */
     calculateMetrics(lm) {
-      try {
-        // ★ ランドマークの基本検証
-        if (!lm || lm.length === 0) {
-          return;null;
-        }
+  try {
+    if (!lm || lm.length === 0) return null;
 
-        let mainVal = 0;
-        let subVal = 0;
+    let mainVal = 0;
+    let subVal = 0;
+    let isValidFrame = false;
 
-        switch (currentTestMode) {
-          /**
-           * ★ FIX #1: Hip Internal/External Rotation (tab-hip)
-           * Previous: Used 2D screen slope (atan2) - breaks with camera angle changes
-           * Now: Measures shin angle RELATIVE TO PELVIC AXIS (pelvis-anchored reference frame)
-           * Expected: 0°=legs together, 90°=full external rotation
-           */
-          case 'tab-hip': {
-            const kneeL = getLandmark(lm, 25);
-            const ankleL = getLandmark(lm, 27);
-            const hipL = getLandmark(lm, 23);
-            const hipR = getLandmark(lm, 24);
+    switch (currentTestMode) {
+      case 'tab-hip': {
+        const kneeL = getLandmark(lm, 25);
+        const ankleL = getLandmark(lm, 27);
+        const hipL = getLandmark(lm, 23);
+        const hipR = getLandmark(lm, 24);
+        const kneeR = getLandmark(lm, 26);
+        const ankleR = getLandmark(lm, 28);
 
-            if (kneeL && ankleL && hipL && hipR) {
-              // Pelvic axis: line connecting both hip landmarks (horizontal reference frame)
-              const pelvisVec = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
-              
-              // Left shin vector
-              const shinVecL = { x: ankleL.x - kneeL.x, y: ankleL.y - kneeL.y };
-              mainVal = Math.round(this.vectorAngle(pelvisVec, shinVecL));
-            }
+        if (!(kneeL && ankleL && hipL && hipR && kneeR && ankleR)) return null;
 
-            const kneeR = getLandmark(lm, 26);
-            const ankleR = getLandmark(lm, 28);
+        const pelvisVec = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
+        const shinVecL = { x: ankleL.x - kneeL.x, y: ankleL.y - kneeL.y };
+        const shinVecR = { x: ankleR.x - kneeR.x, y: ankleR.y - kneeR.y };
 
-            if (kneeR && ankleR && hipL && hipR) {
-              const pelvisVec = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
-              const shinVecR = { x: ankleR.x - kneeR.x, y: ankleR.y - kneeR.y };
-              subVal = Math.round(this.vectorAngle(pelvisVec, shinVecR));
-            }
-            break;
-          }
+        mainVal = Math.round(this.vectorAngle(pelvisVec, shinVecL));
+        subVal = Math.round(this.vectorAngle(pelvisVec, shinVecR));
+        isValidFrame = true;
+        break;
+      }
 
-          /**
-           * ★ FIX #2: Overhead Arm Raise (tab-banzai)
-           * Previous: Arm and trunk vectors both point upward → small angle → ~0° at overhead
-           * Now: Inverts arm Y component so overhead arms register as ~180° (arms opposite to trunk)
-           * Expected: 0°=arms down, 180°=arms fully overhead
-           */
-          case 'tab-banzai': {
-            const shoulderL = getLandmark(lm, 11);
-            const shoulderR = getLandmark(lm, 12);
-            const hipL = getLandmark(lm, 23);
-            const hipR = getLandmark(lm, 24);
+      case 'tab-banzai': {
+        const shoulderL = getLandmark(lm, 11);
+        const shoulderR = getLandmark(lm, 12);
+        const hipL = getLandmark(lm, 23);
+        const hipR = getLandmark(lm, 24);
+        const wristL = getLandmark(lm, 15);
+        const wristR = getLandmark(lm, 16);
 
-            if (shoulderL && shoulderR && hipL && hipR) {
-              const shMidX = (shoulderL.x + shoulderR.x) / 2;
-              const shMidY = (shoulderL.y + shoulderR.y) / 2;
-              const hipMidX = (hipL.x + hipR.x) / 2;
-              const hipMidY = (hipL.y + hipR.y) / 2;
+        if (!(shoulderL && shoulderR && hipL && hipR && wristL && wristR)) return null;
 
-              // Trunk vector: shoulder to hip (pointing downward when upright)
-              const trunkVec = { x: shMidX - hipMidX, y: shMidY - hipMidY };
+        const shMidX = (shoulderL.x + shoulderR.x) / 2;
+        const shMidY = (shoulderL.y + shoulderR.y) / 2;
+        const hipMidX = (hipL.x + hipR.x) / 2;
+        const hipMidY = (hipL.y + hipR.y) / 2;
+        const trunkVec = { x: shMidX - hipMidX, y: shMidY - hipMidY };
 
-              const wristL = getLandmark(lm, 15);
-              if (wristL) {
-                // Arm vector: shoulder to wrist, with Y inverted for correct scale
-                // (inverted Y means "pointing up" in visual space = positive in calculation)
-                const armVecL = { x: wristL.x - shoulderL.x, y: -(wristL.y - shoulderL.y) };
-                mainVal = Math.round(this.vectorAngle(trunkVec, armVecL));
-              }
+        const armVecL = { x: wristL.x - shoulderL.x, y: -(wristL.y - shoulderL.y) };
+        const armVecR = { x: wristR.x - shoulderR.x, y: -(wristR.y - shoulderR.y) };
 
-              const wristR = getLandmark(lm, 16);
-              if (wristR) {
-                const armVecR = { x: wristR.x - shoulderR.x, y: -(wristR.y - shoulderR.y) };
-                subVal = Math.round(this.vectorAngle(trunkVec, armVecR));
-              }
-            }
-            break;
-          }
+        mainVal = Math.round(this.vectorAngle(trunkVec, armVecL));
+        subVal = Math.round(this.vectorAngle(trunkVec, armVecR));
+        isValidFrame = true;
+        break;
+      }
 
-          /**
-           * ★ FIX #3: Shoulder Internal/External Rotation in 90° Abduction (tab-shoulder2nd)
-           * Previous: Measured elbow flexion angle (always ~90° by design) → frozen value
-           * Now: Measures forearm rotation angle relative to VERTICAL reference
-           * Expected: 0°=forearm up, 90°=forearm horizontal
-           */
-          case 'tab-shoulder2nd': {
-            const computeShoulderRotation = (sh, elb, wr) => {
-              if (!sh || !elb || !wr) return 0;
-              
-              // Forearm vector: elbow to wrist
-              const forearmVec = { x: wr.x - elb.x, y: wr.y - elb.y };
-              
-              // Vertical reference: pointing upward (negative Y in MediaPipe coordinates)
-              const verticalRef = { x: 0, y: -1 };
-              
-              // Angle between forearm and vertical
-              // 0° = pointing up, 90° = pointing horizontal, 180° = pointing down
-              return Math.round(this.vectorAngle(verticalRef, forearmVec));
-            };
+      case 'tab-shoulder2nd': {
+        const computeShoulderRotation = (sh, elb, wr) => {
+          const forearmVec = { x: wr.x - elb.x, y: wr.y - elb.y };
+          const verticalRef = { x: 0, y: -1 };
+          return Math.round(this.vectorAngle(verticalRef, forearmVec));
+        };
 
-            const shoulderL = getLandmark(lm, 11);
-            const elbowL = getLandmark(lm, 13);
-            const wristL = getLandmark(lm, 15);
-            if (shoulderL && elbowL && wristL) {
-              mainVal = computeShoulderRotation(shoulderL, elbowL, wristL);
-            }
+        const shoulderL = getLandmark(lm, 11);
+        const elbowL = getLandmark(lm, 13);
+        const wristL = getLandmark(lm, 15);
+        const shoulderR = getLandmark(lm, 12);
+        const elbowR = getLandmark(lm, 14);
+        const wristR = getLandmark(lm, 16);
 
-            const shoulderR = getLandmark(lm, 12);
-            const elbowR = getLandmark(lm, 14);
-            const wristR = getLandmark(lm, 16);
-            if (shoulderR && elbowR && wristR) {
-              subVal = computeShoulderRotation(shoulderR, elbowR, wristR);
-            }
-            break;
-          }
+        if (!(shoulderL && elbowL && wristL && shoulderR && elbowR && wristR)) return null;
+
+        mainVal = computeShoulderRotation(shoulderL, elbowL, wristL);
+        subVal = computeShoulderRotation(shoulderR, elbowR, wristR);
+        isValidFrame = true;
+        break;
+      }
+
+      case 'tab-hinge': {
+        const shoulderL = getLandmark(lm, 11);
+        const shoulderR = getLandmark(lm, 12);
+        const hipL = getLandmark(lm, 23);
+        const hipR = getLandmark(lm, 24);
+        const kneeL = getLandmark(lm, 25);
+        const kneeR = getLandmark(lm, 26);
+
+        const useLeft =
+          (shoulderL?.visibility || 0) + (hipL?.visibility || 0) + (kneeL?.visibility || 0) >=
+          (shoulderR?.visibility || 0) + (hipR?.visibility || 0) + (kneeR?.visibility || 0);
+
+        const shoulder = useLeft ? shoulderL : shoulderR;
+        const hip = useLeft ? hipL : hipR;
+        const knee = useLeft ? kneeL : kneeR;
+
+        if (!(shoulder && hip && knee)) return null;
+
+        const rawAngle = this.calculateAngle(shoulder, hip, knee);
+        mainVal = Math.round(Math.max(0, 180 - rawAngle));
+        subVal = Math.round(rawAngle);
+        isValidFrame = true;
+        break;
+      }
+    }
+
+    if (!isValidFrame) return null;
+
+    invokeCallback(onMetricUpdateCallback, mainVal, subVal);
+    return { mainVal, subVal };
+  } catch (err) {
+    console.error('Error calculating metrics:', err);
+    return null;
+  }
+},
 
           /**
            * ✓ Tab-Hinge: Correct as-is
