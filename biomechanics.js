@@ -69,6 +69,7 @@
   let onTriggerReadyCallback = null;
   let onMetricUpdateCallback = null;
   let onCheatAlertCallback = null;
+  let onMeasurementValidityCallback = null;
 
   // ============================================
   // UTILITY FUNCTIONS
@@ -164,6 +165,7 @@
         onTriggerReadyCallback = config.onTriggerReady || null;
         onMetricUpdateCallback = config.onMetricUpdate || null;
         onCheatAlertCallback = config.onCheatAlert || null;
+        onMeasurementValidityCallback = config.onMeasurementValidity || null;
 
         this.initPoseModel();
       } catch (err) {
@@ -623,11 +625,13 @@
           }
         }
 
-        // 4. 幾何計算
-        this.calculateMetrics(lm);
-      } catch (err) {
-        console.error('Error evaluating pose:', err);
-      }
+        // 4. 幾何計算（必須ランドマーク不足時は null）
+const metricResult = this.calculateMetrics(lm);
+const measurementValid = !!metricResult;
+invokeCallback(onMeasurementValidityCallback, measurementValid);
+if (!measurementValid) {
+  invokeCallback(onMetricUpdateCallback, null, null);
+}
     },
 
     /**
@@ -637,8 +641,7 @@
       try {
         // ★ ランドマークの基本検証
         if (!lm || lm.length === 0) {
-          invokeCallback(onMetricUpdateCallback, 0, 0);
-          return;
+          return;null;
         }
 
         let mainVal = 0;
@@ -781,12 +784,14 @@
           }
         }
 
-        invokeCallback(onMetricUpdateCallback, mainVal, subVal);
-      } catch (err) {
-        console.error('Error calculating metrics:', err);
-        // エラー時もメトリクスをリセット
-        invokeCallback(onMetricUpdateCallback, 0, 0);
-      }
+        if (!isValidFrame) return null;
+
+invokeCallback(onMetricUpdateCallback, mainVal, subVal);
+return { mainVal, subVal };
+     } catch (err) {
+  console.error('Error calculating metrics:', err);
+  return null;
+}
     },
 
     /**
