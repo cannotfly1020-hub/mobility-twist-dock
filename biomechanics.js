@@ -613,6 +613,7 @@
         const metricResult = this.calculateMetrics(lm);
         if (!metricResult) {
           invokeCallback(onMetricUpdateCallback, null, null);
+          return;
         }
       } catch (err) {
         console.error('Error evaluating pose:', err);
