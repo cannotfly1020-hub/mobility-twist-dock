@@ -425,15 +425,7 @@
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, cWidth, cHeight);
 
-        if (!results.poseLandmarks || results.poseLandmarks.length === 0) {
-          canvasCtx.restore();
-          invokeCallback(onTriggerReadyCallback, false, '全身をフレームに入れてください');
-          invokeCallback(onMetricUpdateCallback, 0, 0);
-          invokeCallback(onCheatAlertCallback, false, '');
-          return;
-        }
-
-       const landmarks = results.poseLandmarks;
+        const landmarks = results.poseLandmarks;
 
 // 全身判定に必要な主要ポイント
 const requiredPoints = [
