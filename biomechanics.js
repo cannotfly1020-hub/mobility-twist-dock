@@ -430,9 +430,12 @@
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, cWidth, cHeight);
 
+        // ★ ポーズが検出されない場合、メトリクスをリセット
         if (!results.poseLandmarks || results.poseLandmarks.length === 0) {
           canvasCtx.restore();
           invokeCallback(onTriggerReadyCallback, false, '全身をフレームに入れてください');
+          invokeCallback(onMetricUpdateCallback, 0, 0); // ← メトリクスをリセット
+          invokeCallback(onCheatAlertCallback, false, '');
           return;
         }
 
@@ -451,6 +454,8 @@
       } catch (err) {
         console.error('Error handling pose results:', err);
         canvasCtx.restore();
+        // エラー時もメトリクスをリセット
+        invokeCallback(onMetricUpdateCallback, 0, 0);
       }
     },
 
@@ -630,6 +635,12 @@
      */
     calculateMetrics(lm) {
       try {
+        // ★ ランドマークの基本検証
+        if (!lm || lm.length === 0) {
+          invokeCallback(onMetricUpdateCallback, 0, 0);
+          return;
+        }
+
         let mainVal = 0;
         let subVal = 0;
 
@@ -773,6 +784,8 @@
         invokeCallback(onMetricUpdateCallback, mainVal, subVal);
       } catch (err) {
         console.error('Error calculating metrics:', err);
+        // エラー時もメトリクスをリセット
+        invokeCallback(onMetricUpdateCallback, 0, 0);
       }
     },
 
