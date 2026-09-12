@@ -518,123 +518,108 @@
      * 【顔正対 × 構えジェスチャー】スタート判定 ＆ カンニング検知
      */
     evaluatePose(lm) {
-      try {
-        const nose = getLandmark(lm, 0);
-        const shoulderL = getLandmark(lm, 11);
-        const shoulderR = getLandmark(lm, 12);
+  try {
+    const nose = getLandmark(lm, 0);
+    const shoulderL = getLandmark(lm, 11);
+    const shoulderR = getLandmark(lm, 12);
 
-        if (!nose || !shoulderL || !shoulderR) {
-          invokeCallback(onTriggerReadyCallback, false, '全身をフレームに入れてください');
-          return;
-        }
+    if (!nose || !shoulderL || !shoulderR) {
+      invokeCallback(onTriggerReadyCallback, false, '全身をフレームに入れてください');
+      invokeCallback(onMetricUpdateCallback, null, null);
+      return;
+    }
 
-        // 1. 顔の正対判定 (鼻が左右耳の中央比率にあるか)
-        let isFaceAligned = true;
-        const earL = getLandmark(lm, 7);
-        const earR = getLandmark(lm, 8);
+    // 1. 顔の正対判定
+    let isFaceAligned = true;
+    const earL = getLandmark(lm, 7);
+    const earR = getLandmark(lm, 8);
 
-        if (earL && earR) {
-          const earLeftX = earL.x;
-          const earRightX = earR.x;
-          const noseX = nose.x;
-          const minEar = Math.min(earLeftX, earRightX);
-          const maxEar = Math.max(earLeftX, earRightX);
-          const earSpan = maxEar - minEar;
-
-          if (earSpan > 0.015) {
-            const noseRatio = (noseX - minEar) / earSpan;
-            isFaceAligned = (noseRatio >= CONFIG.FACE_ALIGN_RATIO_MIN && noseRatio <= CONFIG.FACE_ALIGN_RATIO_MAX);
-          }
-        }
-
-        // 2. モード別の構えジェスチャー認識
-        let isStanceReady = false;
-        let stanceMessage = '構え検知待機';
-
-        switch (currentTestMode) {
-          case 'tab-hip':
-          case 'tab-banzai': {
-            const wristL = getLandmark(lm, 15);
-            const wristR = getLandmark(lm, 16);
-
-            if (wristL && wristR && earL && earR) {
-              const distL = Math.hypot(wristL.x - earL.x, wristL.y - earL.y);
-              const distR = Math.hypot(wristR.x - earR.x, wristR.y - earR.y);
-              const nearEars = (distL < CONFIG.WRIST_DISTANCE_THRESHOLD && distR < CONFIG.WRIST_DISTANCE_THRESHOLD) ||
-                              (wristL.y < shoulderL.y && wristR.y < shoulderR.y);
-              isStanceReady = nearEars;
-              stanceMessage = nearEars ? '構え完了！キープ！' : '手首を耳元に合わせて構えてください';
-            }
-            break;
-          }
-
-          case 'tab-shoulder2nd': {
-            const shoulderL = getLandmark(lm, 11);
-            const shoulderR = getLandmark(lm, 12);
-            const useLeft = (shoulderL?.visibility || 0) + (lm[13]?.visibility || 0) + (lm[15]?.visibility || 0) >=
-                           (shoulderR?.visibility || 0) + (lm[14]?.visibility || 0) + (lm[16]?.visibility || 0);
-            const shoulder = useLeft ? shoulderL : shoulderR;
-            const elbow = getLandmark(lm, useLeft ? 13 : 14);
-            const wrist = getLandmark(lm, useLeft ? 15 : 16);
-
-            if (shoulder && elbow && wrist) {
-              const elbowDistY = Math.abs(elbow.y - shoulder.y);
-              const elbowAngle = this.calculateAngle(shoulder, elbow, wrist);
-              const wristLevel = Math.abs(wrist.y - elbow.y);
-
-              const isAbducted = elbowDistY < 0.18;
-              const is90DegFlex = (elbowAngle >= 60 && elbowAngle <= 120);
-              const isForearmHorizontal = wristLevel < 0.20;
-
-              isStanceReady = isAbducted && is90DegFlex && isForearmHorizontal;
-              stanceMessage = isStanceReady ? '肩2ndスタンバイOK！' : '肩と肘を90度に開き前腕を水平に構えてください';
-            }
-            break;
-          }
-
-          case 'tab-hinge': {
-            const useLeft = (shoulderL?.visibility || 0) + (lm[23]?.visibility || 0) + (lm[25]?.visibility || 0) >=
-                           (shoulderR?.visibility || 0) + (lm[24]?.visibility || 0) + (lm[26]?.visibility || 0);
-            const shoulder = useLeft ? shoulderL : shoulderR;
-            const hip = getLandmark(lm, useLeft ? 23 : 24);
-            const knee = getLandmark(lm, useLeft ? 25 : 26);
-
-            if (shoulder && hip && knee) {
-              const trunkVertical = Math.abs(shoulder.x - hip.x) < 0.15;
-              const legStraight = this.calculateAngle(shoulder, hip, knee) >= 150;
-
-              isStanceReady = trunkVertical && legStraight;
-              stanceMessage = isStanceReady ? '直立スタンバイOK！' : '横を向いて背筋を伸ばし直立してください';
-            }
-            break;
-          }
-        }
-
-        const overallReady = isFaceAligned && isStanceReady;
-        invokeCallback(onTriggerReadyCallback, overallReady, overallReady ? '発動スタンバイOK！' : stanceMessage);
-
-        // 3. カンニング検知（骨盤浮き判定）
-        const hipL = getLandmark(lm, 23);
-        const hipR = getLandmark(lm, 24);
-        if (hipL && hipR) {
-          const hipDiffY = Math.abs(hipL.y - hipR.y);
-          if (hipDiffY > CONFIG.HIP_DIFF_CHEAT_THRESHOLD) {
-            invokeCallback(onCheatAlertCallback, true, '⚠️ 骨盤が浮いています！床につけよう！');
-          } else {
-            invokeCallback(onCheatAlertCallback, false, '');
-          }
-        }
-
-     // 4. 幾何計算
-const metricResult = this.calculateMetrics(lm);
-if (!metricResult) {
-  invokeCallback(onMetricUpdateCallback, null, null);
-}
-      } catch (err) {
-        console.error('Error evaluating pose:', err);
+    if (earL && earR) {
+      const minEar = Math.min(earL.x, earR.x);
+      const maxEar = Math.max(earL.x, earR.x);
+      const earSpan = maxEar - minEar;
+      if (earSpan > 0.015) {
+        const noseRatio = (nose.x - minEar) / earSpan;
+        isFaceAligned = (noseRatio >= CONFIG.FACE_ALIGN_RATIO_MIN && noseRatio <= CONFIG.FACE_ALIGN_RATIO_MAX);
       }
-    },
+    }
 
+    // 2. モード別構え判定（既存ロジック簡略維持）
+    let isStanceReady = false;
+    let stanceMessage = '構え検知待機';
+
+    switch (currentTestMode) {
+      case 'tab-hip':
+      case 'tab-banzai': {
+        const wristL = getLandmark(lm, 15);
+        const wristR = getLandmark(lm, 16);
+        if (wristL && wristR && earL && earR) {
+          const distL = Math.hypot(wristL.x - earL.x, wristL.y - earL.y);
+          const distR = Math.hypot(wristR.x - earR.x, wristR.y - earR.y);
+          const nearEars = (distL < CONFIG.WRIST_DISTANCE_THRESHOLD && distR < CONFIG.WRIST_DISTANCE_THRESHOLD) ||
+                           (wristL.y < shoulderL.y && wristR.y < shoulderR.y);
+          isStanceReady = nearEars;
+          stanceMessage = nearEars ? '構え完了！キープ！' : '手首を耳元に合わせて構えてください';
+        }
+        break;
+      }
+      case 'tab-shoulder2nd': {
+        const sL = getLandmark(lm, 11), sR = getLandmark(lm, 12);
+        const useLeft = (sL?.visibility || 0) + (lm[13]?.visibility || 0) + (lm[15]?.visibility || 0) >=
+                        (sR?.visibility || 0) + (lm[14]?.visibility || 0) + (lm[16]?.visibility || 0);
+        const shoulder = useLeft ? sL : sR;
+        const elbow = getLandmark(lm, useLeft ? 13 : 14);
+        const wrist = getLandmark(lm, useLeft ? 15 : 16);
+
+        if (shoulder && elbow && wrist) {
+          const elbowDistY = Math.abs(elbow.y - shoulder.y);
+          const elbowAngle = this.calculateAngle(shoulder, elbow, wrist);
+          const wristLevel = Math.abs(wrist.y - elbow.y);
+          isStanceReady = (elbowDistY < 0.18) && (elbowAngle >= 60 && elbowAngle <= 120) && (wristLevel < 0.20);
+          stanceMessage = isStanceReady ? '肩2ndスタンバイOK！' : '肩と肘を90度に開き前腕を水平に構えてください';
+        }
+        break;
+      }
+      case 'tab-hinge': {
+        const useLeft = (shoulderL?.visibility || 0) + (lm[23]?.visibility || 0) + (lm[25]?.visibility || 0) >=
+                        (shoulderR?.visibility || 0) + (lm[24]?.visibility || 0) + (lm[26]?.visibility || 0);
+        const shoulder = useLeft ? shoulderL : shoulderR;
+        const hip = getLandmark(lm, useLeft ? 23 : 24);
+        const knee = getLandmark(lm, useLeft ? 25 : 26);
+        if (shoulder && hip && knee) {
+          const trunkVertical = Math.abs(shoulder.x - hip.x) < 0.15;
+          const legStraight = this.calculateAngle(shoulder, hip, knee) >= 150;
+          isStanceReady = trunkVertical && legStraight;
+          stanceMessage = isStanceReady ? '直立スタンバイOK！' : '横を向いて背筋を伸ばし直立してください';
+        }
+        break;
+      }
+    }
+
+    const overallReady = isFaceAligned && isStanceReady;
+    invokeCallback(onTriggerReadyCallback, overallReady, overallReady ? '発動スタンバイOK！' : stanceMessage);
+
+    // 3. カンニング検知
+    const hipL = getLandmark(lm, 23);
+    const hipR = getLandmark(lm, 24);
+    if (hipL && hipR) {
+      const hipDiffY = Math.abs(hipL.y - hipR.y);
+      if (hipDiffY > CONFIG.HIP_DIFF_CHEAT_THRESHOLD) {
+        invokeCallback(onCheatAlertCallback, true, '⚠️ 骨盤が浮いています！床につけよう！');
+      } else {
+        invokeCallback(onCheatAlertCallback, false, '');
+      }
+    }
+
+    // 4. 幾何計算
+    const metricResult = this.calculateMetrics(lm);
+    if (!metricResult) {
+      invokeCallback(onMetricUpdateCallback, null, null);
+    }
+  } catch (err) {
+    console.error('Error evaluating pose:', err);
+  }
+},
     /**
      * 確定4大テストの精密幾何計算 (FIXED: Kinematic corrections for all 4 modes)
      */
