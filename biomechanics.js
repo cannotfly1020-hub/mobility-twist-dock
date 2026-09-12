@@ -555,24 +555,42 @@
           case 'tab-shoulder2nd': {
             const sL = getLandmark(lm, 11);
             const sR = getLandmark(lm, 12);
+
+  // 右左どちらの腕が見えやすいかを visibility で選ぶ
             const useLeft =
               (sL?.visibility || 0) + (lm[13]?.visibility || 0) + (lm[15]?.visibility || 0) >=
               (sR?.visibility || 0) + (lm[14]?.visibility || 0) + (lm[16]?.visibility || 0);
 
-            const shoulder = useLeft ? sL : sR;
-            const elbow = getLandmark(lm, useLeft ? 13 : 14);
-            const wrist = getLandmark(lm, useLeft ? 15 : 16);
+  const shoulder = useLeft ? sL : sR;
+  const elbow = getLandmark(lm, useLeft ? 13 : 14);
+  const wrist = getLandmark(lm, useLeft ? 15 : 16);
 
-            if (shoulder && elbow && wrist) {
-              const elbowDistY = Math.abs(elbow.y - shoulder.y);
-              const elbowAngle = this.calculateAngle(shoulder, elbow, wrist);
-              const wristLevel = Math.abs(wrist.y - elbow.y);
+  if (shoulder && elbow && wrist) {
+    // 前腕が横方向に近いかを見る
+    const forearmAngle = Math.abs(
+      Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x) * 180 / Math.PI
+    );
 
-              isStanceReady = (elbowDistY < 0.18) && (elbowAngle >= 60 && elbowAngle <= 120) && (wristLevel < 0.20);
-              stanceMessage = isStanceReady ? '肩2ndスタンバイOK！' : '肩と肘を90度に開き前腕を水平に構えてください';
-            }
-            break;
-          }
+    // 肩・肘・手首の角度
+    const elbowAngle = this.calculateAngle(shoulder, elbow, wrist);
+
+    // 肘が肩から極端に離れていないか
+    const elbowNearShoulder = Math.abs(elbow.y - shoulder.y) < 0.28;
+
+    // 前腕がほぼ水平に近いか
+    const forearmNearHorizontal = forearmAngle < 35 || forearmAngle > 145;
+
+    isStanceReady =
+      elbowNearShoulder &&
+      forearmNearHorizontal &&
+      elbowAngle >= 45 && elbowAngle <= 135;
+
+    stanceMessage = isStanceReady
+      ? '肩2ndスタンバイOK！'
+      : '肩を水平付近に保ち、前腕を横に近い角度で構えてください';
+  }
+  break;
+}
 
           case 'tab-hinge': {
             const useLeft =
