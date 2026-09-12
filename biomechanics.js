@@ -447,11 +447,9 @@ if (!landmarks || landmarks.length === 0 || !hasEnoughBody) {
 }
 
 const bounds = this.getAspectFitBounds(videoElement, canvasElement);
-
 this.drawSkeleton(canvasCtx, landmarks, bounds);
 this.evaluatePose(landmarks);
 invokeCallback(onResultsCallback, landmarks, bounds);
-
 canvasCtx.restore();
       } catch (err) {
         console.error('Error handling pose results:', err);
