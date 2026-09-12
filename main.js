@@ -963,8 +963,10 @@
             AppTestOrchestrator.handleTriggerReady(isReady, message);
           },
           onMetricUpdate: (main, sub) => {
-            AppUI.updateMetrics(main, sub);
-          },
+  // biomechanics.js から null が来たフレームは「未計測」なので進めない
+  if (main == null || sub == null) return;
+  AppUI.updateMetrics(main, sub);
+},
           onCheatAlert: (isCheating, text) => {
             AppUI.updateCheatAlert(isCheating, text);
           }
