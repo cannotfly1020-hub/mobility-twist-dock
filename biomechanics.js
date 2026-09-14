@@ -58,7 +58,9 @@
   let canvasCtx = null;
   let poseInstance = null;
   let animationFrameId = null;
-
+  let sleepTimerId = null;
+  let isSleepMode = false;
+  const SLEEP_TIMEOUT_MS = 3 * 60 * 1000; // 3分
   let currentFacingMode = 'user'; // 'user' (インカメラ) | 'environment' (アウトカメラ)
   let isRunning = false;
   let isSwitchingCamera = false;
@@ -109,7 +111,58 @@
       }
     }
   }
+  
+  /**
+   * スリープタイマーをリセットする
+   */
+  function resetSleepTimer() {
+    if (sleepTimerId) {
+      clearTimeout(sleepTimerId);
+    }
 
+    if (isSleepMode) {
+      return;
+    }
+
+    sleepTimerId = setTimeout(() => {
+      enterSleepMode();
+    }, SLEEP_TIMEOUT_MS);
+  }
+
+  /**
+   * スリープモードに入る
+   */
+  function enterSleepMode() {
+    if (isSleepMode) return;
+
+    isSleepMode = true;
+    AppEngine.stop();
+
+    if (canvasCtx && canvasElement) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.fillStyle = '#ffffff';
+      canvasCtx.font = 'bold 28px sans-serif';
+      canvasCtx.textAlign = 'center';
+      canvasCtx.fillText('スリープ中', canvasElement.width / 2, canvasElement.height / 2);
+      canvasCtx.restore();
+    }
+
+    invokeCallback(onTriggerReadyCallback, false, 'スリープ中');
+  }
+
+  /**
+   * スリープモードから復帰する
+   */
+  async function exitSleepMode() {
+    if (!isSleepMode) return;
+
+    isSleepMode = false;
+    resetSleepTimer();
+    await AppEngine.startCamera();
+  }
   /**
    * Load MediaPipe Pose with fallback CDN
    */
@@ -173,6 +226,21 @@ const AppEngine = {
       onMetricUpdateCallback = config.onMetricUpdate || null;
       onCheatAlertCallback = config.onCheatAlert || null;
       onMeasurementValidityCallback = config.onMeasurementValidity || null;
+
+      resetSleepTimer();
+
+      const wakeUp = () => {
+        if (isSleepMode) {
+          exitSleepMode();
+        } else {
+          resetSleepTimer();
+        }
+      };
+
+      window.addEventListener('pointerdown', wakeUp, { passive: true });
+      window.addEventListener('touchstart', wakeUp, { passive: true });
+      window.addEventListener('mousemove', resetSleepTimer, { passive: true });
+      window.addEventListener('keydown', resetSleepTimer);
 
       this.initPoseModel();
     } catch (err) {
@@ -277,6 +345,7 @@ const AppEngine = {
         isRunning = true;
         currentState = STATE.CAMERA_RUNNING;
         this.startFrameProcessingLoop();
+        resetSleepTimer();
       } catch (e) {
         console.error('Camera stream error:', e);
         currentState = STATE.CAMERA_ERROR;
@@ -376,6 +445,10 @@ const AppEngine = {
 
     stop() {
       isRunning = false;
+      if (sleepTimerId) {
+        clearTimeout(sleepTimerId);
+        sleepTimerId = null;
+      }
       this.stopCameraStream();
     },
 
