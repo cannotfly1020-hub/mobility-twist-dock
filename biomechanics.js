@@ -59,7 +59,8 @@
   let poseInstance = null;
   let animationFrameId = null;
   let sleepTimerId = null;
-  let isSleepMode = false;
+  let isSleepMode = false;  
+  let sleepListenersAttached = false;
   const SLEEP_TIMEOUT_MS = 3 * 60 * 1000; // 3分
   let currentFacingMode = 'user'; // 'user' (インカメラ) | 'environment' (アウトカメラ)
   let isRunning = false;
@@ -140,13 +141,20 @@
 
     if (canvasCtx && canvasElement) {
       canvasCtx.save();
+
+      // 文字の反転を防ぐ
+      canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
       canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
       canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
       canvasCtx.fillStyle = '#ffffff';
       canvasCtx.font = 'bold 28px sans-serif';
       canvasCtx.textAlign = 'center';
+      canvasCtx.textBaseline = 'middle';
       canvasCtx.fillText('スリープ中', canvasElement.width / 2, canvasElement.height / 2);
+
       canvasCtx.restore();
     }
 
@@ -214,40 +222,44 @@ const AppEngine = {
   /**
    * Initialize the engine
    */
-  init(config) {
-    try {
-      videoElement = config.videoElement;
-      canvasElement = config.canvasElement;
-      if (canvasElement) {
-        canvasCtx = canvasElement.getContext('2d');
-      }
-      onResultsCallback = config.onResults || null;
-      onTriggerReadyCallback = config.onTriggerReady || null;
-      onMetricUpdateCallback = config.onMetricUpdate || null;
-      onCheatAlertCallback = config.onCheatAlert || null;
-      onMeasurementValidityCallback = config.onMeasurementValidity || null;
-
-      resetSleepTimer();
-
-      const wakeUp = () => {
-        if (isSleepMode) {
-          exitSleepMode();
-        } else {
-          resetSleepTimer();
+    init(config) {
+      try {
+        videoElement = config.videoElement;
+        canvasElement = config.canvasElement;
+        if (canvasElement) {
+          canvasCtx = canvasElement.getContext('2d');
         }
-      };
+        onResultsCallback = config.onResults || null;
+        onTriggerReadyCallback = config.onTriggerReady || null;
+        onMetricUpdateCallback = config.onMetricUpdate || null;
+        onCheatAlertCallback = config.onCheatAlert || null;
+        onMeasurementValidityCallback = config.onMeasurementValidity || null;
 
-      window.addEventListener('pointerdown', wakeUp, { passive: true });
-      window.addEventListener('touchstart', wakeUp, { passive: true });
-      window.addEventListener('mousemove', resetSleepTimer, { passive: true });
-      window.addEventListener('keydown', resetSleepTimer);
+        resetSleepTimer();
 
-      this.initPoseModel();
-    } catch (err) {
-      console.error('Engine initialization failed:', err);
-      currentState = STATE.MODEL_FAILED;
-    }
-  },
+        if (!sleepListenersAttached) {
+          const wakeUp = () => {
+            if (isSleepMode) {
+              exitSleepMode();
+            } else {
+              resetSleepTimer();
+            }
+          };
+
+          window.addEventListener('pointerdown', wakeUp, { passive: true });
+          window.addEventListener('touchstart', wakeUp, { passive: true });
+          window.addEventListener('mousemove', resetSleepTimer, { passive: true });
+          window.addEventListener('keydown', resetSleepTimer);
+
+          sleepListenersAttached = true;
+        }
+
+        this.initPoseModel();
+      } catch (err) {
+        console.error('Engine initialization failed:', err);
+        currentState = STATE.MODEL_FAILED;
+      }
+    },
     /**
      * MediaPipe Pose モデルのセットアップ（タイムアウト付き）
      */
