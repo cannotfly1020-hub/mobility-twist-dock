@@ -60,7 +60,7 @@
   let animationFrameId = null;
   let sleepTimerId = null;
   let isSleepMode = false;
-  const SLEEP_TIMEOUT_MS = * 10 * 1000; // 10秒
+  const SLEEP_TIMEOUT_MS = 3 * 60 * 1000; // 3分
   let currentFacingMode = 'user'; // 'user' (インカメラ) | 'environment' (アウトカメラ)
   let isRunning = false;
   let isSwitchingCamera = false;
