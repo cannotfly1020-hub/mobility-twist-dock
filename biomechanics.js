@@ -802,7 +802,423 @@ canvasCtx.restore();
       return Math.acos(cosTheta) * (180 / Math.PI);
     }
   };
+    /**
+     * 2点の中点を返す
+     */
+    getMidpoint(p1, p2) {
+      if (!p1 || !p2) return null;
+      return {
+        x: (p1.x + p2.x) / 2,
+        y: (p1.y + p2.y) / 2
+      };
+    },
 
+    /**
+     * 2点間の距離を返す
+     */
+    pointDistance(p1, p2) {
+      if (!p1 || !p2) return null;
+      return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    },
+
+    /**
+     * 指定ランドマーク群の visibility が十分か確認する
+     */
+    areLandmarksVisible(lm, indices, minVisibility = CONFIG.MIN_LANDMARK_VISIBILITY) {
+      if (!lm || !Array.isArray(indices) || indices.length === 0) return false;
+      return indices.every((idx) => {
+        const p = getLandmark(lm, idx);
+        return p && (p.visibility ?? 0) >= minVisibility;
+      });
+    },
+
+    /**
+     * 骨盤の安定性を判定する
+     * - 左右hipの高さ差
+     * - 左右hip中心の位置ずれ
+     * - 肩ラインとのズレ
+     */
+    detectPelvisStability(lm) {
+      try {
+        const shoulderL = getLandmark(lm, 11);
+        const shoulderR = getLandmark(lm, 12);
+        const hipL = getLandmark(lm, 23);
+        const hipR = getLandmark(lm, 24);
+
+        if (!(shoulderL && shoulderR && hipL && hipR)) {
+          return {
+            stable: false,
+            tiltDeg: null,
+            shift: null,
+            rotationRisk: true
+          };
+        }
+
+        const hipMid = this.getMidpoint(hipL, hipR);
+        const shoulderMid = this.getMidpoint(shoulderL, shoulderR);
+
+        const hipLine = { x: hipR.x - hipL.x, y: hipR.y - hipL.y };
+        const verticalRef = { x: 0, y: -1 };
+        const tiltDeg = Math.round(this.vectorAngle(verticalRef, hipLine) * 10) / 10;
+
+        const hipHeightDiff = Math.abs(hipL.y - hipR.y);
+        const shoulderHipShift = Math.abs((shoulderMid?.x ?? 0) - (hipMid?.x ?? 0));
+
+        const stable = hipHeightDiff < 0.05 && shoulderHipShift < 0.08 && tiltDeg < 10;
+
+        return {
+          stable,
+          tiltDeg,
+          shift: Math.round(shoulderHipShift * 1000) / 1000,
+          rotationRisk: !stable
+        };
+      } catch (err) {
+        console.error('detectPelvisStability failed:', err);
+        return {
+          stable: false,
+          tiltDeg: null,
+          shift: null,
+          rotationRisk: true
+        };
+      }
+    },
+
+    /**
+     * 体幹の傾き代償を判定する
+     */
+    detectTrunkLean(lm) {
+      try {
+        const shoulderL = getLandmark(lm, 11);
+        const shoulderR = getLandmark(lm, 12);
+        const hipL = getLandmark(lm, 23);
+        const hipR = getLandmark(lm, 24);
+
+        if (!(shoulderL && shoulderR && hipL && hipR)) {
+          return {
+            flagged: true,
+            leanDeg: null,
+            reason: ['体幹判定に必要なランドマークが不足しています']
+          };
+        }
+
+        const shoulderMid = this.getMidpoint(shoulderL, shoulderR);
+        const hipMid = this.getMidpoint(hipL, hipR);
+        const trunkVec = {
+          x: shoulderMid.x - hipMid.x,
+          y: shoulderMid.y - hipMid.y
+        };
+
+        const verticalRef = { x: 0, y: -1 };
+        const leanDeg = Math.round(this.vectorAngle(verticalRef, trunkVec) * 10) / 10;
+
+        const flagged = leanDeg > 12;
+
+        return {
+          flagged,
+          leanDeg,
+          reason: flagged ? ['体幹の傾きが大きいです'] : []
+        };
+      } catch (err) {
+        console.error('detectTrunkLean failed:', err);
+        return {
+          flagged: true,
+          leanDeg: null,
+          reason: ['体幹傾き判定に失敗しました']
+        };
+      }
+    },
+
+    /**
+     * 内外転代償を判定する
+     * - 膝が股関節中心から横に逃げているか
+     * - 足首が膝から横に逃げているか
+     * - 足部が横にスライドしているか
+     */
+    detectAbductionAdductionCompensation(lm, side = 'left', baseline = null) {
+      try {
+        const prefix = side === 'right' ? 'right' : 'left';
+        const hipIdx = prefix === 'left' ? 23 : 24;
+        const kneeIdx = prefix === 'left' ? 25 : 26;
+        const ankleIdx = prefix === 'left' ? 27 : 28;
+        const footIdx = prefix === 'left' ? 29 : 30;
+
+        const hip = getLandmark(lm, hipIdx);
+        const knee = getLandmark(lm, kneeIdx);
+        const ankle = getLandmark(lm, ankleIdx);
+        const foot = getLandmark(lm, footIdx);
+
+        if (!(hip && knee && ankle)) {
+          return {
+            flagged: true,
+            severity: 'severe',
+            kneeLateralShift: null,
+            ankleLateralShift: null,
+            footDrift: null,
+            reason: ['内外転代償判定に必要なランドマークが不足しています']
+          };
+        }
+
+        const hipCenter = this.getMidpoint(
+          getLandmark(lm, 23),
+          getLandmark(lm, 24)
+        ) || hip;
+
+        const kneeLateralShift = Math.abs(knee.x - hipCenter.x);
+        const ankleLateralShift = Math.abs(ankle.x - knee.x);
+        const footDrift = foot ? Math.abs(foot.x - ankle.x) : null;
+
+        const kneeThreshold = baseline?.kneeLateralShiftMax ?? 0.10;
+        const ankleThreshold = baseline?.ankleLateralShiftMax ?? 0.08;
+        const footThreshold = baseline?.footDriftMax ?? 0.10;
+
+        const kneeFlag = kneeLateralShift > kneeThreshold;
+        const ankleFlag = ankleLateralShift > ankleThreshold;
+        const footFlag = footDrift !== null ? footDrift > footThreshold : false;
+
+        const flags = [kneeFlag, ankleFlag, footFlag].filter(Boolean).length;
+
+        let severity = 'none';
+        if (flags === 1) severity = 'mild';
+        if (flags === 2) severity = 'moderate';
+        if (flags >= 3) severity = 'severe';
+
+        const reason = [];
+        if (kneeFlag) reason.push('膝の横移動が大きいです');
+        if (ankleFlag) reason.push('足首が膝から横に逃げています');
+        if (footFlag) reason.push('足部が横にスライドしています');
+
+        return {
+          flagged: flags > 0,
+          severity,
+          kneeLateralShift: Math.round(kneeLateralShift * 1000) / 1000,
+          ankleLateralShift: Math.round(ankleLateralShift * 1000) / 1000,
+          footDrift: footDrift === null ? null : Math.round(footDrift * 1000) / 1000,
+          reason
+        };
+      } catch (err) {
+        console.error('detectAbductionAdductionCompensation failed:', err);
+        return {
+          flagged: true,
+          severity: 'severe',
+          kneeLateralShift: null,
+          ankleLateralShift: null,
+          footDrift: null,
+          reason: ['内外転代償判定に失敗しました']
+        };
+      }
+    },
+
+    /**
+     * 股関節の内外旋を下腿・足部の向きから推定する
+     */
+    estimateHipRotationAngles(lm, side = 'left') {
+      try {
+        const prefix = side === 'right' ? 'right' : 'left';
+        const hipIdx = prefix === 'left' ? 23 : 24;
+        const kneeIdx = prefix === 'left' ? 25 : 26;
+        const ankleIdx = prefix === 'left' ? 27 : 28;
+        const footIdx = prefix === 'left' ? 29 : 30;
+
+        const hip = getLandmark(lm, hipIdx);
+        const knee = getLandmark(lm, kneeIdx);
+        const ankle = getLandmark(lm, ankleIdx);
+        const foot = getLandmark(lm, footIdx);
+
+        if (!(hip && knee && ankle)) {
+          return {
+            shankAngleDeg: null,
+            footAngleDeg: null,
+            estimatedRotationDeg: null
+          };
+        }
+
+        const shankVec = { x: ankle.x - knee.x, y: ankle.y - knee.y };
+        const verticalRef = { x: 0, y: -1 };
+        const shankAngleDeg = Math.round(this.vectorAngle(verticalRef, shankVec) * 10) / 10;
+
+        let footAngleDeg = null;
+        if (foot) {
+          const footVec = { x: foot.x - ankle.x, y: foot.y - ankle.y };
+          footAngleDeg = Math.round(this.vectorAngle(verticalRef, footVec) * 10) / 10;
+        }
+
+        let estimatedRotationDeg = shankAngleDeg;
+        if (footAngleDeg !== null) {
+          estimatedRotationDeg = Math.round(((shankAngleDeg + footAngleDeg) / 2) * 10) / 10;
+        }
+
+        return {
+          shankAngleDeg,
+          footAngleDeg,
+          estimatedRotationDeg
+        };
+      } catch (err) {
+        console.error('estimateHipRotationAngles failed:', err);
+        return {
+          shankAngleDeg: null,
+          footAngleDeg: null,
+          estimatedRotationDeg: null
+        };
+      }
+    },
+
+    /**
+     * 股関節内外旋 + 内外転代償 + 体幹代償をまとめて評価する
+     */
+    evaluateHipRotationWithCompensation(lm, options = {}) {
+      try {
+        const side = options.side || 'left';
+        const minVisibility = options.minVisibility ?? CONFIG.MIN_LANDMARK_VISIBILITY;
+        const baseline = options.baseline || null;
+
+        const hipIdx = side === 'right' ? 24 : 23;
+        const kneeIdx = side === 'right' ? 26 : 25;
+        const ankleIdx = side === 'right' ? 28 : 27;
+
+        const required = [hipIdx, kneeIdx, ankleIdx];
+        const visibleEnough = this.areLandmarksVisible(lm, required, minVisibility);
+
+        if (!visibleEnough) {
+          return {
+            valid: false,
+            side,
+            rotation: {
+              left: { angle: null, internal: null, external: null, rom: null },
+              right: { angle: null, internal: null, external: null, rom: null }
+            },
+            compensation: {
+              abductionAdduction: true,
+              pelvisShift: true,
+              trunkLean: true,
+              footDrift: true
+            },
+            metrics: {
+              pelvisTiltDeg: null,
+              hipShiftPx: null,
+              kneeShiftPx: null,
+              ankleShiftPx: null,
+              shankAngleLeftDeg: null,
+              shankAngleRightDeg: null
+            },
+            warnings: ['必要なランドマークの可視性が不足しています'],
+            score: {
+              rotation: 0,
+              compensationPenalty: 100,
+              final: 0
+            }
+          };
+        }
+
+        const pelvis = this.detectPelvisStability(lm);
+        const trunk = this.detectTrunkLean(lm);
+
+        const compLeft = this.detectAbductionAdductionCompensation(lm, 'left', baseline);
+        const compRight = this.detectAbductionAdductionCompensation(lm, 'right', baseline);
+
+        const rotLeft = this.estimateHipRotationAngles(lm, 'left');
+        const rotRight = this.estimateHipRotationAngles(lm, 'right');
+
+        const leftInternal = rotLeft.estimatedRotationDeg;
+        const rightInternal = rotRight.estimatedRotationDeg;
+
+        const leftExternal = leftInternal !== null ? Math.max(0, 90 - leftInternal) : null;
+        const rightExternal = rightInternal !== null ? Math.max(0, 90 - rightInternal) : null;
+
+        const leftROM = leftInternal !== null && leftExternal !== null ? Math.round((leftInternal + leftExternal) * 10) / 10 : null;
+        const rightROM = rightInternal !== null && rightExternal !== null ? Math.round((rightInternal + rightExternal) * 10) / 10 : null;
+
+        const compensationFlags = {
+          abductionAdduction: compLeft.flagged || compRight.flagged,
+          pelvisShift: !pelvis.stable,
+          trunkLean: trunk.flagged,
+          footDrift: (compLeft.footDrift ?? 0) > 0 || (compRight.footDrift ?? 0) > 0
+        };
+
+        const warnings = [];
+        if (compLeft.reason?.length) warnings.push(...compLeft.reason.map((s) => `左: ${s}`));
+        if (compRight.reason?.length) warnings.push(...compRight.reason.map((s) => `右: ${s}`));
+        if (!pelvis.stable) warnings.push('骨盤が不安定です');
+        if (trunk.flagged) warnings.push(...trunk.reason);
+
+        const rotationScoreBase = (() => {
+          const values = [leftROM, rightROM].filter((v) => Number.isFinite(v));
+          if (values.length === 0) return 0;
+          return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+        })();
+
+        let penalty = 0;
+        if (compensationFlags.abductionAdduction) penalty += 20;
+        if (compensationFlags.pelvisShift) penalty += 20;
+        if (compensationFlags.trunkLean) penalty += 20;
+        if (compensationFlags.footDrift) penalty += 10;
+
+        const finalScore = Math.max(0, Math.min(100, rotationScoreBase - penalty + 50));
+
+        return {
+          valid: true,
+          side,
+          rotation: {
+            left: {
+              angle: rotLeft.estimatedRotationDeg,
+              internal: leftInternal,
+              external: leftExternal,
+              rom: leftROM
+            },
+            right: {
+              angle: rotRight.estimatedRotationDeg,
+              internal: rightInternal,
+              external: rightExternal,
+              rom: rightROM
+            }
+          },
+          compensation: compensationFlags,
+          metrics: {
+            pelvisTiltDeg: pelvis.tiltDeg,
+            hipShiftPx: pelvis.shift,
+            kneeShiftPx: compLeft.kneeLateralShift,
+            ankleShiftPx: compLeft.ankleLateralShift,
+            shankAngleLeftDeg: rotLeft.shankAngleDeg,
+            shankAngleRightDeg: rotRight.shankAngleDeg
+          },
+          warnings,
+          score: {
+            rotation: rotationScoreBase,
+            compensationPenalty: penalty,
+            final: finalScore
+          }
+        };
+      } catch (err) {
+        console.error('evaluateHipRotationWithCompensation failed:', err);
+        return {
+          valid: false,
+          side: options.side || 'left',
+          rotation: {
+            left: { angle: null, internal: null, external: null, rom: null },
+            right: { angle: null, internal: null, external: null, rom: null }
+          },
+          compensation: {
+            abductionAdduction: true,
+            pelvisShift: true,
+            trunkLean: true,
+            footDrift: true
+          },
+          metrics: {
+            pelvisTiltDeg: null,
+            hipShiftPx: null,
+            kneeShiftPx: null,
+            ankleShiftPx: null,
+            shankAngleLeftDeg: null,
+            shankAngleRightDeg: null
+          },
+          warnings: ['股関節評価に失敗しました'],
+          score: {
+            rotation: 0,
+            compensationPenalty: 100,
+            final: 0
+          }
+        };
+      }
+    },
   // ============================================
   // EXPORT
   // ============================================
