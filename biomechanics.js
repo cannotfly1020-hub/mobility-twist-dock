@@ -800,8 +800,8 @@ canvasCtx.restore();
 
       const cosTheta = Math.max(-1, Math.min(1, dot / (mag1 * mag2)));
       return Math.acos(cosTheta) * (180 / Math.PI);
-    }
-  };
+    },
+    
     /**
      * 2点の中点を返す
      */
@@ -926,8 +926,6 @@ canvasCtx.restore();
           reason: ['体幹傾き判定に失敗しました']
         };
       }
-    },
-
     /**
      * 内外転代償を判定する
      * - 膝が股関節中心から横に逃げているか
@@ -1218,7 +1216,9 @@ canvasCtx.restore();
           }
         };
       }
-    },
+    }
+  };
+      
   // ============================================
   // EXPORT
   // ============================================
