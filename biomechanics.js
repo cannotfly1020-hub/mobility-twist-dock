@@ -149,8 +149,15 @@
   // MAIN ENGINE
   // ============================================
 
-const AppEngine = {
-  baseline: {
+　constconst AppEngine = {
+   getCanvasElement() {
+    return canvasElement;
+   },
+
+   getCanvasContext() {
+    return canvasCtx;
+   },
+   baseline: {
     hip: {
       left: null,
       right: null
@@ -276,7 +283,6 @@ const AppEngine = {
         isRunning = true;
         currentState = STATE.CAMERA_RUNNING;
         this.startFrameProcessingLoop();
-        resetSleepTimer();
       } catch (e) {
         console.error('Camera stream error:', e);
         currentState = STATE.CAMERA_ERROR;
@@ -374,14 +380,10 @@ const AppEngine = {
       }
     },
 
-    stop() {
-      isRunning = false;
-      if (sleepTimerId) {
-        clearTimeout(sleepTimerId);
-        sleepTimerId = null;
-      }
-      this.stopCameraStream();
-    },
+   stop() {
+  isRunning = false;
+  this.stopCameraStream();
+},
 
     /**
      * ★映像と骨格のズレ解消（object-fit: cover による切り捨てオフセット逆算）
