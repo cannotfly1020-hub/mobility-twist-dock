@@ -149,7 +149,7 @@
   // MAIN ENGINE
   // ============================================
 
-　constconst AppEngine = {
+  constconst AppEngine = {
    getCanvasElement() {
     return canvasElement;
    },
