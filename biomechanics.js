@@ -682,18 +682,15 @@ canvasCtx.restore();
             const rawLeft = Math.round(this.vectorAngle(pelvisVec, shinVecL));
             const rawRight = Math.round(this.vectorAngle(pelvisVec, shinVecR));
 
-            // 初回に見えた角度を baseline として保存
-            if (this.baseline?.hip?.left === null || this.baseline?.hip?.left === undefined) {
+            if (this.baseline.hip.left === null) {
               this.baseline.hip.left = rawLeft;
             }
-            if (this.baseline?.hip?.right === null || this.baseline?.hip?.right === undefined) {
+            if (this.baseline.hip.right === null) {
               this.baseline.hip.right = rawRight;
             }
 
-            // baseline との差分を出す
             mainVal = rawLeft - this.baseline.hip.left;
             subVal = rawRight - this.baseline.hip.right;
-
             isValidFrame = true;
             break;
           }
