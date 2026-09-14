@@ -150,30 +150,36 @@
   // MAIN ENGINE
   // ============================================
 
-  const AppEngine = {
-    /**
-     * Initialize the engine
-     */
-    init(config) {
-      try {
-        videoElement = config.videoElement;
-        canvasElement = config.canvasElement;
-        if (canvasElement) {
-          canvasCtx = canvasElement.getContext('2d');
-        }
-        onResultsCallback = config.onResults || null;
-        onTriggerReadyCallback = config.onTriggerReady || null;
-        onMetricUpdateCallback = config.onMetricUpdate || null;
-        onCheatAlertCallback = config.onCheatAlert || null;
-        onMeasurementValidityCallback = config.onMeasurementValidity || null;
+const AppEngine = {
+  baseline: {
+    hip: {
+      left: null,
+      right: null
+    }
+  },
 
-        this.initPoseModel();
-      } catch (err) {
-        console.error('Engine initialization failed:', err);
-        currentState = STATE.MODEL_FAILED;
+  /**
+   * Initialize the engine
+   */
+  init(config) {
+    try {
+      videoElement = config.videoElement;
+      canvasElement = config.canvasElement;
+      if (canvasElement) {
+        canvasCtx = canvasElement.getContext('2d');
       }
-    },
+      onResultsCallback = config.onResults || null;
+      onTriggerReadyCallback = config.onTriggerReady || null;
+      onMetricUpdateCallback = config.onMetricUpdate || null;
+      onCheatAlertCallback = config.onCheatAlert || null;
+      onMeasurementValidityCallback = config.onMeasurementValidity || null;
 
+      this.initPoseModel();
+    } catch (err) {
+      console.error('Engine initialization failed:', err);
+      currentState = STATE.MODEL_FAILED;
+    }
+  },
     /**
      * MediaPipe Pose モデルのセットアップ（タイムアウト付き）
      */
@@ -673,8 +679,21 @@ canvasCtx.restore();
             const shinVecL = { x: ankleL.x - kneeL.x, y: ankleL.y - kneeL.y };
             const shinVecR = { x: ankleR.x - kneeR.x, y: ankleR.y - kneeR.y };
 
-            mainVal = Math.round(this.vectorAngle(pelvisVec, shinVecL));
-            subVal = Math.round(this.vectorAngle(pelvisVec, shinVecR));
+            const rawLeft = Math.round(this.vectorAngle(pelvisVec, shinVecL));
+            const rawRight = Math.round(this.vectorAngle(pelvisVec, shinVecR));
+
+            // 初回に見えた角度を baseline として保存
+            if (this.baseline?.hip?.left === null || this.baseline?.hip?.left === undefined) {
+              this.baseline.hip.left = rawLeft;
+            }
+            if (this.baseline?.hip?.right === null || this.baseline?.hip?.right === undefined) {
+              this.baseline.hip.right = rawRight;
+            }
+
+            // baseline との差分を出す
+            mainVal = rawLeft - this.baseline.hip.left;
+            subVal = rawRight - this.baseline.hip.right;
+
             isValidFrame = true;
             break;
           }
@@ -1082,8 +1101,8 @@ canvasCtx.restore();
             valid: false,
             side,
             rotation: {
-              left: { angle: null, internal: null, external: null, rom: null },
-              right: { angle: null, internal: null, external: null, rom: null }
+              left: { angle: null, delta: null, internal: null, external: null, rom: null },
+              right: { angle: null, delta: null, internal: null, external: null, rom: null }
             },
             compensation: {
               abductionAdduction: true,
@@ -1117,14 +1136,28 @@ canvasCtx.restore();
         const rotLeft = this.estimateHipRotationAngles(lm, 'left');
         const rotRight = this.estimateHipRotationAngles(lm, 'right');
 
-        const leftInternal = rotLeft.estimatedRotationDeg;
-        const rightInternal = rotRight.estimatedRotationDeg;
+        // --------------------------------------------------
+        // 0°基準: baseline があれば、その値からの差分を使う
+        // baseline がなければ、現時点を 0° として扱う
+        // --------------------------------------------------
+        const baselineLeft = baseline?.leftRotationDeg ?? rotLeft.estimatedRotationDeg ?? 0;
+        const baselineRight = baseline?.rightRotationDeg ?? rotRight.estimatedRotationDeg ?? 0;
 
-        const leftExternal = leftInternal !== null ? Math.max(0, 90 - leftInternal) : null;
-        const rightExternal = rightInternal !== null ? Math.max(0, 90 - rightInternal) : null;
+        const leftAngle = rotLeft.estimatedRotationDeg;
+        const rightAngle = rotRight.estimatedRotationDeg;
 
-        const leftROM = leftInternal !== null && leftExternal !== null ? Math.round((leftInternal + leftExternal) * 10) / 10 : null;
-        const rightROM = rightInternal !== null && rightExternal !== null ? Math.round((rightInternal + rightExternal) * 10) / 10 : null;
+        const leftDelta = leftAngle !== null ? Math.round((leftAngle - baselineLeft) * 10) / 10 : null;
+        const rightDelta = rightAngle !== null ? Math.round((rightAngle - baselineRight) * 10) / 10 : null;
+
+        // 0°起点のため、内部/外部は delta の正負で表現
+        const leftInternal = leftDelta !== null && leftDelta >= 0 ? leftDelta : 0;
+        const leftExternal = leftDelta !== null && leftDelta < 0 ? Math.abs(leftDelta) : 0;
+
+        const rightInternal = rightDelta !== null && rightDelta >= 0 ? rightDelta : 0;
+        const rightExternal = rightDelta !== null && rightDelta < 0 ? Math.abs(rightDelta) : 0;
+
+        const leftROM = leftDelta !== null ? Math.round(Math.abs(leftDelta) * 10) / 10 : null;
+        const rightROM = rightDelta !== null ? Math.round(Math.abs(rightDelta) * 10) / 10 : null;
 
         const compensationFlags = {
           abductionAdduction: compLeft.flagged || compRight.flagged,
@@ -1158,13 +1191,15 @@ canvasCtx.restore();
           side,
           rotation: {
             left: {
-              angle: rotLeft.estimatedRotationDeg,
+              angle: leftAngle,
+              delta: leftDelta,
               internal: leftInternal,
               external: leftExternal,
               rom: leftROM
             },
             right: {
-              angle: rotRight.estimatedRotationDeg,
+              angle: rightAngle,
+              delta: rightDelta,
               internal: rightInternal,
               external: rightExternal,
               rom: rightROM
@@ -1192,8 +1227,8 @@ canvasCtx.restore();
           valid: false,
           side: options.side || 'left',
           rotation: {
-            left: { angle: null, internal: null, external: null, rom: null },
-            right: { angle: null, internal: null, external: null, rom: null }
+            left: { angle: null, delta: null, internal: null, external: null, rom: null },
+            right: { angle: null, delta: null, internal: null, external: null, rom: null }
           },
           compensation: {
             abductionAdduction: true,
