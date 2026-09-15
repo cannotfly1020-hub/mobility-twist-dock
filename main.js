@@ -1036,7 +1036,8 @@ if (window.CameraEngine && window.AppEngine) {
     window.AppAudio.speak('柔軟性・しなりドックへようこそ！姿勢を合わせてスタートしよう！');
   }
 }
-
+}; //
+  
   // グローバル公開
   window.App = App;
 
