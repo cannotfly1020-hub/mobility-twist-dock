@@ -984,25 +984,25 @@ init() {
   }
 
   // Camera Engine 初期化
-  if (window.CameraEngine && window.AppEngine) {
-    window.CameraEngine.init({
-      videoElement: AppUI.elements.video
-    });
+if (window.CameraEngine && window.AppEngine) {
+  window.CameraEngine.init({
+    videoElement: AppUI.elements.video
+  });
 
-    // 実機カメラの起動（毎フレームで Pose 推論）
-    window.CameraEngine.start({
-      onFrame: async () => {
-        await window.AppEngine.sendFrameToPose();
-      },
-      onStarted: () => {
-        const facing = window.CameraEngine.getFacingMode();
-        AppUI.adjustCameraMirror(facing === 'user');
-      },
-      onError: (err) => {
-        console.warn('Camera autostart failed:', err);
-      }
-    });
-  }
+  // 実機カメラの起動（毎フレームで Pose 推論）
+  window.CameraEngine.start({
+    onFrame: async () => {
+      await window.AppEngine.sendFrameToPose();
+    },
+    onStarted: () => {
+      const facing = window.CameraEngine.getFacingMode();
+      AppUI.adjustCameraMirror(facing === 'user');
+    },
+    onError: (err) => {
+      console.warn('Camera autostart failed:', err);
+    }
+  });
+}
 
   // ページ離脱時にカメラ停止
   window.addEventListener('beforeunload', () => {
