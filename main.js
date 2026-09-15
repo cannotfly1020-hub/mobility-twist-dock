@@ -983,12 +983,7 @@ init() {
     });
   }
 
-  // Camera Engine 初期化
-if (window.CameraEngine && window.AppEngine) {
-  window.CameraEngine.init({
-    videoElement: AppUI.elements.video
-  });
-
+// Camera Engine 初期化
 if (window.CameraEngine && window.AppEngine) {
   window.CameraEngine.init({
     videoElement: AppUI.elements.video
