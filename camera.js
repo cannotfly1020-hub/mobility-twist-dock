@@ -43,18 +43,18 @@
           });
         }
 
-        this.videoElement.srcObject = stream;
-        this.videoElement.setAttribute('playsinline', 'true');
-        this.videoElement.setAttribute('webkit-playsinline', 'true');
-        this.videoElement.muted = true;
-        await this.videoElement.play();
-        try {
-          await this.videoElement.play();
-        } catch (playErr) {
-          // iOSの自動再生制限対策:
-         // 最初のユーザー操作（ボタンタップ）後に再試行される想定
-         console.warn('video.play() blocked, waiting for user gesture:', playErr);
-        }
+this.videoElement.srcObject = stream;
+this.videoElement.setAttribute('playsinline', 'true');
+this.videoElement.setAttribute('webkit-playsinline', 'true');
+this.videoElement.muted = true;
+
+try {
+  await this.videoElement.play();
+} catch (playErr) {
+  // iOSの自動再生制限対策:
+  // 最初のユーザー操作（ボタンタップ）後に再試行される想定
+  console.warn('video.play() blocked, waiting for user gesture:', playErr);
+}
 
         this.isRunning = true;
         onStarted && onStarted();
