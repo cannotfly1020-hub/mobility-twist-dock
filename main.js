@@ -538,7 +538,9 @@ if (this.elements.btnSwitchCamera) {
             await window.AppEngine.sendFrameToPose();
           },
           onStarted: () => {},
-          onError: (err) => console.error('Camera switch error:', err)
+          onError: (err) => {
+            console.error('Camera switch error:', err);
+          }
         });
 
         this.adjustCameraMirror(facing === 'user');
