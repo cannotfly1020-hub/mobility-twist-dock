@@ -529,19 +529,27 @@
     bindEvents() {
       // カメラ起動＆イン/外切替
       if (this.elements.btnSwitchCamera) {
-        this.elements.btnSwitchCamera.addEventListener('click', async () => {
-          if (window.AppEngine) {
-            this.elements.btnSwitchCamera.disabled = true;
-            try {
-              const facing = await window.AppEngine.switchCamera();
-              this.adjustCameraMirror(facing === 'user');
-              this.showToast(facing === 'user' ? '🔄 インカメラに切り替えました' : '🔄 外カメラに切り替えました');
-            } finally {
-              this.elements.btnSwitchCamera.disabled = false;
-            }
+  this.elements.btnSwitchCamera.addEventListener('click', async () => {
+    if (window.CameraEngine && window.AppEngine) {
+      this.elements.btnSwitchCamera.disabled = true;
+      try {
+        const facing = await window.CameraEngine.switchCamera({
+          onFrame: async () => {
+            await window.AppEngine.sendFrameToPose();
+          },
+          onStarted: () => {},
+          onError: (err) => {
+            console.error('Camera switch error:', err);
           }
         });
+        this.adjustCameraMirror(facing === 'user');
+        this.showToast(facing === 'user' ? '🔄 インカメラに切り替えました' : '🔄 外カメラに切り替えました');
+      } finally {
+        this.elements.btnSwitchCamera.disabled = false;
       }
+    }
+  });
+}
 
       // スタートボタン
       if (this.elements.btnStartTrigger) {
@@ -942,49 +950,66 @@
     Orchestrator: AppTestOrchestrator,
     UI: AppUI,
 
-    init() {
-      AppUI.initElements();
-      AppUI.bindEvents();
+init() {
+  AppUI.initElements();
+  AppUI.bindEvents();
 
-      const activePlayer = AppStorage.getActivePlayer();
-      AppState.activePlayerId = activePlayer.id;
-      AppState.activePlayerName = activePlayer.name;
-      AppUI.updatePlayerBadge();
+  const activePlayer = AppStorage.getActivePlayer();
+  AppState.activePlayerId = activePlayer.id;
+  AppState.activePlayerName = activePlayer.name;
+  AppUI.updatePlayerBadge();
 
-      // Pose & Geometry Engine 初期化
-      if (window.AppEngine) {
-        window.AppEngine.init({
-          videoElement: AppUI.elements.video,
-          canvasElement: AppUI.elements.canvas,
-          onResults: (landmarks, bounds) => {
-            // 必要に応じたフレームごとの追加処理
-          },
-          onTriggerReady: (isReady, message) => {
-            AppTestOrchestrator.handleTriggerReady(isReady, message);
-          },
-          onMetricUpdate: (main, sub) => {
-  // biomechanics.js から null が来たフレームは「未計測」なので進めない
-  if (main == null || sub == null) return;
-  AppUI.updateMetrics(main, sub);
-},
-          onCheatAlert: (isCheating, text) => {
-            AppUI.updateCheatAlert(isCheating, text);
-          }
-        });
-
-        // 実機カメラの起動
-        window.AppEngine.startCamera().then(() => {
-          AppUI.adjustCameraMirror(true);
-        }).catch(err => {
-          console.warn('Camera autostart failed:', err);
-        });
+  // Pose & Geometry Engine 初期化
+  if (window.AppEngine) {
+    window.AppEngine.init({
+      videoElement: AppUI.elements.video,
+      canvasElement: AppUI.elements.canvas,
+      onResults: (landmarks, bounds) => {
+        // 必要に応じたフレームごとの追加処理
+      },
+      onTriggerReady: (isReady, message) => {
+        AppTestOrchestrator.handleTriggerReady(isReady, message);
+      },
+      onMetricUpdate: (main, sub) => {
+        if (main == null || sub == null) return;
+        AppUI.updateMetrics(main, sub);
+      },
+      onCheatAlert: (isCheating, text) => {
+        AppUI.updateCheatAlert(isCheating, text);
       }
+    });
+  }
 
-      if (window.AppAudio) {
-        window.AppAudio.speak('柔軟性・しなりドックへようこそ！姿勢を合わせてスタートしよう！');
+  // Camera Engine 初期化
+  if (window.CameraEngine && window.AppEngine) {
+    window.CameraEngine.init({
+      videoElement: AppUI.elements.video
+    });
+
+    // 実機カメラの起動（毎フレームで Pose 推論）
+    window.CameraEngine.start({
+      onFrame: async () => {
+        await window.AppEngine.sendFrameToPose();
+      },
+      onStarted: () => {
+        const facing = window.CameraEngine.getFacingMode();
+        AppUI.adjustCameraMirror(facing === 'user');
+      },
+      onError: (err) => {
+        console.warn('Camera autostart failed:', err);
       }
-    }
-  };
+    });
+  }
+
+  // ページ離脱時にカメラ停止
+  window.addEventListener('beforeunload', () => {
+    if (window.CameraEngine) window.CameraEngine.stop();
+  });
+
+  if (window.AppAudio) {
+    window.AppAudio.speak('柔軟性・しなりドックへようこそ！姿勢を合わせてスタートしよう！');
+  }
+}
 
   // グローバル公開
   window.App = App;
