@@ -361,13 +361,13 @@
     },
 
     startMeasurementSequence() {
-      if (
-        AppState.currentStatus === APP_STATES.COUNTDOWN ||
-        AppState.currentStatus === APP_STATES.MEASURING ||
-        AppState.currentStatus === APP_STATES.DRILL_ACTIVE ||
-        AppState.currentStatus === APP_STATES.REPORT_OPEN
-      ) return;
+　　  if (AppState.currentStatus !== APP_STATES.IDLE) return;
 
+ 　　 if (AppState.countdownTimer) {
+    　　clearInterval(AppState.countdownTimer);
+   　　 AppState.countdownTimer = null;
+ 　　 }
+      
       AppState.isStanceHolding = false;
       AppState.hasAnnouncedStanceReady = false;
       AppState.currentStatus = APP_STATES.COUNTDOWN;
@@ -434,43 +434,53 @@
       }, 100);
     },
 
-    finishMeasurement() {
-      AppState.currentStatus = APP_STATES.IDLE;
-      AppUI.showMeasuringBadge(false);
+finishMeasurement() {
+  if (AppState.countdownTimer) {
+    clearInterval(AppState.countdownTimer);
+    AppState.countdownTimer = null;
+  }
 
-      if (window.AppAudio) {
-        window.AppAudio.playWhistle();
-      }
+  if (AppState.measureTimer) {
+    clearInterval(AppState.measureTimer);
+    AppState.measureTimer = null;
+  }
 
-      const lVal = AppState.peakMetricLeft;
-      const rVal = AppState.peakMetricRight;
-      const evalResult = AppStorage.evaluateScore(AppState.currentTestMode, lVal, rVal);
+  AppState.currentStatus = APP_STATES.IDLE;
+  AppUI.showMeasuringBadge(false);
 
-      const record = {
-        id: 'rec_' + Date.now(),
-        playerId: AppState.activePlayerId,
-        playerName: AppState.activePlayerName,
-        testMode: AppState.currentTestMode,
-        timestamp: Date.now(),
-        leftVal: lVal,
-        rightVal: rVal,
-        rank: evalResult.rank,
-        title: evalResult.title
-      };
-      AppStorage.addRecord(record);
+  if (window.AppAudio) {
+    window.AppAudio.playWhistle();
+  }
 
-      AppUI.updateDiffBadge(evalResult.diff);
+  const lVal = AppState.peakMetricLeft;
+  const rVal = AppState.peakMetricRight;
+  const evalResult = AppStorage.evaluateScore(AppState.currentTestMode, lVal, rVal);
 
-      if (window.AppAudio) {
-        window.AppAudio.speak(`測定完了！ピーク角度は、左${lVal}度、右${rVal}度！${evalResult.title}！`);
-      }
+  const record = {
+    id: 'rec_' + Date.now(),
+    playerId: AppState.activePlayerId,
+    playerName: AppState.activePlayerName,
+    testMode: AppState.currentTestMode,
+    timestamp: Date.now(),
+    leftVal: lVal,
+    rightVal: rVal,
+    rank: evalResult.rank,
+    title: evalResult.title
+  };
+  AppStorage.addRecord(record);
 
-      setTimeout(() => {
-        AppUI.renderReport(record, evalResult);
-        AppState.currentStatus = APP_STATES.REPORT_OPEN;
-        AppUI.openModal('report-modal');
-      }, 800);
-    }
+  AppUI.updateDiffBadge(evalResult.diff);
+
+  if (window.AppAudio) {
+    window.AppAudio.speak(`測定完了！ピーク角度は、左${lVal}度、右${rVal}度！${evalResult.title}！`);
+  }
+
+  setTimeout(() => {
+    AppUI.renderReport(record, evalResult);
+    AppState.currentStatus = APP_STATES.REPORT_OPEN;
+    AppUI.openModal('report-modal');
+  }, 800);
+}
   };
 
   const AppUI = {
