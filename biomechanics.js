@@ -168,24 +168,40 @@
    * Initialize the engine
    */
     init(config) {
-      try {
-        videoElement = config.videoElement;
-        canvasElement = config.canvasElement;
-        if (canvasElement) {
-          canvasCtx = canvasElement.getContext('2d');
-        }
-        onResultsCallback = config.onResults || null;
-        onTriggerReadyCallback = config.onTriggerReady || null;
-        onMetricUpdateCallback = config.onMetricUpdate || null;
-        onCheatAlertCallback = config.onCheatAlert || null;
-        onMeasurementValidityCallback = config.onMeasurementValidity || null;
+  try {
+    videoElement = config.videoElement;
+    canvasElement = config.canvasElement;
+    if (canvasElement) {
+      canvasCtx = canvasElement.getContext('2d');
+    }
+    onResultsCallback = config.onResults || null;
+    onTriggerReadyCallback = config.onTriggerReady || null;
+    onMetricUpdateCallback = config.onMetricUpdate || null;
+    onCheatAlertCallback = config.onCheatAlert || null;
+    onMeasurementValidityCallback = config.onMeasurementValidity || null;
 
-        this.initPoseModel();
-      } catch (err) {
-        console.error('Engine initialization failed:', err);
-        currentState = STATE.MODEL_FAILED;
-      }
-    },
+    this.initPoseModel();
+  } catch (err) {
+    console.error('Engine initialization failed:', err);
+    currentState = STATE.MODEL_FAILED;
+  }
+},
+
+async sendFrameToPose() {
+  // Poseモデル未準備 or video未準備なら何もしない
+  if (!videoElement || !poseInstance) return;
+  if (videoElement.readyState < 2) return;
+  if (currentState === STATE.MODEL_FAILED) return;
+
+  try {
+    await poseInstance.send({ image: videoElement });
+  } catch (err) {
+    // ここで落とさない（ループ継続のため）
+    if (typeof process !== 'undefined' && process?.env?.NODE_ENV === 'development') {
+      console.debug('sendFrameToPose skipped:', err);
+    }
+  }
+},
     /**
      * MediaPipe Pose モデルのセットアップ（タイムアウト付き）
      */
