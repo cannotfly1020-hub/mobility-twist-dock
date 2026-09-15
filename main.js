@@ -977,67 +977,59 @@ if (this.elements.btnSwitchCamera) {
     Orchestrator: AppTestOrchestrator,
     UI: AppUI,
 
-init() {
-  AppUI.initElements();
-  AppUI.bindEvents();
+    init() {
+      AppUI.initElements();
+      AppUI.bindEvents();
 
-  const activePlayer = AppStorage.getActivePlayer();
-  AppState.activePlayerId = activePlayer.id;
-  AppState.activePlayerName = activePlayer.name;
-  AppUI.updatePlayerBadge();
+      const activePlayer = AppStorage.getActivePlayer();
+      AppState.activePlayerId = activePlayer.id;
+      AppState.activePlayerName = activePlayer.name;
+      AppUI.updatePlayerBadge();
 
-  // Pose & Geometry Engine 初期化
-  if (window.AppEngine) {
-    window.AppEngine.init({
-      videoElement: AppUI.elements.video,
-      canvasElement: AppUI.elements.canvas,
-      onResults: (landmarks, bounds) => {
-        // 必要に応じたフレームごとの追加処理
-      },
-      onTriggerReady: (isReady, message) => {
-        AppTestOrchestrator.handleTriggerReady(isReady, message);
-      },
-      onMetricUpdate: (main, sub) => {
-        if (main == null || sub == null) return;
-        AppUI.updateMetrics(main, sub);
-      },
-      onCheatAlert: (isCheating, text) => {
-        AppUI.updateCheatAlert(isCheating, text);
+      if (window.AppEngine) {
+        window.AppEngine.init({
+          videoElement: AppUI.elements.video,
+          canvasElement: AppUI.elements.canvas,
+          onResults: () => {},
+          onTriggerReady: (isReady, message) => {
+            AppTestOrchestrator.handleTriggerReady(isReady, message);
+          },
+          onMetricUpdate: (main, sub) => {
+            if (main == null || sub == null) return;
+            AppUI.updateMetrics(main, sub);
+          },
+          onCheatAlert: (isCheating, text) => {
+            AppUI.updateCheatAlert(isCheating, text);
+          }
+        });
       }
-    });
-  }
 
-// Camera Engine 初期化
-if (window.CameraEngine && window.AppEngine) {
-  window.CameraEngine.init({
-    videoElement: AppUI.elements.video
-  });
+      if (window.CameraEngine && window.AppEngine) {
+        window.CameraEngine.init({ videoElement: AppUI.elements.video });
+        window.CameraEngine.start({
+          onFrame: async () => {
+            await window.AppEngine.sendFrameToPose();
+          },
+          onStarted: () => {
+            const facing = window.CameraEngine.getFacingMode();
+            AppUI.adjustCameraMirror(facing === 'user');
+          },
+          onError: (err) => {
+            console.warn('Camera autostart failed:', err);
+          }
+        });
+      }
 
-  window.CameraEngine.start({
-    onFrame: async () => {
-      await window.AppEngine.sendFrameToPose();
-    },
-    onStarted: () => {
-      const facing = window.CameraEngine.getFacingMode();
-      AppUI.adjustCameraMirror(facing === 'user');
-    },
-    onError: (err) => {
-      console.warn('Camera autostart failed:', err);
+      window.addEventListener('beforeunload', () => {
+        if (window.CameraEngine) window.CameraEngine.stop();
+      });
+
+      if (window.AppAudio) {
+        window.AppAudio.speak('柔軟性・しなりドックへようこそ！姿勢を合わせてスタートしよう！');
+      }
     }
-  });
-}
+  };
 
-  // ページ離脱時にカメラ停止
-  window.addEventListener('beforeunload', () => {
-    if (window.CameraEngine) window.CameraEngine.stop();
-  });
-
-  if (window.AppAudio) {
-    window.AppAudio.speak('柔軟性・しなりドックへようこそ！姿勢を合わせてスタートしよう！');
-  }
-}
-}; //
-  
   // グローバル公開
   window.App = App;
 
