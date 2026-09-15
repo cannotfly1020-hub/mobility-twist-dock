@@ -538,15 +538,15 @@ if (this.elements.btnSwitchCamera) {
             await window.AppEngine.sendFrameToPose();
           },
           onStarted: () => {},
-          onError: (err) => {
-            console.error('Camera switch error:', err);
-          }
+          onError: (err) => console.error('Camera switch error:', err)
         });
 
         this.adjustCameraMirror(facing === 'user');
-        this.showToast(facing === 'user'
-          ? '🔄 インカメラに切り替えました'
-          : '🔄 外カメラに切り替えました');
+        this.showToast(
+          facing === 'user'
+            ? '🔄 インカメラに切り替えました'
+            : '🔄 外カメラに切り替えました'
+        );
       } finally {
         this.elements.btnSwitchCamera.disabled = false;
       }
@@ -989,7 +989,11 @@ if (window.CameraEngine && window.AppEngine) {
     videoElement: AppUI.elements.video
   });
 
-  // 実機カメラの起動（毎フレームで Pose 推論）
+if (window.CameraEngine && window.AppEngine) {
+  window.CameraEngine.init({
+    videoElement: AppUI.elements.video
+  });
+
   window.CameraEngine.start({
     onFrame: async () => {
       await window.AppEngine.sendFrameToPose();
