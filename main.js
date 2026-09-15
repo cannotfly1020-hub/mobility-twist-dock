@@ -528,7 +528,7 @@
 
     bindEvents() {
       // カメラ起動＆イン/外切替
-      if (this.elements.btnSwitchCamera) {
+if (this.elements.btnSwitchCamera) {
   this.elements.btnSwitchCamera.addEventListener('click', async () => {
     if (window.CameraEngine && window.AppEngine) {
       this.elements.btnSwitchCamera.disabled = true;
@@ -542,8 +542,11 @@
             console.error('Camera switch error:', err);
           }
         });
+
         this.adjustCameraMirror(facing === 'user');
-        this.showToast(facing === 'user' ? '🔄 インカメラに切り替えました' : '🔄 外カメラに切り替えました');
+        this.showToast(facing === 'user'
+          ? '🔄 インカメラに切り替えました'
+          : '🔄 外カメラに切り替えました');
       } finally {
         this.elements.btnSwitchCamera.disabled = false;
       }
