@@ -312,9 +312,9 @@
           try {
             await poseInstance.send({ image: videoElement });
           } catch (err) {
-            if (process.env.NODE_ENV === 'development') {
-              console.debug('Frame processing skipped:', err);
-            }
+            if (typeof process !== 'undefined' && process?.env?.NODE_ENV === 'development') {
+  console.debug('Frame processing skipped:', err);
+}
           } finally {
             isProcessing = false;
           }
