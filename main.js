@@ -527,9 +527,31 @@
     },
 
     bindEvents() {
+      // 
+      let hasUserGestureBootedCamera = false;
+  const ensureCameraStartedByGesture = async () => {
+    if (hasUserGestureBootedCamera) return;
+    hasUserGestureBootedCamera = true;
+
+    if (window.CameraEngine && window.AppEngine) {
+      await window.CameraEngine.start({
+        onFrame: async () => {
+          await window.AppEngine.sendFrameToPose();
+        },
+        onStarted: () => {
+          const facing = window.CameraEngine.getFacingMode();
+          this.adjustCameraMirror(facing === 'user');
+        },
+        onError: (err) => {
+          console.error('Camera start by gesture failed:', err);
+        }
+      });
+    }
+  };
       // カメラ起動＆イン/外切替
 if (this.elements.btnSwitchCamera) {
   this.elements.btnSwitchCamera.addEventListener('click', async () => {
+    await ensureCameraStartedByGesture(); //
     if (window.CameraEngine && window.AppEngine) {
       this.elements.btnSwitchCamera.disabled = true;
       try {
@@ -558,12 +580,12 @@ if (this.elements.btnSwitchCamera) {
 
       // スタートボタン
       if (this.elements.btnStartTrigger) {
-        this.elements.btnStartTrigger.addEventListener('click', () => {
-          if (window.AppAudio) window.AppAudio.playTap();
-          AppTestOrchestrator.startMeasurementSequence();
-        });
-      }
-
+  this.elements.btnStartTrigger.addEventListener('click', async () => {
+    await ensureCameraStartedByGesture(); // ←追加
+    if (window.AppAudio) window.AppAudio.playTap();
+    AppTestOrchestrator.startMeasurementSequence();
+  });
+}
       // 動的ドリルボタン
       if (this.elements.btnOpenDynamicDrill) {
         this.elements.btnOpenDynamicDrill.addEventListener('click', () => {
